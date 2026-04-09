@@ -91,6 +91,7 @@ model User {
   moderationActions   ModerationAction[]     @relation("ModerationTarget")
   adminActionsTaken   ModerationAction[]     @relation("ModerationAdmin")
   resultEntries       RaceResultEntry[]
+  submittedResults    RaceResult[]
 }
 
 model Session {
