@@ -1,0 +1,22 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchFromApi } from '@/lib/server-api';
+
+export const prerender = false;
+const { leagues } = await fetchFromApi<{ leagues: Array<{ id: string; name: string; slug: string; description: string; region: string; owner: { username: string }; _count: { raceSlots: number } }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
+---
+<BaseLayout title="Leagues | GRID//ONE">
+  <section class="section-shell">
+    <h1 class="section-title">Leagues</h1>
+    <div class="mt-8 grid gap-4 md:grid-cols-2">
+      {leagues.map((league) => (
+        <a href={`/leagues/${league.slug}`} class="panel rounded-2xl p-6 transition hover:-translate-y-1">
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{league.region}</p>
+          <h2 class="mt-2 font-display text-2xl">{league.name}</h2>
+          <p class="mt-2 text-sm text-slate-300">{league.description}</p>
+          <p class="mt-3 text-xs text-slate-400">Owner: {league.owner.username} · {league._count.raceSlots} slots</p>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

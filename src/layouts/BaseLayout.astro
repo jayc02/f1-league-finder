@@ -4,9 +4,11 @@ import SiteHeader from '@/components/layout/SiteHeader.astro';
 import SiteFooter from '@/components/layout/SiteFooter.astro';
 import PageMotion from '@/components/motion/PageMotion';
 import CursorGlow from '@/components/ui/CursorGlow';
+import { getSessionUser } from '@/lib/auth/session';
 
 interface Props { title?: string }
 const { title = 'GRID//ONE | Competitive F1 League Platform' } = Astro.props;
+const sessionUser = await getSessionUser(Astro as never);
 ---
 
 <!doctype html>
@@ -20,8 +22,8 @@ const { title = 'GRID//ONE | Competitive F1 League Platform' } = Astro.props;
   <body>
     <CursorGlow client:load />
     <PageMotion client:load />
-    <SiteHeader />
-    <main>
+    <SiteHeader user={sessionUser} />
+    <main class="pt-24">
       <slot />
     </main>
     <SiteFooter />

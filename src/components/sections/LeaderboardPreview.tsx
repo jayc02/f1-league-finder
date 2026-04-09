@@ -1,18 +1,24 @@
 import { useMemo, useState } from 'react';
-import { leaderboardData } from '@/data/site';
+import type { PublicUser } from '@/server/types/api';
 
-type Tab = keyof typeof leaderboardData;
+type Tab = 'global' | 'honour';
 
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'global', label: 'Global' },
-  { key: 'clean', label: 'Clean Drivers' },
-  { key: 'organisers', label: 'Top Organisers' },
-  { key: 'weekly', label: 'Weekly Movers' }
+  { key: 'global', label: 'Global Skill' },
+  { key: 'honour', label: 'Honour Rank' },
 ];
 
-export default function LeaderboardPreview() {
+interface Props {
+  globalLeaderboard: PublicUser[];
+  honourLeaderboard: PublicUser[];
+}
+
+export default function LeaderboardPreview({ globalLeaderboard, honourLeaderboard }: Props) {
   const [tab, setTab] = useState<Tab>('global');
-  const rows = useMemo(() => leaderboardData[tab], [tab]);
+  const rows = useMemo(
+    () => (tab === 'global' ? globalLeaderboard : honourLeaderboard),
+    [tab, globalLeaderboard, honourLeaderboard],
+  );
 
   return (
     <section id="leaderboards" className="section-shell" data-reveal>
@@ -30,28 +36,28 @@ export default function LeaderboardPreview() {
         ))}
       </div>
       <div className="panel mt-6 overflow-hidden rounded-3xl">
-        <table className="w-full text-sm">
-          <thead className="bg-white/5 text-slate-400">
-            <tr>
-              <th className="px-5 py-3 text-left">Rank</th><th className="text-left">Name</th><th className="text-left">Points</th><th className="text-left">Move</th><th className="text-left">Honour</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.name} className="border-t border-white/10 transition hover:bg-white/5">
-                <td className="px-5 py-4 font-display text-xl text-white">{row.rank}</td>
-                <td>{row.name}</td>
-                <td>{row.points.toLocaleString()}</td>
-                <td className={row.move.startsWith('+') ? 'text-emerald-300' : row.move.startsWith('-') ? 'text-rose-300' : 'text-slate-300'}>{row.move}</td>
-                <td>
-                  <div className="h-2 w-24 rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-slate-300 to-white" style={{ width: `${row.honour}%` }} />
-                  </div>
-                </td>
+        {rows.length ? (
+          <table className="w-full text-sm">
+            <thead className="bg-white/5 text-slate-400">
+              <tr>
+                <th className="px-5 py-3 text-left">Rank</th><th className="text-left">Driver</th><th className="text-left">Rating</th><th className="text-left">Honour</th><th className="text-left">Region</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={row.id} className="border-t border-white/10 transition hover:bg-white/5">
+                  <td className="px-5 py-4 font-display text-xl text-white">{index + 1}</td>
+                  <td>{row.username}</td>
+                  <td>{row.skillRating.toLocaleString()}</td>
+                  <td>{row.honourScore}</td>
+                  <td>{row.region}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="px-6 py-10 text-slate-300">Leaderboard data is loading in as races complete.</p>
+        )}
       </div>
     </section>
   );

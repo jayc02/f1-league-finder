@@ -8,13 +8,24 @@ import HonourSystem from '@/components/sections/HonourSystem';
 import OrganiserShowcase from '@/components/sections/OrganiserShowcase.astro';
 import FeatureStrip from '@/components/sections/FeatureStrip';
 import FinalCTA from '@/components/sections/FinalCTA.astro';
+import { fetchFromApi } from '@/lib/server-api';
+import type { RaceSlotSummary } from '@/lib/api/types';
+import type { PublicUser } from '@/server/types/api';
+
+export const prerender = false;
+
+const slotsResponse = await fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?status=OPEN&limit=6').catch(
+  () => ({ raceSlots: [] }),
+);
+const globalLb = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/global?limit=8').catch(() => ({ leaderboard: [] }));
+const honourLb = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/honour?limit=8').catch(() => ({ leaderboard: [] }));
 ---
 
 <BaseLayout>
   <HeroScene client:load />
-  <SlotShowcase client:idle />
+  <SlotShowcase client:idle raceSlots={slotsResponse.raceSlots} />
   <HowItWorksTimeline client:visible />
-  <LeaderboardPreview client:visible />
+  <LeaderboardPreview client:visible globalLeaderboard={globalLb.leaderboard} honourLeaderboard={honourLb.leaderboard} />
   <HonourSystem client:visible />
   <OrganiserShowcase />
   <FeatureStrip client:visible />
