@@ -1,0 +1,28 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchFromApi } from '@/lib/server-api';
+import type { RaceSlotSummary } from '@/lib/api/types';
+export const prerender = false;
+
+const { raceSlots } = await fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?limit=40').catch(() => ({ raceSlots: [] }));
+---
+<BaseLayout title="Race slots | GRID//ONE">
+  <section class="section-shell">
+    <h1 class="section-title">Race Slots</h1>
+    <p class="mt-3 text-slate-300">Browse all published slots and secure your next grid position.</p>
+    <div class="mt-8 grid gap-4">
+      {raceSlots.length ? raceSlots.map((slot) => (
+        <a href={`/race-slots/${slot.id}`} class="panel rounded-2xl p-5 transition hover:-translate-y-1">
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{slot.league.name} · {slot.status}</p>
+          <h2 class="mt-2 font-display text-2xl text-white">{slot.title}</h2>
+          <div class="mt-3 grid gap-2 text-sm text-slate-300 md:grid-cols-4">
+            <p>{new Date(slot.scheduledAt).toLocaleString()}</p>
+            <p>{slot.region}</p>
+            <p>{slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
+            <p>{slot._count.registrations}/{slot.maxPlayers} entrants</p>
+          </div>
+        </a>
+      )) : <p class="panel rounded-2xl p-6 text-slate-300">No race slots found yet.</p>}
+    </div>
+  </section>
+</BaseLayout>

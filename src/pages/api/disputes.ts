@@ -1,9 +1,30 @@
+export const prerender = false;
+
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db/prisma';
 import { createDisputeSchema } from '@/lib/validation/dispute';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
+
+export const GET: APIRoute = (context) =>
+  withErrorHandling(async () => {
+    const user = await requireUser(context);
+
+    const disputes = await prisma.dispute.findMany({
+      where: {
+        ...(user.role === 'ADMIN' ? {} : { openedById: user.id }),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        raceSlot: { select: { id: true, title: true } },
+        raceResult: { select: { id: true } },
+      },
+      take: 30,
+    });
+
+    return jsonResponse(200, { disputes });
+  });
 
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {

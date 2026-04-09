@@ -1,0 +1,85 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchFromApi } from '@/lib/server-api';
+import { getSessionUser } from '@/lib/auth/session';
+import type { RaceSlotDetail } from '@/lib/api/types';
+import SlotActionPanel from '@/components/race-slots/SlotActionPanel';
+import DisputeForm from '@/components/race-slots/DisputeForm';
+
+export const prerender = false;
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/race-slots');
+
+const currentUser = await getSessionUser(Astro as never);
+const response = await fetchFromApi<{ raceSlot: RaceSlotDetail }>(Astro, `/api/race-slots/${id}`).catch(() => null);
+
+if (!response) {
+  throw new Error('Race slot not found');
+}
+
+const slot = response.raceSlot;
+const userRegistered = Boolean(currentUser && slot.registrations.some((registration) => registration.user.id === currentUser.id));
+const cutoffPassed = new Date(slot.registrationCutoffAt).getTime() <= Date.now();
+const isClosed = cutoffPassed || ['LOCKED', 'COMPLETED', 'CANCELLED'].includes(slot.status);
+const isFull = slot._count.registrations >= slot.maxPlayers;
+---
+<BaseLayout title={`${slot.title} | GRID//ONE`}>
+  <section class="section-shell">
+    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{slot.league.name} · {slot.status}</p>
+    <h1 class="section-title mt-2">{slot.title}</h1>
+    <p class="mt-3 text-slate-300">{slot.formatDetails}</p>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
+      <article class="panel rounded-3xl p-6">
+        <div class="grid gap-3 text-sm text-slate-300 md:grid-cols-2">
+          <p><span class="block text-xs text-slate-500">Scheduled</span>{new Date(slot.scheduledAt).toLocaleString()}</p>
+          <p><span class="block text-xs text-slate-500">Registration cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
+          <p><span class="block text-xs text-slate-500">Region</span>{slot.region}</p>
+          <p><span class="block text-xs text-slate-500">Platform</span>{slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
+          <p><span class="block text-xs text-slate-500">Organiser</span>{slot.organiser.username}</p>
+          <p><span class="block text-xs text-slate-500">Entrants</span>{slot._count.registrations}/{slot.maxPlayers}</p>
+        </div>
+        <p class="mt-5 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">{slot.rulesSummary}</p>
+
+        <h2 class="mt-6 font-display text-2xl">Entrants</h2>
+        <div class="mt-3 grid gap-2 md:grid-cols-2">
+          {slot.registrations.map((entry) => <p class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">{entry.user.username} · SR {entry.user.skillRating}</p>)}
+        </div>
+
+        {slot.result && (
+          <div class="mt-6">
+            <h2 class="font-display text-2xl">Results</h2>
+            <p class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{slot.result.confirmationState}</p>
+            <div class="mt-3 space-y-2">
+              {slot.result.entries.map((entry) => (
+                <div class="flex justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                  <p>P{entry.finishingPosition} · {entry.user.username}</p>
+                  <p>{entry.pointsAwarded} pts · Δ{entry.ratingDelta}</p>
+                </div>
+              ))}
+            </div>
+            {slot.result.evidenceUrl && <a class="mt-3 inline-block text-sm text-white underline" href={slot.result.evidenceUrl} target="_blank">Result evidence</a>}
+          </div>
+        )}
+      </article>
+
+      <aside>
+        <SlotActionPanel
+          client:load
+          raceSlotId={slot.id}
+          isAuthenticated={Boolean(currentUser)}
+          initiallyRegistered={userRegistered}
+          isClosed={isClosed}
+          isFull={isFull}
+        />
+        <DisputeForm
+          client:load
+          raceSlotId={slot.id}
+          raceResultId={slot.result?.id}
+          canSubmit={Boolean(currentUser && (userRegistered || currentUser.role !== 'PLAYER') && slot.result)}
+        />
+      </aside>
+    </div>
+  </section>
+</BaseLayout>
