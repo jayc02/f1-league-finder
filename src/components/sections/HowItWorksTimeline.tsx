@@ -1,8 +1,4 @@
 import { useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const steps = [
   { title: 'Choose a slot', copy: 'Select a region, tier, and assist profile aligned with your pace and setup.' },
@@ -17,22 +13,48 @@ export default function HowItWorksTimeline() {
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
-    const track = wrap.querySelector<HTMLElement>('[data-track]');
-    if (!track) return;
 
-    gsap.to(track, {
-      x: () => -(track.scrollWidth - window.innerWidth + 80),
-      ease: 'none',
-      scrollTrigger: {
-        trigger: wrap,
-        start: 'top top',
-        end: () => `+=${track.scrollWidth}`,
-        pin: true,
-        scrub: 1
-      }
-    });
+    let cancelled = false;
+    let cleanup = () => {};
 
-    return () => ScrollTrigger.getAll().forEach((t) => t.kill());
+    const run = async () => {
+      const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
+        import('gsap'),
+        import('gsap/ScrollTrigger')
+      ]);
+
+      if (cancelled) return;
+
+      gsap.registerPlugin(ScrollTrigger);
+
+      const track = wrap.querySelector<HTMLElement>('[data-track]');
+      if (!track) return;
+
+      const ctx = gsap.context(() => {
+        gsap.to(track, {
+          x: () => -(track.scrollWidth - window.innerWidth + 80),
+          ease: 'none',
+          scrollTrigger: {
+            trigger: wrap,
+            start: 'top top',
+            end: () => `+=${track.scrollWidth}`,
+            pin: true,
+            scrub: 1
+          }
+        });
+      }, wrap);
+
+      cleanup = () => {
+        ctx.revert();
+      };
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
   }, []);
 
   return (
