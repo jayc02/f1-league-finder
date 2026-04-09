@@ -1,4 +1,7 @@
+export const prerender = false;
+
 import type { APIRoute } from 'astro';
+import type { z } from 'zod';
 import { HonourEventType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { submitResultSchema } from '@/lib/validation/results';
@@ -50,7 +53,7 @@ export const POST: APIRoute = (context) =>
     if (slot.status === 'CANCELLED') throw new HttpError(400, 'Cannot submit results for cancelled race slot.');
     if (slot.result) throw new HttpError(409, 'Result already submitted for this slot.');
 
-    const body = await parseBody(context.request, submitResultSchema);
+    const body: z.infer<typeof submitResultSchema> = await parseBody(context.request, submitResultSchema);
 
     const registrationIds = new Set(slot.registrations.map((r) => r.userId));
     const uniqueUsers = new Set(body.entries.map((e) => e.userId));

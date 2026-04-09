@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { APIRoute } from 'astro';
 import { Role } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';

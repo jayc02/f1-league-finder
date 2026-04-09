@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db/prisma';
 import { createDisputeSchema } from '@/lib/validation/dispute';
