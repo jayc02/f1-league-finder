@@ -1,0 +1,29 @@
+---
+import '@/styles/global.css';
+import SiteHeader from '@/components/layout/SiteHeader.astro';
+import SiteFooter from '@/components/layout/SiteFooter.astro';
+import PageMotion from '@/components/motion/PageMotion';
+import CursorGlow from '@/components/ui/CursorGlow';
+
+interface Props { title?: string }
+const { title = 'GRID//ONE | Competitive F1 League Platform' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Premium platform for organised F1 race slots, honour-driven rankings, and league operations." />
+    <title>{title}</title>
+  </head>
+  <body>
+    <CursorGlow client:load />
+    <PageMotion client:load />
+    <SiteHeader />
+    <main>
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

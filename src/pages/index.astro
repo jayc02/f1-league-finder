@@ -1,0 +1,22 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import HeroScene from '@/components/sections/HeroScene';
+import SlotShowcase from '@/components/sections/SlotShowcase';
+import HowItWorksTimeline from '@/components/sections/HowItWorksTimeline';
+import LeaderboardPreview from '@/components/sections/LeaderboardPreview';
+import HonourSystem from '@/components/sections/HonourSystem';
+import OrganiserShowcase from '@/components/sections/OrganiserShowcase.astro';
+import FeatureStrip from '@/components/sections/FeatureStrip';
+import FinalCTA from '@/components/sections/FinalCTA.astro';
+---
+
+<BaseLayout>
+  <HeroScene client:load />
+  <SlotShowcase client:idle />
+  <HowItWorksTimeline client:visible />
+  <LeaderboardPreview client:visible />
+  <HonourSystem client:visible />
+  <OrganiserShowcase />
+  <FeatureStrip client:visible />
+  <FinalCTA />
+</BaseLayout>
