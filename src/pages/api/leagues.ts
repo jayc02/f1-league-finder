@@ -1,3 +1,4 @@
+export const prerender = false;
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db/prisma';
 import { createLeagueSchema } from '@/lib/validation/league';
