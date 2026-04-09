@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  ORGANISER
+  ADMIN
+}
+
+enum Region {
+  EU
+  NA
+  SA
+  APAC
+  MENA
+  GLOBAL
+}
+
+enum PreferredPlatform {
+  PC
+  PLAYSTATION
+  XBOX
+}
+
+enum RaceSlotStatus {
+  DRAFT
+  OPEN
+  FULL
+  LOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum HonourEventType {
+  CLEAN_RACE
+  COMPLAINT_FLAG
+  ORGANISER_PENALTY
+  ADMIN_ADJUSTMENT
+  WARNING
+}
+
+enum ModerationActionType {
+  WARNING
+  HONOUR_ADJUSTMENT
+  SUSPENSION_NOTE
+  RESULT_AMENDMENT
+  DISPUTE_RESOLUTION
+}
+
+model User {
+  id                String              @id @default(cuid())
+  username          String              @unique
+  email             String              @unique
+  passwordHash      String
+  eaIdTag           String?
+  discordTag        String?
+  psnTag            String?
+  xboxTag           String?
+  preferredPlatform PreferredPlatform?
+  region            Region              @default(GLOBAL)
+  bio               String?
+  avatarUrl         String?
+  role              Role                @default(PLAYER)
+  honourScore       Int                 @default(100)
+  skillRating       Int                 @default(1200)
+  suspensionNote    String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  sessions            Session[]
+  organiserProfile    OrganiserProfile?
+  leaguesOwned        League[]               @relation("LeagueOwner")
+  raceSlotsOrganised  RaceSlot[]             @relation("SlotOrganiser")
+  raceRegistrations   RaceRegistration[]
+  disputesOpened      Dispute[]              @relation("DisputeOpenedBy")
+  honourEvents        HonourEvent[]          @relation("HonourSubject")
+  honourEventsApplied HonourEvent[]          @relation("HonourAppliedBy")
+  moderationActions   ModerationAction[]     @relation("ModerationTarget")
+  adminActionsTaken   ModerationAction[]     @relation("ModerationAdmin")
+  resultEntries       RaceResultEntry[]
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model OrganiserProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  displayName    String
+  description    String?
+  brandingColor  String?
+  websiteUrl     String?
+  verified       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leagues   League[]
+  raceSlots RaceSlot[]
+}
+
+model League {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String
+  brandingPrimary   String?
+  brandingSecondary String?
+  region            Region   @default(GLOBAL)
+  active            Boolean  @default(true)
+  ownerId           String
+  organiserProfileId String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  owner            User             @relation("LeagueOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  organiserProfile OrganiserProfile? @relation(fields: [organiserProfileId], references: [id], onDelete: SetNull)
+  raceSlots        RaceSlot[]
+}
+
+model RaceSlot {
+  id                    String         @id @default(cuid())
+  title                 String
+  leagueId              String
+  organiserId           String
+  organiserProfileId    String?
+  scheduledAt           DateTime
+  region                Region         @default(GLOBAL)
+  game                  String         @default("F1")
+  platform              PreferredPlatform?
+  crossplay             Boolean        @default(false)
+  formatDetails         String
+  lobbySettings         Json?
+  maxPlayers            Int
+  status                RaceSlotStatus @default(DRAFT)
+  registrationCutoffAt  DateTime
+  rulesSummary          String
+  stakeTierMetadata     String?
+  cancellationReason    String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  league           League            @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  organiser        User              @relation("SlotOrganiser", fields: [organiserId], references: [id], onDelete: Restrict)
+  organiserProfile OrganiserProfile? @relation(fields: [organiserProfileId], references: [id], onDelete: SetNull)
+  registrations    RaceRegistration[]
+  result           RaceResult?
+  disputes         Dispute[]
+  honourEvents     HonourEvent[]
+
+  @@index([leagueId, scheduledAt])
+  @@index([status, scheduledAt])
+}
+
+model RaceRegistration {
+  id         String   @id @default(cuid())
+  raceSlotId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  raceSlot RaceSlot @relation(fields: [raceSlotId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([raceSlotId, userId])
+  @@index([userId, createdAt])
+}
+
+model RaceResult {
+  id             String    @id @default(cuid())
+  raceSlotId     String    @unique
+  submittedById  String
+  notes          String?
+  evidenceUrl    String?
+  confirmationState String  @default("submitted")
+  submittedAt    DateTime  @default(now())
+  confirmedAt    DateTime?
+  amendedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  raceSlot     RaceSlot          @relation(fields: [raceSlotId], references: [id], onDelete: Cascade)
+  submittedBy  User              @relation(fields: [submittedById], references: [id], onDelete: Restrict)
+  entries      RaceResultEntry[]
+  disputes     Dispute[]
+  honourEvents HonourEvent[]
+}
+
+model RaceResultEntry {
+  id            String   @id @default(cuid())
+  raceResultId  String
+  userId        String
+  finishingPosition Int
+  pointsAwarded Int
+  ratingDelta   Int      @default(0)
+  honourDelta   Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  raceResult RaceResult @relation(fields: [raceResultId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([raceResultId, userId])
+  @@unique([raceResultId, finishingPosition])
+}
+
+model HonourEvent {
+  id             String          @id @default(cuid())
+  userId         String
+  raceSlotId     String?
+  raceResultId   String?
+  type           HonourEventType
+  delta          Int
+  reason         String
+  warningIssued  Boolean         @default(false)
+  metadata       Json?
+  appliedById    String?
+  createdAt      DateTime        @default(now())
+
+  user       User       @relation("HonourSubject", fields: [userId], references: [id], onDelete: Cascade)
+  appliedBy  User?      @relation("HonourAppliedBy", fields: [appliedById], references: [id], onDelete: SetNull)
+  raceSlot   RaceSlot?   @relation(fields: [raceSlotId], references: [id], onDelete: SetNull)
+  raceResult RaceResult? @relation(fields: [raceResultId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model Dispute {
+  id              String       @id @default(cuid())
+  raceSlotId      String
+  raceResultId    String?
+  openedById      String
+  reason          String
+  details         String?
+  status          DisputeStatus @default(OPEN)
+  adminNotes      String?
+  resolutionNotes String?
+  resolvedAt      DateTime?
+  resolvedById    String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  raceSlot   RaceSlot    @relation(fields: [raceSlotId], references: [id], onDelete: Cascade)
+  raceResult RaceResult? @relation(fields: [raceResultId], references: [id], onDelete: SetNull)
+  openedBy   User        @relation("DisputeOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+}
+
+model ModerationAction {
+  id          String               @id @default(cuid())
+  actionType  ModerationActionType
+  targetUserId String
+  adminId     String
+  disputeId   String?
+  raceSlotId  String?
+  notes       String
+  metadata    Json?
+  createdAt   DateTime             @default(now())
+
+  targetUser User @relation("ModerationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  admin      User @relation("ModerationAdmin", fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId, createdAt])
+}
