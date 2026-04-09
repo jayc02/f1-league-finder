@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { APIRoute } from 'astro';
 import { destroySession } from '@/lib/auth/session';
 import { jsonResponse } from '@/lib/utils/http';

@@ -1,0 +1,10 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import AuthForm from '@/components/auth/AuthForm';
+export const prerender = false;
+---
+<BaseLayout title="Sign in | GRID//ONE">
+  <section class="section-shell">
+    <AuthForm client:load mode="login" />
+  </section>
+</BaseLayout>

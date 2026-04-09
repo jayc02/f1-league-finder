@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db/prisma';
 import { getNumericLimit, withErrorHandling } from '@/lib/utils/handlers';

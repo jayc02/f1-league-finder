@@ -1,0 +1,48 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchFromApi } from '@/lib/server-api';
+
+export const prerender = false;
+const slug = Astro.params.slug;
+if (!slug) return Astro.redirect('/leagues');
+
+const leagueData = await fetchFromApi<{ league: { id: string; name: string; description: string; region: string; owner: { username: string }; raceSlots: Array<{ id: string; title: string; status: string; scheduledAt: string; _count: { registrations: number } }> } }>(Astro, `/api/leagues/${slug}`).catch(() => null);
+const standingsData = await fetchFromApi<{ standings: Array<{ id: string; username: string; points: number; skillRating: number }> }>(Astro, `/api/leagues/${slug}/standings`).catch(() => ({ standings: [] }));
+---
+<BaseLayout title={`${leagueData?.league.name ?? 'League'} | GRID//ONE`}>
+  <section class="section-shell">
+    {leagueData ? (
+      <>
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{leagueData.league.region}</p>
+        <h1 class="section-title mt-2">{leagueData.league.name}</h1>
+        <p class="mt-3 max-w-3xl text-slate-300">{leagueData.league.description}</p>
+        <p class="mt-2 text-sm text-slate-400">Organiser: {leagueData.league.owner.username}</p>
+
+        <div class="mt-8 grid gap-6 lg:grid-cols-2">
+          <div class="panel rounded-2xl p-5">
+            <h2 class="font-display text-2xl">Upcoming & Recent Slots</h2>
+            <div class="mt-3 space-y-2">
+              {leagueData.league.raceSlots.map((slot) => (
+                <a class="block rounded-xl border border-white/10 bg-white/5 px-3 py-2" href={`/race-slots/${slot.id}`}>
+                  <p class="text-sm text-white">{slot.title}</p>
+                  <p class="text-xs text-slate-400">{slot.status} · {new Date(slot.scheduledAt).toLocaleString()} · {slot._count.registrations} entrants</p>
+                </a>
+              ))}
+            </div>
+          </div>
+          <div class="panel rounded-2xl p-5">
+            <h2 class="font-display text-2xl">League Standings</h2>
+            {standingsData.standings.length ? standingsData.standings.map((entry, idx) => (
+              <div class="mt-2 flex justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                <p>#{idx + 1} {entry.username}</p>
+                <p>{entry.points} pts</p>
+              </div>
+            )) : <p class="mt-3 text-sm text-slate-300">Standings appear after completed race results.</p>}
+          </div>
+        </div>
+      </>
+    ) : (
+      <div class="panel rounded-2xl p-8"><h1 class="font-display text-3xl">League not found</h1></div>
+    )}
+  </section>
+</BaseLayout>
