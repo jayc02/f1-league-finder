@@ -1,0 +1,46 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getSessionUser } from '@/lib/auth/session';
+import { fetchFromApi } from '@/lib/server-api';
+import RaceSlotEditorForm from '@/components/dashboard/RaceSlotEditorForm';
+import type { RaceSlotDetail } from '@/lib/api/types';
+
+export const prerender = false;
+const user = await getSessionUser(Astro as never);
+const id = Astro.params.id;
+if (!user || !id || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect('/login');
+
+const leaguesResponse = await fetchFromApi<{ leagues: Array<{ id: string; name: string; ownerId: string }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
+const slotResponse = await fetchFromApi<{ raceSlot: RaceSlotDetail }>(Astro, `/api/race-slots/${id}`).catch(() => null);
+if (!slotResponse) return Astro.redirect('/dashboard');
+
+const leagues = user.role === 'ADMIN' ? leaguesResponse.leagues : leaguesResponse.leagues.filter((league) => league.ownerId === user.id);
+const slot = slotResponse.raceSlot;
+
+const dtLocal = (iso: string) => new Date(iso).toISOString().slice(0, 16);
+---
+<BaseLayout title="Edit race slot | GRID//ONE">
+  <section class="section-shell">
+    <h1 class="section-title">Edit race slot</h1>
+    <div class="mt-6">
+      <RaceSlotEditorForm
+        client:load
+        slotId={slot.id}
+        leagues={leagues.map(({ id: leagueId, name }) => ({ id: leagueId, name }))}
+        defaults={{
+          title: slot.title,
+          leagueId: slot.league.id,
+          scheduledAt: dtLocal(slot.scheduledAt),
+          registrationCutoffAt: dtLocal(slot.registrationCutoffAt),
+          maxPlayers: slot.maxPlayers,
+          region: slot.region,
+          platform: slot.platform,
+          crossplay: slot.crossplay,
+          formatDetails: slot.formatDetails,
+          rulesSummary: slot.rulesSummary,
+          stakeTierMetadata: slot.stakeTierMetadata,
+        }}
+      />
+    </div>
+  </section>
+</BaseLayout>

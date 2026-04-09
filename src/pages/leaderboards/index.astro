@@ -1,0 +1,29 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchFromApi } from '@/lib/server-api';
+import type { PublicUser } from '@/server/types/api';
+
+export const prerender = false;
+const global = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/global?limit=100').catch(() => ({ leaderboard: [] }));
+const honour = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/honour?limit=100').catch(() => ({ leaderboard: [] }));
+---
+<BaseLayout title="Leaderboards | GRID//ONE">
+  <section class="section-shell">
+    <h1 class="section-title">Leaderboards</h1>
+    <div class="mt-8 grid gap-6 lg:grid-cols-2">
+      {[{ label: 'Global Skill', rows: global.leaderboard, field: 'skillRating' }, { label: 'Honour', rows: honour.leaderboard, field: 'honourScore' }].map((board) => (
+        <div class="panel rounded-3xl p-5">
+          <h2 class="font-display text-2xl">{board.label}</h2>
+          <div class="mt-3 space-y-2">
+            {board.rows.map((user, index) => (
+              <div class="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <p class="text-sm">#{index + 1} {user.username}</p>
+                <p class="text-sm text-slate-300">{board.field === 'skillRating' ? user.skillRating : user.honourScore}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
