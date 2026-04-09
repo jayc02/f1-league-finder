@@ -1,0 +1,17 @@
+<section id="organisers" class="section-shell" data-reveal>
+  <p class="text-xs uppercase tracking-[0.25em] text-slate-400">For organisers and leagues</p>
+  <h2 class="section-title mt-3">Operate premium race programs with less overhead.</h2>
+  <div class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    {[
+      ['Slot control', 'Open, tier, and region templates with one command panel.'],
+      ['Results integrity', 'Post-race logs, protest windows, and finalised standings.'],
+      ['Roster quality', 'Filter by honour score to protect lobby standards.'],
+      ['Visibility boost', 'Feature leagues in curated discovery streams.']
+    ].map(([title, text]) => (
+      <article class="panel rounded-2xl p-6 transition hover:-translate-y-2">
+        <h3 class="font-display text-2xl text-white">{title}</h3>
+        <p class="mt-3 text-slate-300">{text}</p>
+      </article>
+    ))}
+  </div>
+</section>

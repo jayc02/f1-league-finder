@@ -1,0 +1,14 @@
+---
+import { navItems } from '@/data/site';
+import MagneticButton from '../ui/MagneticButton';
+---
+
+<header class="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-black/30 backdrop-blur-xl" data-header>
+  <div class="mx-auto flex w-[min(1280px,94vw)] items-center justify-between py-4">
+    <a href="#" class="font-display text-lg tracking-[0.24em] text-white">GRID//ONE</a>
+    <nav class="hidden gap-7 text-sm text-slate-300 md:flex">
+      {navItems.map((item) => <a href={item.href} class="transition hover:text-white">{item.label}</a>)}
+    </nav>
+    <MagneticButton client:load href="#final-cta" variant="ghost">Request Access</MagneticButton>
+  </div>
+</header>
