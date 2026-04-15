@@ -29,7 +29,7 @@ const [upcomingRegistrations, previousEntries, upcomingEvents, recentActivity, p
     take: 6,
   }),
   prisma.raceSlot.findMany({
-    where: { scheduledAt: { gte: now }, status: { in: ['OPEN', 'FULL'] }, visibility: 'PUBLIC' },
+    where: { scheduledAt: { gte: now }, status: { in: ['OPEN', 'FULL'] } },
     include: { league: { select: { name: true } }, _count: { select: { registrations: true } } },
     orderBy: { scheduledAt: 'asc' },
     take: 6,
