@@ -3,7 +3,7 @@ import { features } from '@/data/site';
 export default function FeatureStrip() {
   const repeated = [...features, ...features];
   return (
-    <section className="overflow-hidden border-y border-white/10 bg-white/[0.03] py-7" data-reveal>
+    <section className="overflow-hidden border-y border-white/[0.04] bg-transparent py-7" data-reveal>
       <div className="animate-[marquee_26s_linear_infinite] whitespace-nowrap">
         {repeated.map((item, idx) => (
           <span key={`${item}-${idx}`} className="mx-6 inline-flex items-center text-sm uppercase tracking-[0.18em] text-slate-300">
