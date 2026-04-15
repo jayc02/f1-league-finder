@@ -58,7 +58,7 @@ export default function HowItWorksTimeline() {
   }, []);
 
   return (
-    <section id="how" ref={wrapRef} className="relative h-[110vh] overflow-hidden border-y border-white/10 bg-black/30" data-reveal>
+    <section id="how" ref={wrapRef} className="relative h-[110vh] overflow-hidden border-y border-white/[0.04] bg-transparent" data-reveal>
       <div className="flex h-full items-center gap-8 px-[6vw]" data-track>
         {steps.map((step, i) => (
           <article key={step.title} className="panel w-[80vw] max-w-[540px] flex-none rounded-3xl p-10 md:w-[48vw]">
