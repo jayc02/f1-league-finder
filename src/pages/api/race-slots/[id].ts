@@ -8,6 +8,9 @@ import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
 import { getSessionUser } from '@/lib/auth/session';
 
+const isUnknownFieldError = (error: unknown, field: string) =>
+  error instanceof Error && error.message.includes(`Unknown argument \`${field}\``);
+
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
     const id = context.params.id;
@@ -43,11 +46,14 @@ export const GET: APIRoute = (context) =>
     if (!slot) throw new HttpError(404, 'Race slot not found.');
 
     const canViewPrivate = Boolean(sessionUser && (sessionUser.role === 'ADMIN' || sessionUser.id === slot.organiserId));
-    if (slot.visibility === 'PRIVATE' && !canViewPrivate) {
+    const slotVisibility = (slot as { visibility?: string }).visibility;
+    const slotStatus = slot.status;
+
+    if (slotVisibility === 'PRIVATE' && !canViewPrivate) {
       throw new HttpError(403, 'This event is private.');
     }
 
-    if (slot.visibility === 'UNLISTED' && !canViewPrivate && slot.status === 'DRAFT') {
+    if (slotVisibility === 'UNLISTED' && !canViewPrivate && slotStatus === 'DRAFT') {
       throw new HttpError(403, 'This event is not published yet.');
     }
 
@@ -79,7 +85,16 @@ export const PATCH: APIRoute = (context) =>
       throw new HttpError(400, 'maxPlayers cannot be below current registrations.');
     }
 
-    const updated = await prisma.raceSlot.update({ where: { id }, data: body });
+    try {
+      const updated = await prisma.raceSlot.update({ where: { id }, data: body });
+      return jsonResponse(200, { raceSlot: updated });
+    } catch (error) {
+      if (!isUnknownFieldError(error, 'track') && !isUnknownFieldError(error, 'eventNotes') && !isUnknownFieldError(error, 'visibility')) {
+        throw error;
+      }
 
-    return jsonResponse(200, { raceSlot: updated });
+      const { track: _track, eventNotes: _eventNotes, visibility: _visibility, ...legacyBody } = body;
+      const updated = await prisma.raceSlot.update({ where: { id }, data: legacyBody });
+      return jsonResponse(200, { raceSlot: updated });
+    }
   });
