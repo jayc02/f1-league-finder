@@ -1,0 +1,71 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getSessionUser } from '@/lib/auth/session';
+import { prisma } from '@/lib/db/prisma';
+
+export const prerender = false;
+
+const user = await getSessionUser(Astro as never);
+if (!user) return Astro.redirect('/login');
+
+const [history, registrations, cleanRaces, wins, podiums] = await Promise.all([
+  prisma.raceResultEntry.findMany({
+    where: { userId: user.id },
+    include: { raceResult: { select: { submittedAt: true, raceSlot: { select: { title: true, id: true } } } } },
+    orderBy: { raceResult: { submittedAt: 'desc' } },
+    take: 8,
+  }),
+  prisma.raceRegistration.count({ where: { userId: user.id } }),
+  prisma.honourEvent.count({ where: { userId: user.id, type: 'CLEAN_RACE', delta: { gt: 0 } } }),
+  prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: 1 } }),
+  prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: { lte: 3 } } }),
+]);
+---
+<BaseLayout title="Profile | GRID//ONE">
+  <section class="section-shell">
+    <div class="grid gap-6 xl:grid-cols-[360px_1fr]">
+      <aside class="panel rounded-3xl p-6">
+        <img src={user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`} alt={`${user.username} avatar`} class="h-24 w-24 rounded-2xl border border-white/20 object-cover" />
+        <h1 class="mt-4 font-display text-3xl">{user.username}</h1>
+        <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{user.role} · {user.region ?? 'GLOBAL'}</p>
+        <p class="mt-4 text-sm text-slate-300">{user.bio ?? 'No bio added yet. Add your racecraft profile and preferred style.'}</p>
+        <div class="mt-5 grid grid-cols-2 gap-2 text-sm">
+          <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-xs text-slate-400">SR</span>{user.skillRating}</p>
+          <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-xs text-slate-400">Honour</span>{user.honourScore}</p>
+          <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-xs text-slate-400">Platform</span>{user.preferredPlatform ?? 'Unset'}</p>
+          <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-xs text-slate-400">Entries</span>{registrations}</p>
+        </div>
+        <a href="/profile/edit" class="mt-5 inline-flex rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Edit profile</a>
+      </aside>
+
+      <div class="space-y-6">
+        <article class="panel rounded-3xl p-6">
+          <h2 class="font-display text-2xl">Performance Snapshot</h2>
+          <div class="mt-4 grid gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Wins</p><p class="mt-2 font-display text-3xl">{wins}</p></div>
+            <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Podiums</p><p class="mt-2 font-display text-3xl">{podiums}</p></div>
+            <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Clean Finishes</p><p class="mt-2 font-display text-3xl">{cleanRaces}</p></div>
+          </div>
+        </article>
+
+        <article class="panel rounded-3xl p-6">
+          <h2 class="font-display text-2xl">Racing History</h2>
+          <div class="mt-4 space-y-2">
+            {history.length ? history.map((entry) => (
+              <a href={`/race-slots/${entry.raceResult.raceSlot.id}`} class="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/40">
+                <div>
+                  <p class="font-medium text-white">{entry.raceResult.raceSlot.title}</p>
+                  <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{new Date(entry.raceResult.submittedAt).toLocaleDateString()}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm font-semibold text-white">P{entry.finishingPosition}</p>
+                  <p class="text-xs text-slate-400">{entry.pointsAwarded} pts · Δ{entry.ratingDelta}</p>
+                </div>
+              </a>
+            )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No race results yet.</p>}
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
