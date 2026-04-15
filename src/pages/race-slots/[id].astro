@@ -30,48 +30,129 @@ const userRegistered = Boolean(currentUser && slot.registrations.some((registrat
 const cutoffPassed = new Date(slot.registrationCutoffAt).getTime() <= Date.now();
 const isClosed = cutoffPassed || ['LOCKED', 'COMPLETED', 'CANCELLED'].includes(slot.status);
 const isFull = slot._count.registrations >= slot.maxPlayers;
+const slotFillPercent = Math.min(100, Math.round((slot._count.registrations / slot.maxPlayers) * 100));
+const topResult = slot.result?.entries[0] ?? null;
+
+const statusTone: Record<string, string> = {
+  SCHEDULED: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100',
+  LOCKED: 'border-amber-300/30 bg-amber-500/10 text-amber-100',
+  COMPLETED: 'border-sky-300/30 bg-sky-500/10 text-sky-100',
+  CANCELLED: 'border-rose-300/30 bg-rose-500/10 text-rose-100',
+};
+
+const rankTone = (position: number) => {
+  if (position === 1) return 'border-amber-300/40 bg-amber-500/12';
+  if (position === 2) return 'border-slate-300/40 bg-slate-400/10';
+  if (position === 3) return 'border-orange-300/35 bg-orange-500/10';
+  return 'border-white/10 bg-white/[0.03]';
+};
 ---
 <BaseLayout title={`${slot.title} | GRID//ONE`}>
   <section class="section-shell">
-    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{slot.league.name} · {slot.status}</p>
-    <h1 class="section-title mt-2">{slot.title}</h1>
-    <p class="mt-3 text-slate-300">{slot.formatDetails}</p>
-
-    <div class="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-      <article class="panel rounded-3xl p-6">
-        <div class="grid gap-3 text-sm text-slate-300 md:grid-cols-2">
-          <p><span class="block text-xs text-slate-500">Scheduled</span>{new Date(slot.scheduledAt).toLocaleString()}</p>
-          <p><span class="block text-xs text-slate-500">Registration cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
-          <p><span class="block text-xs text-slate-500">Region</span>{slot.region}</p>
-          <p><span class="block text-xs text-slate-500">Platform</span>{slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
-          <p><span class="block text-xs text-slate-500">Organiser</span>{slot.organiser.username}</p>
-          <p><span class="block text-xs text-slate-500">Entrants</span>{slot._count.registrations}/{slot.maxPlayers}</p>
+    <article class="panel rounded-3xl p-6 md:p-8">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-[0.22em] text-slate-400">{slot.league.name} · Race Slot</p>
+          <h1 class="section-title mt-3 text-3xl md:text-5xl">{slot.title}</h1>
+          <p class="mt-3 max-w-3xl text-sm text-slate-300">{slot.formatDetails}</p>
         </div>
-        <p class="mt-5 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">{slot.rulesSummary}</p>
+        <span class:list={['rounded-full border px-4 py-2 text-[11px] uppercase tracking-[0.2em]', statusTone[slot.status] ?? 'border-white/20 bg-white/10 text-white']}>
+          {slot.status}
+        </span>
+      </div>
 
-        <h2 class="mt-6 font-display text-2xl">Entrants</h2>
-        <div class="mt-3 grid gap-2 md:grid-cols-2">
-          {slot.registrations.map((entry) => <p class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">{entry.user.username} · SR {entry.user.skillRating}</p>)}
+      <div class="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Scheduled</span>{new Date(slot.scheduledAt).toLocaleString()}</p>
+        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Registration cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
+        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Region</span>{slot.region}</p>
+        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Platform</span>{slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
+        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Organiser</span>{slot.organiser.username}</p>
+      </div>
+
+      <div class="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div class="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
+          <p>Grid Capacity</p>
+          <p>{slot._count.registrations}/{slot.maxPlayers} entrants</p>
         </div>
+        <div class="mt-3 h-2 rounded-full bg-white/10">
+          <div class="h-full rounded-full bg-gradient-to-r from-white to-slate-400" style={`width:${slotFillPercent}%`} />
+        </div>
+      </div>
+    </article>
 
-        {slot.result && (
-          <div class="mt-6">
-            <h2 class="font-display text-2xl">Results</h2>
-            <p class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">{slot.result.confirmationState}</p>
-            <div class="mt-3 space-y-2">
-              {slot.result.entries.map((entry) => (
-                <div class="flex justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
-                  <p>P{entry.finishingPosition} · {entry.user.username}</p>
-                  <p>{entry.pointsAwarded} pts · Δ{entry.ratingDelta}</p>
-                </div>
-              ))}
-            </div>
-            {slot.result.evidenceUrl && <a class="mt-3 inline-block text-sm text-white underline" href={slot.result.evidenceUrl} target="_blank">Result evidence</a>}
+    <div class="mt-8 grid gap-6 xl:grid-cols-[1.4fr_360px]">
+      <div class="space-y-6">
+        <article class="panel rounded-3xl p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 class="font-display text-2xl">Entrants Roster</h2>
+            <p class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">{slot._count.registrations} confirmed</p>
           </div>
-        )}
-      </article>
+          <p class="mt-2 text-sm text-slate-400">Grid ordered by registration sequence with live SR and honour context.</p>
 
-      <aside>
+          <div class="mt-5 grid gap-3 md:grid-cols-2">
+            {slot.registrations.map((entry, index) => (
+              <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35 hover:bg-white/[0.06]">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <img src={entry.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.user.username}`} alt={`${entry.user.username} avatar`} class="h-11 w-11 rounded-xl border border-white/10 bg-black/30 object-cover" />
+                    <div>
+                      <p class="font-semibold text-white">{entry.user.username}</p>
+                      <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Seed #{index + 1}</p>
+                    </div>
+                  </div>
+                  <p class="rounded-full border border-white/15 bg-black/35 px-2 py-1 text-[11px] uppercase tracking-[0.16em] text-slate-300">Grid {index + 1}</p>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">SR</span>{entry.user.skillRating}</p>
+                  <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">Honour</span>{entry.user.honourScore}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {!slot.registrations.length && <p class="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">No entrants yet. Registration is open until cutoff.</p>}
+        </article>
+
+        <article class="panel rounded-3xl p-6">
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="font-display text-2xl">Race Results</h2>
+            <p class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">
+              {slot.result ? slot.result.confirmationState : 'Awaiting submission'}
+            </p>
+          </div>
+
+          {slot.result ? (
+            <>
+              {topResult && (
+                <div class="mt-4 rounded-2xl border border-amber-300/35 bg-gradient-to-r from-amber-500/20 to-transparent p-4">
+                  <p class="text-xs uppercase tracking-[0.2em] text-amber-100/80">Event Winner</p>
+                  <p class="mt-2 font-display text-3xl text-white">{topResult.user.username}</p>
+                  <p class="mt-1 text-sm text-amber-100/90">P1 · {topResult.pointsAwarded} pts · {topResult.ratingDelta >= 0 ? '+' : ''}{topResult.ratingDelta} SR</p>
+                </div>
+              )}
+
+              <div class="mt-4 space-y-2">
+                {slot.result.entries.map((entry) => (
+                  <article class:list={['grid gap-3 rounded-2xl border px-4 py-3 transition hover:border-white/35 md:grid-cols-[90px_minmax(180px,1.6fr)_repeat(3,minmax(70px,1fr))] md:items-center', rankTone(entry.finishingPosition)]}>
+                    <p class="text-lg font-semibold text-white">P{entry.finishingPosition}</p>
+                    <p class="font-medium text-white">{entry.user.username}</p>
+                    <p class="text-sm text-slate-200">{entry.pointsAwarded} pts</p>
+                    <p class="text-sm text-slate-200">{entry.ratingDelta >= 0 ? '+' : ''}{entry.ratingDelta} SR</p>
+                    <p class="text-sm text-slate-200">{entry.honourDelta >= 0 ? '+' : ''}{entry.honourDelta} honour</p>
+                  </article>
+                ))}
+              </div>
+
+              {slot.result.notes && <p class="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">{slot.result.notes}</p>}
+              {slot.result.evidenceUrl && <a class="mt-4 inline-flex rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.18em] text-slate-100 transition hover:border-white/40" href={slot.result.evidenceUrl} target="_blank">Result evidence</a>}
+            </>
+          ) : (
+            <p class="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">Results are not published yet. Once confirmed by the organiser, finishing positions and rating movement will appear here.</p>
+          )}
+        </article>
+      </div>
+
+      <aside class="space-y-4">
         <SlotActionPanel
           client:load
           raceSlotId={slot.id}
@@ -79,7 +160,17 @@ const isFull = slot._count.registrations >= slot.maxPlayers;
           initiallyRegistered={userRegistered}
           isClosed={isClosed}
           isFull={isFull}
+          status={slot.status}
+          registrationCutoffAt={slot.registrationCutoffAt}
+          entrants={slot._count.registrations}
+          maxPlayers={slot.maxPlayers}
         />
+
+        <article class="panel rounded-3xl p-5">
+          <h3 class="font-display text-xl">Rules & Notes</h3>
+          <p class="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">{slot.rulesSummary}</p>
+        </article>
+
         <DisputeForm
           client:load
           raceSlotId={slot.id}
