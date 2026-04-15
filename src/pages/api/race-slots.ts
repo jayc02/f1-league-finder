@@ -10,15 +10,20 @@ export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
     const status = context.url.searchParams.get('status');
     const leagueId = context.url.searchParams.get('leagueId');
+    const organiserSlug = context.url.searchParams.get('organiser');
 
     const slots = await prisma.raceSlot.findMany({
       where: {
         ...(status ? { status: status as never } : {}),
         ...(leagueId ? { leagueId } : {}),
+        ...(organiserSlug ? { organiserProfile: { slug: organiserSlug } } : {}),
+        visibility: 'PUBLIC',
+        NOT: { status: 'DRAFT' },
       },
       include: {
         league: { select: { id: true, name: true, slug: true } },
         organiser: { select: { id: true, username: true } },
+        organiserProfile: { select: { id: true, slug: true, displayName: true, logoUrl: true } },
         _count: { select: { registrations: true } },
       },
       orderBy: { scheduledAt: 'asc' },
@@ -52,6 +57,7 @@ export const POST: APIRoute = (context) =>
         organiserId: user.id,
         organiserProfileId: organiserProfile?.id,
         status: body.status ?? 'DRAFT',
+        visibility: body.visibility ?? 'PUBLIC',
       },
       include: { _count: { select: { registrations: true } } },
     });
