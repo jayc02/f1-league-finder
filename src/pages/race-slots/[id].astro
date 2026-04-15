@@ -12,13 +12,20 @@ const id = Astro.params.id;
 if (!id) return Astro.redirect('/race-slots');
 
 const currentUser = await getSessionUser(Astro as never);
-const response = await fetchFromApi<{ raceSlot: RaceSlotDetail }>(Astro, `/api/race-slots/${id}`).catch(() => null);
+const response = await fetchFromApi<{ raceSlot?: RaceSlotDetail }>(Astro, `/api/race-slots/${id}`).catch(() => null);
 
-if (!response) {
-  throw new Error('Race slot not found');
+if (!response?.raceSlot) {
+  throw new Error('Race slot response is missing raceSlot payload.');
 }
 
 const slot = response.raceSlot;
+if (!Array.isArray(slot.registrations)) {
+  throw new Error('Race slot payload is missing registrations.');
+}
+if (typeof slot._count?.registrations !== 'number') {
+  throw new Error('Race slot payload is missing registration count.');
+}
+
 const userRegistered = Boolean(currentUser && slot.registrations.some((registration) => registration.user.id === currentUser.id));
 const cutoffPassed = new Date(slot.registrationCutoffAt).getTime() <= Date.now();
 const isClosed = cutoffPassed || ['LOCKED', 'COMPLETED', 'CANCELLED'].includes(slot.status);

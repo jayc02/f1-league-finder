@@ -25,6 +25,7 @@ export const GET: APIRoute = (context) =>
           },
           orderBy: { createdAt: 'asc' },
         },
+        _count: { select: { registrations: true } },
         result: {
           include: {
             entries: {

@@ -1,5 +1,4 @@
 ---
-import { navItems } from '@/data/site';
 import type { SessionUser } from '@/lib/api/types';
 import AuthNav from './AuthNav';
 
@@ -9,17 +8,16 @@ interface Props {
 
 const { user } = Astro.props;
 const appNav = [
-  ...navItems,
   { label: 'Race Slots', href: '/race-slots' },
   { label: 'Leaderboards', href: '/leaderboards' },
   { label: 'Leagues', href: '/leagues' },
 ];
 ---
 
-<header class="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-black/30 backdrop-blur-xl" data-header>
+<header class="fixed left-0 top-0 z-50 w-full border-b border-white/[0.05] bg-black/35 backdrop-blur-xl" data-header>
   <div class="mx-auto flex w-[min(1280px,94vw)] items-center justify-between gap-4 py-4">
     <a href="/" class="font-display text-lg tracking-[0.24em] text-white">GRID//ONE</a>
-    <nav class="hidden gap-6 text-sm text-slate-300 lg:flex">
+    <nav class="hidden gap-7 text-sm text-slate-200/90 lg:flex">
       {appNav.map((item) => <a href={item.href} class="transition hover:text-white">{item.label}</a>)}
     </nav>
     <AuthNav client:load user={user} />
