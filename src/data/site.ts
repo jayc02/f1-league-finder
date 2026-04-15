@@ -1,10 +1,3 @@
-export const navItems = [
-  { label: 'Slots', href: '#slots' },
-  { label: 'System', href: '#how' },
-  { label: 'Leaderboards', href: '#leaderboards' },
-  { label: 'Organisers', href: '#organisers' }
-];
-
 export const raceSlots = [
   {
     event: 'Bahrain Night Sprint',

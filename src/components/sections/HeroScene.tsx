@@ -62,10 +62,10 @@ export default function HeroScene() {
         src="/output.mp4"
         aria-hidden="true"
       />
-      <div className="absolute inset-0 z-10 bg-black/30" aria-hidden="true" />
+      <div className="absolute inset-0 z-10 bg-slate-950/25" aria-hidden="true" />
       <canvas ref={canvasRef} className="absolute inset-0 z-[15] opacity-80" aria-hidden="true" />
       <div className="absolute inset-0 z-20 bg-[radial-gradient(circle_at_70%_20%,rgba(181,31,47,.2),transparent_42%)]" aria-hidden="true" />
-      <div className="pointer-events-none absolute bottom-0 left-0 z-20 h-44 w-full bg-gradient-to-b from-transparent to-[#06070a]" aria-hidden="true" />
+      <div className="pointer-events-none absolute bottom-0 left-0 z-20 h-44 w-full bg-gradient-to-b from-transparent to-[#182235]" aria-hidden="true" />
       <div className="section-shell relative z-30 grid min-h-[78vh] content-end gap-10 pb-12">
         <div className="space-y-8">
           <p className="max-w-fit border border-white/20 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">Competitive F1 Operations Platform</p>
@@ -82,8 +82,8 @@ export default function HeroScene() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <MagneticButton href="#slots" variant="solid">Enter Race Calendar</MagneticButton>
-          <MagneticButton href="#how" variant="ghost">How the system works</MagneticButton>
+          <MagneticButton href="/race-slots" variant="solid">Enter Race Calendar</MagneticButton>
+          <MagneticButton href="/leagues" variant="ghost">Explore league tools</MagneticButton>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
