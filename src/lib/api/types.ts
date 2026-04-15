@@ -19,9 +19,36 @@ export interface LeagueSummary {
   slug: string;
 }
 
+export interface CommunitySummary {
+  id: string;
+  slug: string;
+  displayName: string;
+  shortDescription?: string | null;
+  description?: string | null;
+  brandingColor?: string | null;
+  logoUrl?: string | null;
+  bannerUrl?: string | null;
+  region: string;
+  platformFocus?: string | null;
+  gameFocus?: string | null;
+  tags: string[];
+  verified: boolean;
+  featured: boolean;
+  displayedMemberCount: number;
+  memberCountSource: string;
+  discordUrl?: string | null;
+  redditUrl?: string | null;
+  websiteUrl?: string | null;
+  socials?: Record<string, string> | null;
+  _count: { raceSlots: number };
+}
+
 export interface RaceSlotSummary {
   id: string;
   title: string;
+  track?: string | null;
+  eventNotes?: string | null;
+  visibility: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
   scheduledAt: string;
   status: string;
   maxPlayers: number;
@@ -34,6 +61,7 @@ export interface RaceSlotSummary {
   stakeTierMetadata?: string | null;
   league: LeagueSummary;
   organiser: { id: string; username: string };
+  organiserProfile?: { id: string; slug: string; displayName: string; logoUrl?: string | null } | null;
   _count: { registrations: number };
 }
 

@@ -11,10 +11,10 @@ if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect(
 const leaguesResponse = await fetchFromApi<{ leagues: Array<{ id: string; name: string; ownerId: string }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
 const leagues = user.role === 'ADMIN' ? leaguesResponse.leagues : leaguesResponse.leagues.filter((league) => league.ownerId === user.id);
 ---
-<BaseLayout title="Create race slot | GRID//ONE">
+<BaseLayout title="Publish organiser event | GRID//ONE">
   <section class="section-shell">
-    <h1 class="section-title">Create race slot</h1>
-    <p class="mt-2 text-slate-300">Publish a premium lobby with full rules and registration controls.</p>
+    <h1 class="section-title">Publish organiser event</h1>
+    <p class="mt-2 text-slate-300">Publish races into the public schedule with visibility, branding, and registration controls.</p>
     <div class="mt-6">
       <RaceSlotEditorForm client:load leagues={leagues.map(({ id, name }) => ({ id, name }))} />
     </div>

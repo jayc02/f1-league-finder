@@ -1,44 +1,59 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getSessionUser } from '@/lib/auth/session';
-import { fetchFromApi } from '@/lib/server-api';
+import { prisma } from '@/lib/db/prisma';
 import RaceSlotEditorForm from '@/components/dashboard/RaceSlotEditorForm';
-import type { RaceSlotDetail } from '@/lib/api/types';
 
 export const prerender = false;
+
 const user = await getSessionUser(Astro as never);
+if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect('/login');
 const id = Astro.params.id;
-if (!user || !id || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect('/login');
+if (!id) return Astro.redirect('/dashboard');
 
-const leaguesResponse = await fetchFromApi<{ leagues: Array<{ id: string; name: string; ownerId: string }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
-const slotResponse = await fetchFromApi<{ raceSlot: RaceSlotDetail }>(Astro, `/api/race-slots/${id}`).catch(() => null);
-if (!slotResponse) return Astro.redirect('/dashboard');
+const slot = await prisma.raceSlot.findUnique({
+  where: { id },
+  include: { league: true },
+});
+if (!slot) return Astro.redirect('/dashboard');
 
-const leagues = user.role === 'ADMIN' ? leaguesResponse.leagues : leaguesResponse.leagues.filter((league) => league.ownerId === user.id);
-const slot = slotResponse.raceSlot;
+const canEdit = user.role === 'ADMIN' || slot.organiserId === user.id || slot.league.ownerId === user.id;
+if (!canEdit) return Astro.redirect('/dashboard');
 
-const dtLocal = (iso: string) => new Date(iso).toISOString().slice(0, 16);
+const leagues = await prisma.league.findMany({
+  where: user.role === 'ADMIN' ? {} : { ownerId: user.id },
+  select: { id: true, name: true },
+});
+
+const toLocalInput = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 ---
-<BaseLayout title="Edit race slot | GRID//ONE">
+
+<BaseLayout title="Edit event | GRID//ONE">
   <section class="section-shell">
-    <h1 class="section-title">Edit race slot</h1>
+    <h1 class="section-title">Edit organiser event</h1>
+    <p class="mt-2 text-slate-300">Adjust schedule, visibility, entry controls, and event publishing status.</p>
     <div class="mt-6">
       <RaceSlotEditorForm
         client:load
         slotId={slot.id}
-        leagues={leagues.map(({ id: leagueId, name }) => ({ id: leagueId, name }))}
+        leagues={leagues}
         defaults={{
           title: slot.title,
-          leagueId: slot.league.id,
-          scheduledAt: dtLocal(slot.scheduledAt),
-          registrationCutoffAt: dtLocal(slot.registrationCutoffAt),
+          track: slot.track ?? '',
+          leagueId: slot.leagueId,
+          scheduledAt: toLocalInput(slot.scheduledAt),
+          registrationCutoffAt: toLocalInput(slot.registrationCutoffAt),
           maxPlayers: slot.maxPlayers,
           region: slot.region,
-          platform: slot.platform,
-          crossplay: slot.crossplay,
+          platform: slot.platform ?? '',
+          visibility: slot.visibility,
+          status: slot.status,
+          stakeTierMetadata: slot.stakeTierMetadata ?? '',
           formatDetails: slot.formatDetails,
           rulesSummary: slot.rulesSummary,
-          stakeTierMetadata: slot.stakeTierMetadata,
+          eventNotes: slot.eventNotes ?? '',
+          cancellationReason: slot.cancellationReason ?? '',
+          crossplay: slot.crossplay,
         }}
       />
     </div>

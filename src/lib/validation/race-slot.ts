@@ -1,9 +1,13 @@
 import { z } from 'zod';
 
 const slotStatusEnum = z.enum(['DRAFT', 'OPEN', 'FULL', 'LOCKED', 'COMPLETED', 'CANCELLED']);
+const visibilityEnum = z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']);
 
 export const createRaceSlotSchema = z.object({
   title: z.string().min(4).max(120),
+  track: z.string().min(2).max(80).optional(),
+  eventNotes: z.string().max(800).optional(),
+  visibility: visibilityEnum.optional(),
   leagueId: z.string().cuid(),
   scheduledAt: z.coerce.date(),
   region: z.enum(['EU', 'NA', 'SA', 'APAC', 'MENA', 'GLOBAL']).optional(),
@@ -20,6 +24,9 @@ export const createRaceSlotSchema = z.object({
 
 export const updateRaceSlotSchema = z.object({
   title: z.string().min(4).max(120).optional(),
+  track: z.string().min(2).max(80).nullable().optional(),
+  eventNotes: z.string().max(800).nullable().optional(),
+  visibility: visibilityEnum.optional(),
   scheduledAt: z.coerce.date().optional(),
   region: z.enum(['EU', 'NA', 'SA', 'APAC', 'MENA', 'GLOBAL']).optional(),
   platform: z.enum(['PC', 'PLAYSTATION', 'XBOX']).nullable().optional(),

@@ -9,8 +9,9 @@ const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
 
 const now = new Date();
+const isOrganiser = ['ORGANISER', 'ADMIN'].includes(user.role);
 
-const [upcomingRegistrations, previousEntries, upcomingEvents, recentActivity, profileStats] = await Promise.all([
+const [upcomingRegistrations, previousEntries, upcomingEvents, recentActivity, profileStats, organiserProfile, organiserEvents] = await Promise.all([
   prisma.raceRegistration.findMany({
     where: { userId: user.id, raceSlot: { scheduledAt: { gte: now } } },
     include: {
@@ -28,7 +29,7 @@ const [upcomingRegistrations, previousEntries, upcomingEvents, recentActivity, p
     take: 6,
   }),
   prisma.raceSlot.findMany({
-    where: { scheduledAt: { gte: now }, status: { in: ['OPEN', 'FULL'] } },
+    where: { scheduledAt: { gte: now }, status: { in: ['OPEN', 'FULL'] }, visibility: 'PUBLIC' },
     include: { league: { select: { name: true } }, _count: { select: { registrations: true } } },
     orderBy: { scheduledAt: 'asc' },
     take: 6,
@@ -45,9 +46,19 @@ const [upcomingRegistrations, previousEntries, upcomingEvents, recentActivity, p
     prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: { lte: 3 } } }),
     prisma.honourEvent.count({ where: { userId: user.id, type: 'CLEAN_RACE', delta: { gt: 0 } } }),
   ]),
+  isOrganiser ? prisma.organiserProfile.findUnique({ where: { userId: user.id } }) : null,
+  isOrganiser ? prisma.raceSlot.findMany({
+    where: { organiserId: user.id },
+    include: { _count: { select: { registrations: true } } },
+    orderBy: { scheduledAt: 'desc' },
+    take: 8,
+  }) : [],
 ]);
 
 const [entriesCount, winsCount, podiumCount, cleanRaceCount] = profileStats;
+const organiserUpcoming = organiserEvents.filter((event) => new Date(event.scheduledAt).getTime() >= Date.now());
+const draftEvents = organiserEvents.filter((event) => event.status === 'DRAFT');
+const publishedEvents = organiserEvents.filter((event) => ['OPEN', 'FULL', 'LOCKED'].includes(event.status) && event.visibility === 'PUBLIC');
 ---
 <BaseLayout title="Dashboard | GRID//ONE">
   <section class="section-shell">
@@ -55,10 +66,14 @@ const [entriesCount, winsCount, podiumCount, cleanRaceCount] = profileStats;
       <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Command center</p>
       <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 class="section-title">Driver Hub · {user.username}</h1>
-          <p class="mt-2 text-sm text-slate-300">Manage your GRID//ONE identity, track momentum, and stay race-ready across every championship slot.</p>
+          <h1 class="section-title">{isOrganiser ? 'Organiser Control Centre' : `Driver Hub · ${user.username}`}</h1>
+          <p class="mt-2 text-sm text-slate-300">{isOrganiser ? 'Manage your community brand, publish race inventory, and convert discovery traffic into full grids.' : 'Track momentum and stay race-ready across every championship slot.'}</p>
         </div>
-        <a href="/profile/edit" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit profile</a>
+        <div class="flex flex-wrap gap-2">
+          <a href="/profile/edit" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit profile</a>
+          {isOrganiser && <a href="/dashboard/race-slots/new" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Publish event</a>}
+          {isOrganiser && <a href="/dashboard/community" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit community</a>}
+        </div>
       </div>
       <div class="mt-6 grid gap-3 md:grid-cols-5">
         <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Skill Rating</p><p class="mt-2 font-display text-3xl">{user.skillRating}</p></div>
@@ -68,6 +83,15 @@ const [entriesCount, winsCount, podiumCount, cleanRaceCount] = profileStats;
         <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Clean Races</p><p class="mt-2 font-display text-3xl">{cleanRaceCount}</p></div>
       </div>
     </div>
+
+    {isOrganiser && (
+      <div class="mt-6 grid gap-4 lg:grid-cols-4">
+        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Community</p><p class="mt-2 font-display text-2xl">{organiserProfile?.displayName ?? 'Not setup'}</p><p class="mt-2 text-xs text-slate-400">{organiserProfile?.isPublic ? 'Public profile live' : 'Private profile'}</p></article>
+        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Audience</p><p class="mt-2 font-display text-2xl">{(organiserProfile?.displayedMemberCount ?? 0).toLocaleString()}</p><p class="mt-2 text-xs text-slate-400">Displayed members</p></article>
+        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Published events</p><p class="mt-2 font-display text-2xl">{publishedEvents.length}</p><p class="mt-2 text-xs text-slate-400">Currently discoverable</p></article>
+        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Draft queue</p><p class="mt-2 font-display text-2xl">{draftEvents.length}</p><p class="mt-2 text-xs text-slate-400">Pending publication</p></article>
+      </div>
+    )}
 
     <div class="mt-8 grid gap-6 xl:grid-cols-[1.25fr_1fr]">
       <article class="panel rounded-3xl p-6">
@@ -106,6 +130,24 @@ const [entriesCount, winsCount, podiumCount, cleanRaceCount] = profileStats;
         </div>
       </article>
     </div>
+
+    {isOrganiser && (
+      <article class="panel mt-6 rounded-3xl p-6">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-2xl">Organiser Event Pipeline</h2>
+          <a href="/dashboard/race-slots/new" class="text-xs uppercase tracking-[0.16em] text-slate-400 hover:text-white">Create new</a>
+        </div>
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+          {organiserUpcoming.length ? organiserUpcoming.map((event) => (
+            <a href={`/dashboard/race-slots/${event.id}/edit`} class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
+              <p class="text-xs uppercase tracking-[0.15em] text-slate-500">{event.status} · {event.visibility} · {event.track ?? 'Track TBA'}</p>
+              <p class="mt-1 font-semibold text-white">{event.title}</p>
+              <p class="mt-2 text-xs text-slate-300">{new Date(event.scheduledAt).toLocaleString()} · {event._count.registrations}/{event.maxPlayers} entrants</p>
+            </a>
+          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No organiser events yet.</p>}
+        </div>
+      </article>
+    )}
 
     <div class="mt-6 grid gap-6 xl:grid-cols-2">
       <article class="panel rounded-3xl p-6">

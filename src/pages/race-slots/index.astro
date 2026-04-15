@@ -8,7 +8,8 @@ export const prerender = false;
 const { raceSlots } = await fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?limit=40').catch(() => ({ raceSlots: [] }));
 
 const statusTone: Record<string, string> = {
-  SCHEDULED: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100',
+  OPEN: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100',
+  FULL: 'border-fuchsia-300/30 bg-fuchsia-500/10 text-fuchsia-100',
   LOCKED: 'border-amber-300/30 bg-amber-500/10 text-amber-100',
   COMPLETED: 'border-sky-300/30 bg-sky-500/10 text-sky-100',
   CANCELLED: 'border-rose-300/30 bg-rose-500/10 text-rose-100',
@@ -41,7 +42,8 @@ const statusTone: Record<string, string> = {
               <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">Scheduled</span>{new Date(slot.scheduledAt).toLocaleString()}</p>
               <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">Cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
               <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">Region / Platform</span>{slot.region} · {slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
-              <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">Organiser</span>{slot.organiser.username}</p>
+              <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">Organiser</span>{slot.organiserProfile?.displayName ?? slot.organiser.username}</p>
+              <p class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 md:col-span-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-500">Track / visibility</span>{slot.track ?? 'Track TBA'} · {slot.visibility}</p>
             </div>
 
             <div class="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">

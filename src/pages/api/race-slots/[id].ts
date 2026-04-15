@@ -6,17 +6,21 @@ import { updateRaceSlotSchema } from '@/lib/validation/race-slot';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
+import { getSessionUser } from '@/lib/auth/session';
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
     const id = context.params.id;
     if (!id) throw new HttpError(400, 'Race slot ID is required.');
 
+    const sessionUser = await getSessionUser(context);
+
     const slot = await prisma.raceSlot.findUnique({
       where: { id },
       include: {
         league: { select: { id: true, name: true, slug: true } },
         organiser: { select: { id: true, username: true } },
+        organiserProfile: { select: { id: true, slug: true, displayName: true, logoUrl: true } },
         registrations: {
           select: {
             id: true,
@@ -37,6 +41,15 @@ export const GET: APIRoute = (context) =>
       },
     });
     if (!slot) throw new HttpError(404, 'Race slot not found.');
+
+    const canViewPrivate = Boolean(sessionUser && (sessionUser.role === 'ADMIN' || sessionUser.id === slot.organiserId));
+    if (slot.visibility === 'PRIVATE' && !canViewPrivate) {
+      throw new HttpError(403, 'This event is private.');
+    }
+
+    if (slot.visibility === 'UNLISTED' && !canViewPrivate && slot.status === 'DRAFT') {
+      throw new HttpError(403, 'This event is not published yet.');
+    }
 
     return jsonResponse(200, { raceSlot: slot });
   });
