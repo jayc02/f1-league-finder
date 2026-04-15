@@ -24,8 +24,8 @@ export default function MagneticButton({ children, href = '#', variant = 'solid'
 
   const classes =
     variant === 'solid'
-      ? 'bg-white text-black hover:bg-slate-200'
-      : 'border border-white/20 bg-white/5 text-white hover:bg-white/10';
+      ? 'bg-white/95 text-slate-900 shadow-[0_10px_30px_rgba(219,233,255,0.22)] hover:bg-white'
+      : 'border border-white/30 bg-white/10 text-white hover:bg-white/20';
 
   return (
     <a
