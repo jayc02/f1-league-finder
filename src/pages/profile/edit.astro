@@ -1,0 +1,29 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getSessionUser } from '@/lib/auth/session';
+import ProfileEditor from '@/components/profile/ProfileEditor';
+
+export const prerender = false;
+
+const user = await getSessionUser(Astro as never);
+if (!user) return Astro.redirect('/login');
+---
+<BaseLayout title="Edit Profile | GRID//ONE">
+  <section class="section-shell">
+    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Account settings</p>
+    <h1 class="section-title mt-2">Edit Driver Profile</h1>
+    <p class="mt-3 max-w-2xl text-sm text-slate-300">Update your competitive identity, platform preferences, and profile image visible across leaderboards and race entries.</p>
+    <div class="mt-8">
+      <ProfileEditor
+        client:load
+        initialUser={{
+          username: user.username,
+          bio: user.bio ?? '',
+          region: user.region ?? 'GLOBAL',
+          preferredPlatform: user.preferredPlatform ?? '',
+          avatarUrl: user.avatarUrl ?? '',
+        }}
+      />
+    </div>
+  </section>
+</BaseLayout>
