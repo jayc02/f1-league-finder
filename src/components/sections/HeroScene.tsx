@@ -52,9 +52,21 @@ export default function HeroScene() {
 
   return (
     <section className="relative min-h-screen overflow-hidden pt-28" id="top">
-      <canvas ref={canvasRef} className="absolute inset-0 opacity-80" aria-hidden="true" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(181,31,47,.2),transparent_42%)]" />
-      <div className="section-shell relative z-10 grid min-h-[78vh] content-end gap-10 pb-12">
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+        src="/output.mp4"
+        aria-hidden="true"
+      />
+      <div className="absolute inset-0 z-10 bg-black/30" aria-hidden="true" />
+      <canvas ref={canvasRef} className="absolute inset-0 z-[15] opacity-80" aria-hidden="true" />
+      <div className="absolute inset-0 z-20 bg-[radial-gradient(circle_at_70%_20%,rgba(181,31,47,.2),transparent_42%)]" aria-hidden="true" />
+      <div className="pointer-events-none absolute bottom-0 left-0 z-20 h-44 w-full bg-gradient-to-b from-transparent to-[#06070a]" aria-hidden="true" />
+      <div className="section-shell relative z-30 grid min-h-[78vh] content-end gap-10 pb-12">
         <div className="space-y-8">
           <p className="max-w-fit border border-white/20 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">Competitive F1 Operations Platform</p>
           <h1 className="font-display text-5xl leading-[0.94] text-white md:text-7xl lg:text-8xl">
