@@ -23,7 +23,9 @@ body {
   color: var(--text);
   font-family: Inter, system-ui, sans-serif;
   scroll-behavior: auto;
+  overflow-x: hidden;
 }
+
 
 body::before {
   content: '';
@@ -38,7 +40,13 @@ body::before {
 }
 
 .section-shell {
-  @apply mx-auto w-[min(1200px,92vw)] py-20 md:py-28;
+  @apply mx-auto w-[min(1200px,92vw)] py-14 md:py-24;
+}
+
+@media (max-width: 640px) {
+  .section-shell {
+    width: min(1200px, 94vw);
+  }
 }
 
 .section-title {
@@ -50,6 +58,7 @@ body::before {
   border: 1px solid var(--line);
   box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(10px);
+  overflow-wrap: anywhere;
 }
 
 .magnetic {

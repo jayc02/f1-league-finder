@@ -47,7 +47,7 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
 ---
 <BaseLayout title="Leaderboards | GRID//ONE">
   <section class="section-shell">
-    <div class="panel rounded-3xl p-6 md:p-8">
+    <div class="panel rounded-3xl p-5 md:p-8">
       <p class="text-xs uppercase tracking-[0.26em] text-slate-400">Competitive rankings</p>
       <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -76,7 +76,7 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
     <div class="mt-8 grid gap-4 md:grid-cols-3">
       {topThree.map((entry, index) => (
         <article class:list={[
-          'panel relative overflow-hidden rounded-3xl p-5',
+          'panel relative overflow-hidden rounded-3xl p-4 sm:p-5',
           index === 0 ? 'md:col-span-2 border-white/30 bg-gradient-to-br from-white/15 to-white/[0.04]' : '',
         ]}>
           <div class="absolute right-4 top-4 text-[11px] uppercase tracking-[0.2em] text-slate-400">Rank #{index + 1}</div>
@@ -97,13 +97,13 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
       ))}
     </div>
 
-    <div class="mt-6 panel rounded-3xl p-4 md:p-6">
+    <div class="mt-6 panel rounded-3xl p-3 sm:p-4 md:p-6">
       <div class="hidden grid-cols-[80px_minmax(220px,1.6fr)_repeat(5,minmax(90px,1fr))] items-center px-4 pb-3 text-[11px] uppercase tracking-[0.2em] text-slate-500 md:grid">
         <p>Rank</p><p>Driver</p><p>SR</p><p>Honour</p><p>Wins</p><p>Podiums</p><p>Clean</p>
       </div>
       <div class="space-y-2">
         {remaining.map((entry, index) => (
-          <article class="grid gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/35 hover:bg-white/[0.06] md:grid-cols-[80px_minmax(220px,1.6fr)_repeat(5,minmax(90px,1fr))] md:items-center">
+          <article class="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/35 hover:bg-white/[0.06] md:grid-cols-[80px_minmax(220px,1.6fr)_repeat(5,minmax(90px,1fr))] md:items-center">
             <p class="text-lg font-semibold text-white">#{index + 4}</p>
             <div class="flex items-center gap-3">
               <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
@@ -112,11 +112,11 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
                 <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{entry.region} · {trendLabel[entry.trend]}</p>
               </div>
             </div>
-            <p class="text-sm text-slate-200">{entry.skillRating}</p>
-            <p class="text-sm text-slate-200">{entry.honourScore}</p>
-            <p class="text-sm text-slate-200">{entry.wins}</p>
-            <p class="text-sm text-slate-200">{entry.podiums}</p>
-            <p class="text-sm text-slate-200">{entry.cleanFinishes}</p>
+            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">SR</span>{entry.skillRating}</p>
+            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Honour</span>{entry.honourScore}</p>
+            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Wins</span>{entry.wins}</p>
+            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Podiums</span>{entry.podiums}</p>
+            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Clean</span>{entry.cleanFinishes}</p>
           </article>
         ))}
       </div>
