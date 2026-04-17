@@ -51,13 +51,16 @@ export const POST: APIRoute = (context) =>
 
     const organiserProfile = await prisma.organiserProfile.findUnique({ where: { userId: user.id } });
 
+    const status = body.status ?? 'DRAFT';
+    const visibility = body.visibility ?? (status === 'DRAFT' ? 'PRIVATE' : 'PUBLIC');
+
     const slot = await prisma.raceSlot.create({
       data: {
         ...body,
         organiserId: user.id,
         organiserProfileId: organiserProfile?.id,
-        status: body.status ?? 'DRAFT',
-        visibility: body.visibility ?? 'PUBLIC',
+        status,
+        visibility,
       },
       include: { _count: { select: { registrations: true } } },
     });

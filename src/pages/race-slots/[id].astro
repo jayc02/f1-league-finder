@@ -50,7 +50,7 @@ const rankTone = (position: number) => {
 ---
 <BaseLayout title={`${slot.title} | GRID//ONE`}>
   <section class="section-shell">
-    <article class="panel rounded-3xl p-6 md:p-8">
+    <article class="panel rounded-3xl p-4 sm:p-6 md:p-8">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p class="text-xs uppercase tracking-[0.22em] text-slate-400">{slot.league.name} · Race Slot</p>
@@ -62,7 +62,7 @@ const rankTone = (position: number) => {
         </span>
       </div>
 
-      <div class="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+      <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Scheduled</span>{new Date(slot.scheduledAt).toLocaleString()}</p>
         <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Registration cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
         <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Region</span>{slot.region}</p>
@@ -85,7 +85,7 @@ const rankTone = (position: number) => {
 
     <div class="mt-8 grid gap-6 xl:grid-cols-[1.4fr_360px]">
       <div class="space-y-6">
-        <article class="panel rounded-3xl p-6">
+        <article class="panel rounded-3xl p-4 sm:p-6">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="font-display text-2xl">Entrants Roster</h2>
             <p class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">{slot._count.registrations} confirmed</p>
@@ -116,7 +116,7 @@ const rankTone = (position: number) => {
           {!slot.registrations.length && <p class="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm text-slate-300">No entrants yet. Registration is open until cutoff.</p>}
         </article>
 
-        <article class="panel rounded-3xl p-6">
+        <article class="panel rounded-3xl p-4 sm:p-6">
           <div class="flex items-center justify-between gap-3">
             <h2 class="font-display text-2xl">Race Results</h2>
             <p class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">

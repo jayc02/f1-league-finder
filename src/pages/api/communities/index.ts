@@ -28,6 +28,12 @@ export const GET: APIRoute = (context) =>
           : {}),
       },
       include: {
+        raceSlots: {
+          where: { visibility: 'PUBLIC', status: { in: ['OPEN', 'FULL', 'LOCKED'] }, scheduledAt: { gte: new Date() } },
+          select: { id: true, title: true, scheduledAt: true, maxPlayers: true, _count: { select: { registrations: true } } },
+          orderBy: { scheduledAt: 'asc' },
+          take: 2,
+        },
         _count: {
           select: {
             raceSlots: {
