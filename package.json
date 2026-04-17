@@ -10,7 +10,12 @@
     "check": "astro check",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "postinstall": "prisma generate",
+    "predev": "prisma generate",
+    "prebuild": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.5",

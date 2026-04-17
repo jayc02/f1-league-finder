@@ -9,6 +9,7 @@ interface Props {
 const { user } = Astro.props;
 const appNav = [
   { label: 'Race Slots', href: '/race-slots' },
+  { label: 'Communities', href: '/communities' },
   { label: 'Leaderboards', href: '/leaderboards' },
   { label: 'Leagues', href: '/leagues' },
   ...(user ? [{ label: 'Dashboard', href: '/dashboard' }, { label: 'Profile', href: '/profile' }] : []),
