@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 interface Props {
@@ -22,25 +22,32 @@ export default function ProfileEditor({ initialUser }: Props) {
   const [form, setForm] = useState(initialUser);
   const [status, setStatus] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [localPreview, setLocalPreview] = useState<string>('');
 
-  const preview = useMemo(() => form.avatarUrl || avatarPresets[0], [form.avatarUrl]);
+  const preview = useMemo(() => localPreview || form.avatarUrl || avatarPresets[0], [localPreview, form.avatarUrl]);
+
+  useEffect(() => () => {
+    if (localPreview) URL.revokeObjectURL(localPreview);
+  }, [localPreview]);
 
   const onFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 1_000_000) {
-      setStatus('Image too large. Use an image under 1MB.');
+    if (file.size > 2 * 1024 * 1024) {
+      setStatus('Image too large. Use an image under 2MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const value = typeof reader.result === 'string' ? reader.result : '';
-      setForm((current) => ({ ...current, avatarUrl: value }));
-      setStatus('Avatar loaded locally. Save profile to apply.');
-    };
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith('image/')) {
+      setStatus('Please choose a valid image file.');
+      return;
+    }
+
+    setAvatarFile(file);
+    setLocalPreview(URL.createObjectURL(file));
+    setStatus('Avatar selected. Save profile to upload.');
   };
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
@@ -49,15 +56,17 @@ export default function ProfileEditor({ initialUser }: Props) {
     setStatus('');
 
     try {
+      const payload = new FormData();
+      payload.append('username', form.username);
+      payload.append('bio', form.bio || '');
+      payload.append('region', form.region);
+      payload.append('preferredPlatform', form.preferredPlatform || '');
+      payload.append('avatarUrl', form.avatarUrl || '');
+      if (avatarFile) payload.append('avatar', avatarFile);
+
       await apiRequest<{ user: unknown }>('/api/profile', {
         method: 'PATCH',
-        body: JSON.stringify({
-          username: form.username,
-          bio: form.bio || null,
-          region: form.region,
-          preferredPlatform: form.preferredPlatform || null,
-          avatarUrl: form.avatarUrl || null,
-        }),
+        body: payload,
       });
 
       setStatus('Profile updated successfully.');
@@ -85,7 +94,11 @@ export default function ProfileEditor({ initialUser }: Props) {
               <button
                 key={avatar}
                 type="button"
-                onClick={() => setForm((current) => ({ ...current, avatarUrl: avatar }))}
+                onClick={() => {
+                  setAvatarFile(null);
+                  setLocalPreview('');
+                  setForm((current) => ({ ...current, avatarUrl: avatar }));
+                }}
                 className="rounded-xl border border-white/10 bg-white/5 p-1 transition hover:border-white/40"
               >
                 <img src={avatar} alt="Avatar preset" className="h-10 w-10 rounded-lg" />
