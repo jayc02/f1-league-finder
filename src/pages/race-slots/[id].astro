@@ -34,7 +34,8 @@ const slotFillPercent = Math.min(100, Math.round((slot._count.registrations / sl
 const topResult = slot.result?.entries[0] ?? null;
 
 const statusTone: Record<string, string> = {
-  SCHEDULED: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100',
+  OPEN: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100',
+  FULL: 'border-fuchsia-300/30 bg-fuchsia-500/10 text-fuchsia-100',
   LOCKED: 'border-amber-300/30 bg-amber-500/10 text-amber-100',
   COMPLETED: 'border-sky-300/30 bg-sky-500/10 text-sky-100',
   CANCELLED: 'border-rose-300/30 bg-rose-500/10 text-rose-100',
@@ -61,15 +62,17 @@ const rankTone = (position: number) => {
         </span>
       </div>
 
-      <div class="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div class="mt-7 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Scheduled</span>{new Date(slot.scheduledAt).toLocaleString()}</p>
         <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Registration cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
         <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Region</span>{slot.region}</p>
+        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Track</span>{slot.track ?? 'TBA'}</p>
         <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Platform</span>{slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
-        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Organiser</span>{slot.organiser.username}</p>
+        <p class="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Organiser</span>{slot.organiserProfile ? <a class="underline decoration-white/30" href={`/communities/${slot.organiserProfile.slug}`}>{slot.organiserProfile.displayName}</a> : slot.organiser.username}</p>
       </div>
 
       <div class="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        {slot.eventNotes && <p class="mb-4 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-slate-300">{slot.eventNotes}</p>}
         <div class="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
           <p>Grid Capacity</p>
           <p>{slot._count.registrations}/{slot.maxPlayers} entrants</p>

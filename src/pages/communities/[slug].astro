@@ -1,0 +1,86 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { fetchFromApi } from '@/lib/server-api';
+import type { CommunitySummary, RaceSlotSummary } from '@/lib/api/types';
+
+export const prerender = false;
+
+const slug = Astro.params.slug;
+if (!slug) return Astro.redirect('/communities');
+
+const response = await fetchFromApi<{
+  community: CommunitySummary & { credibilityNotes?: string | null; user: { username: string; honourScore: number }; leagues: Array<{ id: string; name: string; slug: string; region: string }> };
+  upcomingEvents: RaceSlotSummary[];
+  recentEvents: RaceSlotSummary[];
+}>(Astro, `/api/communities/${slug}`).catch(() => null);
+
+if (!response) return Astro.redirect('/communities');
+const { community, upcomingEvents, recentEvents } = response;
+---
+
+<BaseLayout title={`${community.displayName} | GRID//ONE`}>
+  <section class="section-shell">
+    <article class="panel overflow-hidden rounded-3xl">
+      <div class="h-56 bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(2,6,23,.3),rgba(2,6,23,.9)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=1500&q=80'}')`}>
+        <div class="mx-auto flex h-full w-[min(1120px,94%)] items-end justify-between gap-4 pb-6">
+          <div class="flex items-end gap-4">
+            <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} class="h-20 w-20 rounded-2xl border border-white/20 object-cover" alt={`${community.displayName} logo`} />
+            <div>
+              <h1 class="font-display text-4xl text-white">{community.displayName}</h1>
+              <p class="mt-1 text-sm text-slate-200">Operated by @{community.user.username}</p>
+            </div>
+          </div>
+          <div class="flex flex-wrap justify-end gap-2">
+            {community.discordUrl && <a href={community.discordUrl} target="_blank" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Join Discord</a>}
+            {community.redditUrl && <a href={community.redditUrl} target="_blank" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Visit Reddit</a>}
+            <a href="/race-slots" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">View all events</a>
+          </div>
+        </div>
+      </div>
+      <div class="p-6 md:p-8">
+        <p class="max-w-3xl text-slate-300">{community.description ?? community.shortDescription}</p>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <span class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">{community.region}</span>
+          {community.platformFocus && <span class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">{community.platformFocus}</span>}
+          {community.gameFocus && <span class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">{community.gameFocus}</span>}
+          {community.verified && <span class="rounded-full border border-emerald-300/30 bg-emerald-500/15 px-3 py-1 text-xs text-emerald-100">Verified</span>}
+          {community.featured && <span class="rounded-full border border-amber-300/30 bg-amber-500/15 px-3 py-1 text-xs text-amber-100">Featured</span>}
+        </div>
+        <div class="mt-6 grid gap-3 md:grid-cols-4">
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Displayed members</p><p class="mt-2 font-display text-3xl">{community.displayedMemberCount.toLocaleString()}</p><p class="text-[11px] text-slate-500">Source: {community.memberCountSource}</p></div>
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Upcoming events</p><p class="mt-2 font-display text-3xl">{upcomingEvents.length}</p></div>
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Recent events</p><p class="mt-2 font-display text-3xl">{recentEvents.length}</p></div>
+          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Organiser honour</p><p class="mt-2 font-display text-3xl">{community.user.honourScore}</p></div>
+        </div>
+        {community.credibilityNotes && <p class="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">{community.credibilityNotes}</p>}
+      </div>
+    </article>
+
+    <div class="mt-8 grid gap-6 xl:grid-cols-2">
+      <article class="panel rounded-3xl p-6">
+        <h2 class="font-display text-2xl">Upcoming Events</h2>
+        <div class="mt-4 space-y-3">
+          {upcomingEvents.length ? upcomingEvents.map((event) => (
+            <a href={`/race-slots/${event.id}`} class="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
+              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.league.name} · {event.track ?? 'Track TBA'}</p>
+              <h3 class="mt-1 font-semibold">{event.title}</h3>
+              <p class="mt-1 text-sm text-slate-300">{new Date(event.scheduledAt).toLocaleString()} · {event._count.registrations}/{event.maxPlayers} entrants</p>
+            </a>
+          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No public upcoming events.</p>}
+        </div>
+      </article>
+      <article class="panel rounded-3xl p-6">
+        <h2 class="font-display text-2xl">Recent Event Log</h2>
+        <div class="mt-4 space-y-3">
+          {recentEvents.length ? recentEvents.map((event) => (
+            <a href={`/race-slots/${event.id}`} class="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
+              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.status}</p>
+              <h3 class="mt-1 font-semibold">{event.title}</h3>
+              <p class="mt-1 text-sm text-slate-300">{new Date(event.scheduledAt).toLocaleDateString()} · {event._count.registrations} entrants</p>
+            </a>
+          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No completed events yet.</p>}
+        </div>
+      </article>
+    </div>
+  </section>
+</BaseLayout>
