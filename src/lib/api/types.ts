@@ -41,6 +41,13 @@ export interface CommunitySummary {
   websiteUrl?: string | null;
   socials?: Record<string, string> | null;
   _count: { raceSlots: number };
+  raceSlots?: Array<{
+    id: string;
+    title: string;
+    scheduledAt: string;
+    maxPlayers: number;
+    _count: { registrations: number };
+  }>;
 }
 
 export interface RaceSlotSummary {

@@ -10,23 +10,23 @@ const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(
 
 <BaseLayout title="Communities | GRID//ONE">
   <section class="section-shell">
-    <div class="panel rounded-3xl p-6 md:p-8">
+    <div class="panel rounded-3xl p-5 md:p-8">
       <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Community discovery</p>
       <h1 class="section-title mt-3">Organiser Communities</h1>
       <p class="mt-3 max-w-3xl text-sm text-slate-300">Join verified organiser programs, browse active race calendars, and discover where the next grid opens.</p>
     </div>
 
-    <div class="mt-8 grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+    <div class="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {communities.length ? communities.map((community) => (
         <a href={`/communities/${community.slug}`} class="group panel overflow-hidden rounded-3xl transition hover:-translate-y-1 hover:border-white/35">
-          <div class="h-32 bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.85)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
-          <div class="p-5">
+          <div class="h-28 sm:h-32 bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.85)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
+          <div class="p-4 sm:p-5">
             <div class="flex items-start justify-between gap-3">
               <div class="flex items-center gap-3">
-                <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} class="h-11 w-11 rounded-xl border border-white/15 bg-black/40 object-cover" />
+                <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} class="h-10 w-10 sm:h-11 sm:w-11 rounded-xl border border-white/15 bg-black/40 object-cover" />
                 <div>
-                  <h2 class="font-display text-2xl">{community.displayName}</h2>
-                  <p class="text-xs uppercase tracking-[0.15em] text-slate-500">{community.region} · {community.platformFocus ?? 'Cross-platform'}</p>
+                  <h2 class="font-display text-xl sm:text-2xl">{community.displayName}</h2>
+                  <p class="text-[11px] uppercase tracking-[0.15em] text-slate-500">{community.region} · {community.platformFocus ?? 'Cross-platform'}</p>
                 </div>
               </div>
               {community.featured && <span class="rounded-full border border-amber-300/35 bg-amber-500/20 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
@@ -35,6 +35,20 @@ const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(
             <div class="mt-4 flex flex-wrap gap-2">
               {(community.tags ?? []).slice(0, 4).map((tag) => <span class="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-xs text-slate-300">{tag}</span>)}
             </div>
+
+            {community.raceSlots?.length ? (
+              <div class="mt-4 rounded-2xl border border-white/10 bg-black/30 p-3">
+                <p class="text-[10px] uppercase tracking-[0.15em] text-slate-500">Next published events</p>
+                <div class="mt-2 space-y-2">
+                  {community.raceSlots.map((event) => (
+                    <p class="text-xs text-slate-200">{event.title} · {new Date(event.scheduledAt).toLocaleDateString()} · {event._count.registrations}/{event.maxPlayers}</p>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p class="mt-4 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-slate-400">No published events yet.</p>
+            )}
+
             <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
               <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()}</p>
               <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Active events</span>{community._count.raceSlots}</p>

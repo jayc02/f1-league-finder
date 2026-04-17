@@ -17,7 +17,7 @@ const statusTone: Record<string, string> = {
 ---
 <BaseLayout title="Race slots | GRID//ONE">
   <section class="section-shell">
-    <div class="panel rounded-3xl p-6 md:p-8">
+    <div class="panel rounded-3xl p-5 md:p-8">
       <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Event calendar</p>
       <h1 class="section-title mt-3">Race Slots</h1>
       <p class="mt-3 max-w-3xl text-sm text-slate-300">Browse upcoming grids, lock your seat, and track competitive events with the same premium race-day clarity as the leaderboards.</p>
@@ -27,7 +27,7 @@ const statusTone: Record<string, string> = {
       {raceSlots.length ? raceSlots.map((slot) => {
         const filled = Math.min(100, Math.round((slot._count.registrations / slot.maxPlayers) * 100));
         return (
-          <a href={`/race-slots/${slot.id}`} class="panel group rounded-3xl p-5 transition hover:-translate-y-1 hover:border-white/35">
+          <a href={`/race-slots/${slot.id}`} class="panel group rounded-3xl p-4 sm:p-5 transition hover:-translate-y-1 hover:border-white/35">
             <div class="flex items-start justify-between gap-4">
               <div>
                 <p class="text-xs uppercase tracking-[0.2em] text-slate-500">{slot.league.name}</p>
