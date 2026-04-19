@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 interface CommunityState {
@@ -31,8 +31,44 @@ export default function CommunityEditorForm({ initialState }: Props) {
   const [form, setForm] = useState(initialState);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const [bannerPreview, setBannerPreview] = useState('');
 
   const computedSlug = useMemo(() => form.slug || form.displayName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''), [form.slug, form.displayName]);
+  const effectiveLogo = logoPreview || form.logoUrl;
+  const effectiveBanner = bannerPreview || form.bannerUrl;
+
+  useEffect(() => () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview);
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+  }, [logoPreview, bannerPreview]);
+
+  const handleAssetFile = (event: ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setMessage('Please choose a valid image file.');
+      return;
+    }
+
+    const max = type === 'logo' ? 2 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > max) {
+      setMessage(type === 'logo' ? 'Logo must be under 2MB.' : 'Banner must be under 5MB.');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    if (type === 'logo') {
+      setLogoFile(file);
+      setLogoPreview(objectUrl);
+    } else {
+      setBannerFile(file);
+      setBannerPreview(objectUrl);
+    }
+    setMessage(`${type === 'logo' ? 'Logo' : 'Banner'} selected. Save to upload.`);
+  };
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,24 +76,32 @@ export default function CommunityEditorForm({ initialState }: Props) {
     setMessage('');
 
     try {
+      const payload = new FormData();
+      payload.append('displayName', form.displayName);
+      payload.append('slug', computedSlug);
+      payload.append('shortDescription', form.shortDescription || '');
+      payload.append('description', form.description || '');
+      payload.append('brandingColor', form.brandingColor || '');
+      payload.append('logoUrl', form.logoUrl || '');
+      payload.append('bannerUrl', form.bannerUrl || '');
+      payload.append('websiteUrl', form.websiteUrl || '');
+      payload.append('discordUrl', form.discordUrl || '');
+      payload.append('redditUrl', form.redditUrl || '');
+      payload.append('gameFocus', form.gameFocus || '');
+      payload.append('platformFocus', form.platformFocus || '');
+      payload.append('region', form.region);
+      payload.append('tags', form.tags);
+      payload.append('displayedMemberCount', String(form.displayedMemberCount || 0));
+      payload.append('memberCountSource', form.memberCountSource);
+      payload.append('isPublic', String(form.isPublic));
+      payload.append('featured', String(form.featured));
+      payload.append('credibilityNotes', form.credibilityNotes || '');
+      if (logoFile) payload.append('logo', logoFile);
+      if (bannerFile) payload.append('banner', bannerFile);
+
       await apiRequest('/api/organiser/community', {
         method: 'PATCH',
-        body: JSON.stringify({
-          ...form,
-          slug: computedSlug,
-          platformFocus: form.platformFocus || null,
-          shortDescription: form.shortDescription || null,
-          description: form.description || null,
-          brandingColor: form.brandingColor || null,
-          logoUrl: form.logoUrl || null,
-          bannerUrl: form.bannerUrl || null,
-          websiteUrl: form.websiteUrl || null,
-          discordUrl: form.discordUrl || null,
-          redditUrl: form.redditUrl || null,
-          gameFocus: form.gameFocus || null,
-          credibilityNotes: form.credibilityNotes || null,
-          tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-        }),
+        body: payload,
       });
       setMessage('Community profile updated.');
       window.setTimeout(() => {
@@ -91,8 +135,20 @@ export default function CommunityEditorForm({ initialState }: Props) {
             <textarea value={form.description} onChange={(event) => setForm((state) => ({ ...state, description: event.target.value }))} className="mt-2 min-h-28 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3" />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <input value={form.bannerUrl} onChange={(event) => setForm((state) => ({ ...state, bannerUrl: event.target.value }))} placeholder="Banner image URL" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3" />
-            <input value={form.logoUrl} onChange={(event) => setForm((state) => ({ ...state, logoUrl: event.target.value }))} placeholder="Logo URL" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3" />
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Community banner</p>
+              {effectiveBanner && <img src={effectiveBanner} alt="Banner preview" className="mt-2 h-24 w-full rounded-xl border border-white/10 object-cover" />}
+              <input type="file" accept="image/*" onChange={(event) => handleAssetFile(event, 'banner')} className="mt-3 w-full text-xs text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-white file:px-3 file:py-1 file:text-black" />
+              <p className="mt-2 text-xs text-slate-400">PNG/JPG/WebP/AVIF/GIF, up to 5MB.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Community logo</p>
+              {effectiveLogo && <img src={effectiveLogo} alt="Logo preview" className="mt-2 h-20 w-20 rounded-xl border border-white/10 object-cover" />}
+              <input type="file" accept="image/*" onChange={(event) => handleAssetFile(event, 'logo')} className="mt-3 w-full text-xs text-slate-300 file:mr-3 file:rounded-full file:border-0 file:bg-white file:px-3 file:py-1 file:text-black" />
+              <p className="mt-2 text-xs text-slate-400">PNG/JPG/WebP/AVIF/GIF, up to 2MB.</p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
             <input value={form.brandingColor} onChange={(event) => setForm((state) => ({ ...state, brandingColor: event.target.value }))} placeholder="#E10600" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3" />
             <input value={form.gameFocus} onChange={(event) => setForm((state) => ({ ...state, gameFocus: event.target.value }))} placeholder="Game focus" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3" />
           </div>

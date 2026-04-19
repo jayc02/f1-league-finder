@@ -1,47 +1,35 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { fetchFromApi } from '@/lib/server-api';
+import { getSessionUser } from '@/lib/auth/session';
+import { getLeaderboardWindowForUser, getRankedLeaderboard, type CompetitiveLeaderboardType } from '@/server/services/leaderboard.service';
 
 export const prerender = false;
 
 const views = [
   { key: 'overall', label: 'Overall', metric: 'SR', description: 'Best all-around pace and consistency.' },
-  { key: 'honour', label: 'Honour', metric: 'Honour', description: 'Sportsmanship and clean conduct leaders.' },
-  { key: 'clean', label: 'Clean Drivers', metric: 'Clean Finishes', description: 'Drivers delivering racecraft without contact penalties.' },
-  { key: 'wins', label: 'Wins', metric: 'Wins', description: 'Highest race-winning performances this season.' },
-  { key: 'weekly', label: 'Weekly Form', metric: 'Momentum', description: 'Drivers trending up over the last 7 days.' },
+  { key: 'honour', label: 'Honour', metric: 'Honour', description: 'Sportsmanship and clean-conduct elites.' },
+  { key: 'clean', label: 'Clean Drivers', metric: 'Clean Ratio', description: 'Incident-light racers with elite discipline.' },
+  { key: 'wins', label: 'Wins', metric: 'Wins', description: 'Pure race-winning output.' },
+  { key: 'weekly', label: 'Weekly Movers', metric: '7D Points', description: 'Who is climbing right now.' },
 ] as const;
 
 const selectedView = views.find((view) => view.key === Astro.url.searchParams.get('view')) ?? views[0];
+const type = selectedView.key as CompetitiveLeaderboardType;
+const user = await getSessionUser(Astro as never);
 
-const response = await fetchFromApi<{
-  type: string;
-  leaderboard: Array<{
-    id: string;
-    username: string;
-    avatarUrl: string | null;
-    region: string;
-    honourScore: number;
-    skillRating: number;
-    racesEntered: number;
-    wins: number;
-    podiums: number;
-    cleanFinishes: number;
-    points: number;
-    averageFinish: number | null;
-    trend: 'up' | 'down' | 'stable';
-  }>;
-}>(Astro, `/api/leaderboards/competitive?type=${selectedView.key}&limit=50`).catch(() => ({ type: selectedView.key, leaderboard: [] }));
+const ranked = await getRankedLeaderboard(type);
+const topHundred = ranked.slice(0, 100);
+const topThree = topHundred.slice(0, 3);
+const remaining = topHundred.slice(3);
+const userContext = user ? await getLeaderboardWindowForUser(type, user.id, 3) : { me: null, window: [] };
 
-const topThree = response.leaderboard.slice(0, 3);
-const remaining = response.leaderboard.slice(3);
 const trendLabel: Record<'up' | 'down' | 'stable', string> = { up: '▲ Rising', stable: '■ Stable', down: '▼ Cooling' };
 
-const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
-  if (selectedView.key === 'honour') return `${entry.honourScore} honour`;
-  if (selectedView.key === 'clean') return `${entry.cleanFinishes} clean finishes`;
-  if (selectedView.key === 'wins') return `${entry.wins} wins`;
-  if (selectedView.key === 'weekly') return `${entry.points} total pts`;
+const metricLabel = (entry: (typeof topHundred)[number]) => {
+  if (type === 'honour') return `${entry.honourScore} honour`;
+  if (type === 'clean') return `${Math.round(entry.cleanRaceRatio * 100)}% clean ratio`;
+  if (type === 'wins') return `${entry.wins} wins`;
+  if (type === 'weekly') return `${entry.weeklyPoints} pts / 7d`;
   return `${entry.skillRating} SR`;
 };
 ---
@@ -51,8 +39,8 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
       <p class="text-xs uppercase tracking-[0.26em] text-slate-400">Competitive rankings</p>
       <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 class="section-title">Leaderboards</h1>
-          <p class="mt-3 max-w-3xl text-sm text-slate-300">{selectedView.description} Rankings update dynamically from active race participation and confirmed results.</p>
+          <h1 class="section-title">Top 100 Leaderboard</h1>
+          <p class="mt-3 max-w-3xl text-sm text-slate-300">{selectedView.description} Full top-100 standings update from confirmed race outcomes and clean-racing events.</p>
         </div>
         <p class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200">Metric · {selectedView.metric}</p>
       </div>
@@ -73,13 +61,45 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
       </div>
     </div>
 
+    {userContext.me && (
+      <article class="panel mt-6 rounded-3xl p-4 sm:p-6">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Your standing</p>
+            <h2 class="font-display text-2xl">Around Your Rank · #{userContext.me.rank}</h2>
+          </div>
+          <a href="/profile" class="text-xs uppercase tracking-[0.16em] text-slate-300 hover:text-white">Open profile</a>
+        </div>
+        <div class="mt-4 space-y-2">
+          {userContext.window.map((entry) => (
+            <div class:list={[
+              'grid gap-2 rounded-2xl border px-3 py-3 md:grid-cols-[70px_minmax(180px,1.6fr)_repeat(4,minmax(90px,1fr))] md:items-center',
+              entry.id === user?.id
+                ? 'border-emerald-300/45 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(110,231,183,0.15)]'
+                : 'border-white/10 bg-white/[0.03]',
+            ]}>
+              <p class="font-semibold text-white">#{entry.rank}</p>
+              <div class="flex items-center gap-3">
+                <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-9 w-9 rounded-xl border border-white/10 object-cover" />
+                <p class="text-sm font-semibold text-white">{entry.username}</p>
+              </div>
+              <p class="text-xs text-slate-300">{entry.skillRating} SR</p>
+              <p class="text-xs text-slate-300">{entry.honourScore} Honour</p>
+              <p class="text-xs text-slate-300">{entry.wins} Wins</p>
+              <p class="text-xs text-slate-300">{Math.round(entry.cleanRaceRatio * 100)}% Clean</p>
+            </div>
+          ))}
+        </div>
+      </article>
+    )}
+
     <div class="mt-8 grid gap-4 md:grid-cols-3">
       {topThree.map((entry, index) => (
         <article class:list={[
           'panel relative overflow-hidden rounded-3xl p-4 sm:p-5',
           index === 0 ? 'md:col-span-2 border-white/30 bg-gradient-to-br from-white/15 to-white/[0.04]' : '',
         ]}>
-          <div class="absolute right-4 top-4 text-[11px] uppercase tracking-[0.2em] text-slate-400">Rank #{index + 1}</div>
+          <div class="absolute right-4 top-4 text-[11px] uppercase tracking-[0.2em] text-slate-400">Rank #{entry.rank}</div>
           <div class="flex items-center gap-4">
             <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-14 w-14 rounded-2xl border border-white/15 bg-white/5 object-cover" />
             <div>
@@ -89,7 +109,7 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
           </div>
           <div class="mt-5 grid grid-cols-2 gap-3 text-sm">
             <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Primary</span>{metricLabel(entry)}</p>
-            <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Races Entered</span>{entry.racesEntered}</p>
+            <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Starts</span>{entry.starts}</p>
             <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Podiums</span>{entry.podiums}</p>
             <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Avg Finish</span>{entry.averageFinish ? entry.averageFinish.toFixed(1) : '—'}</p>
           </div>
@@ -98,29 +118,32 @@ const metricLabel = (entry: (typeof response.leaderboard)[number]) => {
     </div>
 
     <div class="mt-6 panel rounded-3xl p-3 sm:p-4 md:p-6">
-      <div class="hidden grid-cols-[80px_minmax(220px,1.6fr)_repeat(5,minmax(90px,1fr))] items-center px-4 pb-3 text-[11px] uppercase tracking-[0.2em] text-slate-500 md:grid">
-        <p>Rank</p><p>Driver</p><p>SR</p><p>Honour</p><p>Wins</p><p>Podiums</p><p>Clean</p>
+      <div class="hidden grid-cols-[70px_minmax(210px,1.8fr)_repeat(8,minmax(80px,1fr))] items-center px-4 pb-3 text-[11px] uppercase tracking-[0.2em] text-slate-500 md:grid">
+        <p>Rank</p><p>Driver</p><p>SR</p><p>Honour</p><p>Starts</p><p>Wins</p><p>Podiums</p><p>Clean</p><p>7D</p><p>Trend</p>
       </div>
       <div class="space-y-2">
-        {remaining.map((entry, index) => (
-          <article class="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/35 hover:bg-white/[0.06] md:grid-cols-[80px_minmax(220px,1.6fr)_repeat(5,minmax(90px,1fr))] md:items-center">
-            <p class="text-lg font-semibold text-white">#{index + 4}</p>
+        {remaining.map((entry) => (
+          <article class="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/35 hover:bg-white/[0.06] md:grid-cols-[70px_minmax(210px,1.8fr)_repeat(8,minmax(80px,1fr))] md:items-center">
+            <p class="text-lg font-semibold text-white">#{entry.rank}</p>
             <div class="flex items-center gap-3">
               <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
               <div>
                 <p class="text-sm font-semibold text-white">{entry.username}</p>
-                <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{entry.region} · {trendLabel[entry.trend]}</p>
+                <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{entry.region}</p>
               </div>
             </div>
-            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">SR</span>{entry.skillRating}</p>
-            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Honour</span>{entry.honourScore}</p>
-            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Wins</span>{entry.wins}</p>
-            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Podiums</span>{entry.podiums}</p>
-            <p class="text-sm text-slate-200"><span class="mr-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 md:hidden">Clean</span>{entry.cleanFinishes}</p>
+            <p class="text-sm text-slate-200">{entry.skillRating}</p>
+            <p class="text-sm text-slate-200">{entry.honourScore}</p>
+            <p class="text-sm text-slate-200">{entry.starts}</p>
+            <p class="text-sm text-slate-200">{entry.wins}</p>
+            <p class="text-sm text-slate-200">{entry.podiums}</p>
+            <p class="text-sm text-slate-200">{Math.round(entry.cleanRaceRatio * 100)}%</p>
+            <p class="text-sm text-slate-200">{entry.weeklyPoints}</p>
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">{trendLabel[entry.trend]}</p>
           </article>
         ))}
       </div>
-      {!response.leaderboard.length && <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-300">No leaderboard data yet. Complete race slots to populate rankings.</p>}
+      {!topHundred.length && <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-300">No leaderboard data yet. Complete race slots to populate rankings.</p>}
     </div>
   </section>
 </BaseLayout>
