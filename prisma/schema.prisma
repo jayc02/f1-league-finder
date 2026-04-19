@@ -96,6 +96,10 @@ model User {
   honourEventsApplied HonourEvent[]          @relation("HonourAppliedBy")
   moderationActions   ModerationAction[]     @relation("ModerationTarget")
   adminActionsTaken   ModerationAction[]     @relation("ModerationAdmin")
+  resolvedDisputes    Dispute[]              @relation("DisputeResolvedBy")
+  disputeStatusLogs   DisputeStatusLog[]
+  disputeEmailsSent   DisputeEmailLog[]      @relation("DisputeEmailSender")
+  disputeEmailsReceived DisputeEmailLog[]    @relation("DisputeEmailRecipient")
   resultEntries       RaceResultEntry[]
   submittedResults    RaceResult[]
 }
@@ -268,14 +272,56 @@ model Dispute {
   details      String?
   status       DisputeStatus @default(OPEN)
   adminNotes   String?
+  resolutionNotes String?
+  resolvedAt   DateTime?
+  resolvedById String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   raceSlot   RaceSlot    @relation(fields: [raceSlotId], references: [id], onDelete: Cascade)
   raceResult RaceResult? @relation(fields: [raceResultId], references: [id], onDelete: SetNull)
   openedBy   User        @relation("DisputeOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  resolvedBy User?       @relation("DisputeResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   moderationActions ModerationAction[]
+  statusLogs         DisputeStatusLog[]
+  emailLogs          DisputeEmailLog[]
+
+  @@index([status, createdAt])
+  @@index([resolvedById, resolvedAt])
+}
+
+model DisputeStatusLog {
+  id          String        @id @default(cuid())
+  disputeId   String
+  fromStatus  DisputeStatus?
+  toStatus    DisputeStatus
+  note        String?
+  changedById String
+  createdAt   DateTime      @default(now())
+
+  dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  changedBy User    @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([disputeId, createdAt])
+}
+
+model DisputeEmailLog {
+  id          String   @id @default(cuid())
+  disputeId   String
+  sentById    String
+  recipientId String
+  recipientEmail String
+  subject     String
+  bodyPreview String
+  createdAt   DateTime @default(now())
+
+  dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  sentBy    User    @relation("DisputeEmailSender", fields: [sentById], references: [id], onDelete: Restrict)
+  recipient User    @relation("DisputeEmailRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@index([disputeId, createdAt])
+  @@index([recipientId, createdAt])
 }
 
 model HonourEvent {
