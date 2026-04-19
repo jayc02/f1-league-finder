@@ -1,0 +1,43 @@
+---
+interface Props {
+  title: string;
+  subtitle: string;
+  active: 'dashboard' | 'users' | 'races' | 'communities' | 'activity';
+}
+
+const { title, subtitle, active } = Astro.props;
+
+const links = [
+  { key: 'dashboard', href: '/admin', label: 'Overview' },
+  { key: 'users', href: '/admin/users', label: 'Users' },
+  { key: 'races', href: '/admin/races', label: 'Races' },
+  { key: 'communities', href: '/admin/communities', label: 'Communities' },
+  { key: 'activity', href: '/admin/activity', label: 'Moderation' },
+];
+---
+
+<div class="rounded-3xl border border-white/15 bg-gradient-to-b from-white/[0.08] via-black/50 to-black/75 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.6)] md:p-7">
+  <p class="text-xs uppercase tracking-[0.22em] text-rose-200/80">Admin Control</p>
+  <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div>
+      <h1 class="font-display text-3xl text-white md:text-5xl">{title}</h1>
+      <p class="mt-2 max-w-3xl text-sm text-slate-300">{subtitle}</p>
+    </div>
+  </div>
+
+  <nav class="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+    {links.map((item) => (
+      <a
+        href={item.href}
+        class:list={[
+          'rounded-2xl border px-4 py-3 text-sm uppercase tracking-[0.14em] transition',
+          item.key === active
+            ? 'border-rose-300/45 bg-rose-500/20 text-rose-50 shadow-[0_0_0_1px_rgba(251,113,133,0.3),0_12px_26px_rgba(190,24,93,0.22)]'
+            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/35 hover:bg-white/[0.08] hover:text-white',
+        ]}
+      >
+        {item.label}
+      </a>
+    ))}
+  </nav>
+</div>

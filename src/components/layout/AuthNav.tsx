@@ -29,6 +29,11 @@ export default function AuthNav({ user }: Props) {
       <a href="/dashboard" className="hidden rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/20 md:inline-flex">
         Dashboard
       </a>
+      {user.role === 'ADMIN' && (
+        <a href="/admin" className="hidden rounded-full border border-rose-300/40 bg-rose-500/15 px-4 py-2 text-sm text-rose-100 transition hover:bg-rose-500/25 md:inline-flex">
+          Admin
+        </a>
+      )}
       <a href="/profile" className="hidden items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-slate-100 transition hover:border-white/40 hover:bg-white/10 md:inline-flex">
         <img src={user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`} alt={`${user.username} avatar`} className="h-7 w-7 rounded-lg border border-white/10 object-cover" />
         <span>{user.username}</span>

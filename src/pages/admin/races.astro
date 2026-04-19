@@ -1,0 +1,31 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import AdminShell from '@/components/admin/AdminShell.astro';
+import AdminRaceManager from '@/components/admin/AdminRaceManager';
+import { getSessionUser } from '@/lib/auth/session';
+import { prisma } from '@/lib/db/prisma';
+
+export const prerender = false;
+
+const user = await getSessionUser(Astro as never);
+if (!user) return Astro.redirect('/login');
+if (user.role !== 'ADMIN') return Astro.redirect('/dashboard');
+
+const raceSlots = await prisma.raceSlot.findMany({
+  include: {
+    league: { select: { name: true } },
+    organiser: { select: { username: true } },
+    organiserProfile: { select: { displayName: true } },
+    _count: { select: { registrations: true, disputes: true, moderationActions: true } },
+  },
+  orderBy: { scheduledAt: 'desc' },
+  take: 180,
+});
+---
+
+<BaseLayout title="Admin Races | GRID//ONE">
+  <section class="section-shell">
+    <AdminShell title="Race & Event Oversight" subtitle="Platform-wide control of slot lifecycle, visibility states, organiser output, and event moderation." active="races" />
+    <AdminRaceManager client:load raceSlots={raceSlots.map((slot) => ({ ...slot, scheduledAt: slot.scheduledAt.toISOString(), registrationCutoffAt: slot.registrationCutoffAt.toISOString() }))} />
+  </section>
+</BaseLayout>
