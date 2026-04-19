@@ -26,3 +26,9 @@ export const adminCommunitySchema = z.object({
 }).refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field is required.',
 });
+
+export const adminDisputeEmailSchema = z.object({
+  recipientMode: z.enum(['REPORTER', 'ORGANISER', 'BOTH']),
+  subject: z.string().min(6).max(180),
+  body: z.string().min(20).max(4000),
+});
