@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { imageAssetSchema } from '@/lib/validation/image';
 
 export const updateCommunitySchema = z.object({
   displayName: z.string().min(3).max(80),
@@ -6,8 +7,8 @@ export const updateCommunitySchema = z.object({
   shortDescription: z.string().max(180).nullable().optional(),
   description: z.string().max(2000).nullable().optional(),
   brandingColor: z.string().regex(/^#([a-fA-F0-9]{6})$/).nullable().optional(),
-  logoUrl: z.string().url().max(2048).nullable().optional(),
-  bannerUrl: z.string().url().max(2048).nullable().optional(),
+  logoUrl: imageAssetSchema.nullable().optional(),
+  bannerUrl: imageAssetSchema.nullable().optional(),
   websiteUrl: z.string().url().max(2048).nullable().optional(),
   discordUrl: z.string().url().max(2048).nullable().optional(),
   redditUrl: z.string().url().max(2048).nullable().optional(),
