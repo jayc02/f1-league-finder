@@ -1,3 +1,9 @@
+-- Ensure dispute lifecycle columns exist before constraints/indexes
+ALTER TABLE "Dispute"
+  ADD COLUMN IF NOT EXISTS "resolutionNotes" TEXT,
+  ADD COLUMN IF NOT EXISTS "resolvedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "resolvedById" TEXT;
+
 -- AddForeignKey
 ALTER TABLE "Dispute" ADD CONSTRAINT "Dispute_resolvedById_fkey" FOREIGN KEY ("resolvedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
