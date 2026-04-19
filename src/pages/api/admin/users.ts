@@ -11,19 +11,55 @@ export const GET: APIRoute = (context) =>
     const user = await requireUser(context);
     requireAdmin(user);
 
+    const q = context.url.searchParams.get('q')?.trim();
+    const role = context.url.searchParams.get('role');
+    const suspended = context.url.searchParams.get('suspended');
+
     const users = await prisma.user.findMany({
+      where: {
+        ...(role ? { role: role as never } : {}),
+        ...(suspended === '1' ? { NOT: { suspensionNote: null } } : {}),
+        ...(q
+          ? {
+              OR: [
+                { username: { contains: q, mode: 'insensitive' } },
+                { email: { contains: q, mode: 'insensitive' } },
+                { eaIdTag: { contains: q, mode: 'insensitive' } },
+                { discordTag: { contains: q, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
       select: {
         id: true,
         username: true,
         email: true,
         role: true,
+        region: true,
         honourScore: true,
         skillRating: true,
         suspensionNote: true,
         createdAt: true,
+        preferredPlatform: true,
+        organiserProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            verified: true,
+            isPublic: true,
+            featured: true,
+          },
+        },
+        _count: {
+          select: {
+            raceRegistrations: true,
+            raceSlotsOrganised: true,
+            disputesOpened: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: getNumericLimit(context, 50, 200),
+      take: getNumericLimit(context, 80, 300),
     });
 
     return jsonResponse(200, { users });

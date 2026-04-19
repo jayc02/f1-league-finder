@@ -32,3 +32,29 @@ export const PATCH: APIRoute = (context) =>
 
     return jsonResponse(200, { raceSlot: slot });
   });
+
+export const DELETE: APIRoute = (context) =>
+  withErrorHandling(async () => {
+    const admin = await requireUser(context);
+    requireAdmin(admin);
+
+    const id = context.params.id;
+    if (!id) throw new HttpError(400, 'Race slot ID is required.');
+
+    const slot = await prisma.raceSlot.findUnique({ where: { id }, select: { id: true, title: true, organiserId: true } });
+    if (!slot) throw new HttpError(404, 'Race slot not found.');
+
+    await prisma.raceSlot.delete({ where: { id } });
+
+    await prisma.moderationAction.create({
+      data: {
+        actionType: 'RESULT_AMENDMENT',
+        targetUserId: slot.organiserId,
+        adminId: admin.id,
+        notes: `Admin removed race slot ${slot.title}`,
+        metadata: { raceSlotId: slot.id, removed: true },
+      },
+    });
+
+    return jsonResponse(200, { ok: true });
+  });
