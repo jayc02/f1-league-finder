@@ -1,0 +1,29 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import AdminShell from '@/components/admin/AdminShell.astro';
+import AdminCommunityManager from '@/components/admin/AdminCommunityManager';
+import { getSessionUser } from '@/lib/auth/session';
+import { prisma } from '@/lib/db/prisma';
+
+export const prerender = false;
+
+const user = await getSessionUser(Astro as never);
+if (!user) return Astro.redirect('/login');
+if (user.role !== 'ADMIN') return Astro.redirect('/dashboard');
+
+const communities = await prisma.organiserProfile.findMany({
+  include: {
+    user: { select: { username: true, email: true } },
+    _count: { select: { raceSlots: true, leagues: true } },
+  },
+  orderBy: [{ featured: 'desc' }, { verified: 'desc' }, { updatedAt: 'desc' }],
+  take: 180,
+});
+---
+
+<BaseLayout title="Admin Communities | GRID//ONE">
+  <section class="section-shell">
+    <AdminShell title="Community Governance" subtitle="Verify organisers, tune community visibility, and maintain trusted public-facing league profiles." active="communities" />
+    <AdminCommunityManager client:load communities={communities} />
+  </section>
+</BaseLayout>
