@@ -8,8 +8,6 @@ export const siteConfig = {
   defaultDescription:
     'RaceHub is the competitive sim racing platform for organised events, verified communities, and transparent rankings.',
   siteUrl: normalizeOrigin(import.meta.env.PUBLIC_SITE_URL || DEFAULT_SITE_URL),
-  uploadsDir: process.env.UPLOAD_STORAGE_DIR || 'storage/uploads',
-  uploadsPublicBasePath: '/uploads',
 };
 
 export const absoluteUrl = (path = '/') => {
