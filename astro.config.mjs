@@ -1,16 +1,14 @@
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
-import node from '@astrojs/node';
+import vercel from '@astrojs/vercel';
 
 const site = (process.env.PUBLIC_SITE_URL || 'https://racehub.gg').replace(/\/$/, '');
 
 export default defineConfig({
   site,
   output: 'server',
-  adapter: node({
-    mode: 'standalone',
-  }),
+  adapter: vercel(),
   integrations: [react(), tailwind({ applyBaseStyles: false })],
   vite: {
     build: {
