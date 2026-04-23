@@ -23,7 +23,7 @@ const raceSlots = await prisma.raceSlot.findMany({
 });
 ---
 
-<BaseLayout title="Admin Races | GRID//ONE">
+<BaseLayout noindex={true} title="Admin Races | RaceHub">
   <section class="section-shell">
     <AdminShell title="Race & Event Oversight" subtitle="Platform-wide control of slot lifecycle, visibility states, organiser output, and event moderation." active="races" />
     <AdminRaceManager client:load raceSlots={raceSlots.map((slot) => ({ ...slot, scheduledAt: slot.scheduledAt.toISOString(), registrationCutoffAt: slot.registrationCutoffAt.toISOString() }))} />

@@ -12,10 +12,10 @@ interface Props {
 }
 
 const avatarPresets = [
-  'https://api.dicebear.com/9.x/shapes/svg?seed=GRID-1',
-  'https://api.dicebear.com/9.x/shapes/svg?seed=GRID-2',
-  'https://api.dicebear.com/9.x/shapes/svg?seed=GRID-3',
-  'https://api.dicebear.com/9.x/shapes/svg?seed=GRID-4',
+  'https://api.dicebear.com/9.x/shapes/svg?seed=RACEHUB-1',
+  'https://api.dicebear.com/9.x/shapes/svg?seed=RACEHUB-2',
+  'https://api.dicebear.com/9.x/shapes/svg?seed=RACEHUB-3',
+  'https://api.dicebear.com/9.x/shapes/svg?seed=RACEHUB-4',
 ];
 
 export default function ProfileEditor({ initialUser }: Props) {

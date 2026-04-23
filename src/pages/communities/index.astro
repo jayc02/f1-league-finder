@@ -8,7 +8,7 @@ export const prerender = false;
 const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?limit=30').catch(() => ({ communities: [] }));
 ---
 
-<BaseLayout title="Communities | GRID//ONE">
+<BaseLayout title="Communities | RaceHub">
   <section class="section-shell relative isolate">
     <div class="pointer-events-none absolute inset-x-0 -top-8 bottom-0 -z-20 overflow-hidden rounded-[2.2rem]">
       <div class="absolute inset-0 bg-cover bg-center opacity-36" style="background-image:url('/communititesback.webp')"></div>

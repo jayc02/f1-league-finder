@@ -2,6 +2,7 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { HttpError } from '@/lib/utils/http';
+import { siteConfig } from '@/lib/config';
 
 const IMAGE_MIME_TO_EXT: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -11,7 +12,7 @@ const IMAGE_MIME_TO_EXT: Record<string, string> = {
   'image/avif': '.avif',
 };
 
-const PUBLIC_UPLOAD_ROOT = path.join(process.cwd(), 'public', 'uploads');
+const UPLOAD_ROOT = path.resolve(process.cwd(), siteConfig.uploadsDir);
 
 const isAllowedMime = (mimeType: string) => Object.prototype.hasOwnProperty.call(IMAGE_MIME_TO_EXT, mimeType);
 
@@ -29,8 +30,8 @@ export const saveUploadedImage = async (
 
   const ext = IMAGE_MIME_TO_EXT[file.type];
   const fileName = `${Date.now()}-${randomUUID()}${ext}`;
-  const relativePath = path.posix.join('/uploads', options.folder, fileName);
-  const absoluteDir = path.join(PUBLIC_UPLOAD_ROOT, options.folder);
+  const relativePath = path.posix.join(siteConfig.uploadsPublicBasePath, options.folder, fileName);
+  const absoluteDir = path.join(UPLOAD_ROOT, options.folder);
   const absolutePath = path.join(absoluteDir, fileName);
 
   await mkdir(absoluteDir, { recursive: true });
@@ -40,10 +41,20 @@ export const saveUploadedImage = async (
   return relativePath;
 };
 
+export const managedUploadPathToDisk = (publicPath: string) => {
+  if (!publicPath.startsWith(`${siteConfig.uploadsPublicBasePath}/`)) return null;
+
+  const relative = publicPath.slice(siteConfig.uploadsPublicBasePath.length).replace(/^\/+/, '');
+  if (!relative || relative.includes('..')) return null;
+
+  return path.join(UPLOAD_ROOT, relative);
+};
+
 export const removeManagedUploadIfPresent = async (value: string | null | undefined) => {
-  if (!value || !value.startsWith('/uploads/')) return;
-  const relative = value.replace(/^\/+/, '');
-  const absolutePath = path.join(process.cwd(), 'public', relative);
+  if (!value) return;
+
+  const absolutePath = managedUploadPathToDisk(value);
+  if (!absolutePath) return;
 
   try {
     await unlink(absolutePath);

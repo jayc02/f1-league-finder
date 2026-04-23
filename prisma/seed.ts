@@ -21,7 +21,7 @@ async function main() {
   const admin = await prisma.user.create({
     data: {
       username: 'admin_control',
-      email: 'admin@f1grid.local',
+      email: 'admin@racehub.local',
       passwordHash,
       role: Role.ADMIN,
       honourScore: 130,
@@ -33,7 +33,7 @@ async function main() {
   const organiserA = await prisma.user.create({
     data: {
       username: 'pitwall_pulse',
-      email: 'organiser1@f1grid.local',
+      email: 'organiser1@racehub.local',
       passwordHash,
       role: Role.ORGANISER,
       region: 'EU',
@@ -45,7 +45,7 @@ async function main() {
   const organiserB = await prisma.user.create({
     data: {
       username: 'sector3_ops',
-      email: 'organiser2@f1grid.local',
+      email: 'organiser2@racehub.local',
       passwordHash,
       role: Role.ORGANISER,
       region: 'NA',
@@ -72,7 +72,7 @@ async function main() {
       prisma.user.create({
         data: {
           username: username as string,
-          email: `player${index + 1}@f1grid.local`,
+          email: `player${index + 1}@racehub.local`,
           passwordHash,
           role: Role.PLAYER,
           region: region as never,
@@ -291,9 +291,9 @@ async function main() {
   });
 
   console.log('Seed complete ✅');
-  console.log('Admin: admin@f1grid.local / ChangeMe123!');
-  console.log('Organiser: organiser1@f1grid.local / ChangeMe123!');
-  console.log('Player: player1@f1grid.local / ChangeMe123!');
+  console.log('Admin: admin@racehub.local / ChangeMe123!');
+  console.log('Organiser: organiser1@racehub.local / ChangeMe123!');
+  console.log('Player: player1@racehub.local / ChangeMe123!');
 }
 
 main()
