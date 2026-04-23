@@ -7,6 +7,8 @@ export interface LeaderboardEntry {
   rank: number;
   username: string;
   avatarUrl: string | null;
+  role: 'PLAYER' | 'ORGANISER' | 'ADMIN';
+  createdAt: Date;
   region: string;
   honourScore: number;
   skillRating: number;
@@ -30,6 +32,8 @@ const buildBaseRows = async () => {
       id: true,
       username: true,
       avatarUrl: true,
+      role: true,
+      createdAt: true,
       region: true,
       honourScore: true,
       skillRating: true,
