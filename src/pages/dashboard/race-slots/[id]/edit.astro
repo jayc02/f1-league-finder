@@ -28,7 +28,7 @@ const leagues = await prisma.league.findMany({
 const toLocalInput = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 ---
 
-<BaseLayout title="Edit event | GRID//ONE">
+<BaseLayout noindex={true} title="Edit event | RaceHub">
   <section class="section-shell">
     <h1 class="section-title">Edit organiser event</h1>
     <p class="mt-2 text-slate-300">Adjust schedule, visibility, entry controls, and event publishing status.</p>

@@ -46,7 +46,7 @@ export const POST: APIRoute = (context) =>
         body.body,
         '',
         `Current status: ${dispute.status}`,
-        'GRID//ONE Moderation Team',
+        'RaceHub Moderation Team',
       ].join('\n');
 
       const providerMessage = await sendPlatformEmail({
