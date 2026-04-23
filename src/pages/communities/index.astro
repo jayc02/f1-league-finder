@@ -9,35 +9,44 @@ const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(
 ---
 
 <BaseLayout title="Communities | GRID//ONE">
-  <section class="section-shell">
-    <div class="panel rounded-3xl p-5 md:p-8">
-      <p class="text-xs uppercase tracking-[0.22em] text-slate-400">Community discovery</p>
+  <section class="section-shell relative isolate">
+    <div class="pointer-events-none absolute inset-x-0 -top-8 bottom-0 -z-20 overflow-hidden rounded-[2.2rem]">
+      <div class="absolute inset-0 bg-cover bg-center opacity-36" style="background-image:url('/communititesback.webp')"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,rgba(56,189,248,.16),transparent_36%),radial-gradient(circle_at_86%_0%,rgba(244,114,182,.14),transparent_36%),linear-gradient(180deg,rgba(5,8,12,.45)_0%,rgba(3,4,6,.82)_46%,rgba(1,1,2,.97)_100%)]"></div>
+      <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,4,6,.9)_0%,transparent_24%,transparent_78%,rgba(2,4,6,.9)_100%)]"></div>
+    </div>
+
+    <div class="panel relative overflow-hidden rounded-3xl p-5 md:p-8">
+      <div class="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-sky-300/20 blur-3xl"></div>
+      <div class="absolute -right-16 top-0 h-52 w-52 rounded-full bg-fuchsia-400/15 blur-3xl"></div>
+      <p class="text-xs uppercase tracking-[0.22em] text-slate-300">Community discovery</p>
       <h1 class="section-title mt-3">Organiser Communities</h1>
-      <p class="mt-3 max-w-3xl text-sm text-slate-300">Join verified organiser programs, browse active race calendars, and discover where the next grid opens.</p>
+      <p class="mt-3 max-w-3xl text-sm text-slate-200">Join verified organiser programs, browse active race calendars, and discover where the next grid opens.</p>
     </div>
 
     <div class="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {communities.length ? communities.map((community) => (
-        <a href={`/communities/${community.slug}`} class="group panel overflow-hidden rounded-3xl transition hover:-translate-y-1 hover:border-white/35">
-          <div class="h-28 sm:h-32 bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.85)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
+        <a href={`/communities/${community.slug}`} class="group panel relative overflow-hidden rounded-3xl border-white/15 transition hover:-translate-y-1 hover:border-white/40">
+          <div class="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/15 via-white/5 to-transparent opacity-60"></div>
+          <div class="h-28 bg-cover bg-center sm:h-32" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.82)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
           <div class="p-4 sm:p-5">
             <div class="flex items-start justify-between gap-3">
               <div class="flex items-center gap-3">
-                <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} class="h-10 w-10 sm:h-11 sm:w-11 rounded-xl border border-white/15 bg-black/40 object-cover" />
+                <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} class="h-10 w-10 rounded-xl border border-white/20 bg-black/40 object-cover sm:h-11 sm:w-11" />
                 <div>
                   <h2 class="font-display text-xl sm:text-2xl">{community.displayName}</h2>
-                  <p class="text-[11px] uppercase tracking-[0.15em] text-slate-500">{community.region} · {community.platformFocus ?? 'Cross-platform'}</p>
+                  <p class="text-[11px] uppercase tracking-[0.15em] text-slate-400">{community.region} · {community.platformFocus ?? 'Cross-platform'}</p>
                 </div>
               </div>
               {community.featured && <span class="rounded-full border border-amber-300/35 bg-amber-500/20 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
             </div>
-            <p class="mt-3 text-sm text-slate-300">{community.shortDescription ?? community.description ?? 'Structured racing community with active organiser staffing.'}</p>
+            <p class="mt-3 text-sm text-slate-200">{community.shortDescription ?? community.description ?? 'Structured racing community with active organiser staffing.'}</p>
             <div class="mt-4 flex flex-wrap gap-2">
-              {(community.tags ?? []).slice(0, 4).map((tag) => <span class="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-xs text-slate-300">{tag}</span>)}
+              {(community.tags ?? []).slice(0, 4).map((tag) => <span class="rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-xs text-slate-300">{tag}</span>)}
             </div>
 
             {community.raceSlots?.length ? (
-              <div class="mt-4 rounded-2xl border border-white/10 bg-black/30 p-3">
+              <div class="mt-4 rounded-2xl border border-white/10 bg-black/35 p-3">
                 <p class="text-[10px] uppercase tracking-[0.15em] text-slate-500">Next published events</p>
                 <div class="mt-2 space-y-2">
                   {community.raceSlots.map((event) => (
@@ -46,12 +55,12 @@ const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(
                 </div>
               </div>
             ) : (
-              <p class="mt-4 rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-slate-400">No published events yet.</p>
+              <p class="mt-4 rounded-2xl border border-white/10 bg-black/35 px-3 py-2 text-xs text-slate-400">No published events yet.</p>
             )}
 
             <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()}</p>
-              <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Active events</span>{community._count.raceSlots}</p>
+              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()}</p>
+              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Active events</span>{community._count.raceSlots}</p>
             </div>
           </div>
         </a>
