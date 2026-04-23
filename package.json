@@ -1,5 +1,5 @@
 {
-  "name": "f1-league-finder",
+  "name": "racehub",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -15,7 +15,8 @@
     "predev": "prisma generate",
     "prebuild": "prisma generate",
     "db:deploy": "prisma migrate deploy",
-    "db:status": "prisma migrate status"
+    "db:status": "prisma migrate status",
+    "start": "node ./dist/server/entry.mjs"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.5",

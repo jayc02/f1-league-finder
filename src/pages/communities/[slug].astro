@@ -18,7 +18,7 @@ if (!response) return Astro.redirect('/communities');
 const { community, upcomingEvents, recentEvents } = response;
 ---
 
-<BaseLayout title={`${community.displayName} | GRID//ONE`}>
+<BaseLayout title={`${community.displayName} | RaceHub`}>
   <section class="section-shell">
     <article class="panel overflow-hidden rounded-3xl">
       <div class="h-48 sm:h-56 bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(2,6,23,.3),rgba(2,6,23,.9)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=1500&q=80'}')`}>

@@ -12,7 +12,7 @@ if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect(
 const community = await prisma.organiserProfile.findUnique({ where: { userId: user.id } });
 ---
 
-<BaseLayout title="Community settings | GRID//ONE">
+<BaseLayout noindex={true} title="Community settings | RaceHub">
   <section class="section-shell">
     <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Organiser control center</p>
     <h1 class="section-title mt-2">Community Branding & Discovery</h1>

@@ -11,6 +11,7 @@ import FinalCTA from '@/components/sections/FinalCTA.astro';
 import { fetchFromApi } from '@/lib/server-api';
 import type { CommunitySummary, RaceSlotSummary } from '@/lib/api/types';
 import type { PublicUser } from '@/server/types/api';
+import { absoluteUrl } from '@/lib/config';
 
 export const prerender = false;
 
@@ -22,9 +23,26 @@ const communitiesResponse = await fetchFromApi<{ communities: CommunitySummary[]
 );
 const globalLb = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/global?limit=8').catch(() => ({ leaderboard: [] }));
 const honourLb = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/honour?limit=8').catch(() => ({ leaderboard: [] }));
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'RaceHub',
+  url: absoluteUrl('/'),
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: `${absoluteUrl('/race-slots')}?q={search_term_string}`,
+    'query-input': 'required name=search_term_string',
+  },
+};
 ---
 
-<BaseLayout>
+<BaseLayout
+  title="RaceHub | Competitive Sim Racing Platform"
+  description="Discover competitive race slots, verified communities, and transparent global rankings on RaceHub.gg."
+  canonicalPath="/"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
   <HeroScene client:load />
   <SlotShowcase client:idle raceSlots={slotsResponse.raceSlots} />
 

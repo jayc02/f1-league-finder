@@ -9,7 +9,7 @@ if (!slug) return Astro.redirect('/leagues');
 const leagueData = await fetchFromApi<{ league: { id: string; name: string; description: string; region: string; owner: { username: string }; raceSlots: Array<{ id: string; title: string; status: string; scheduledAt: string; _count: { registrations: number } }> } }>(Astro, `/api/leagues/${slug}`).catch(() => null);
 const standingsData = await fetchFromApi<{ standings: Array<{ id: string; username: string; points: number; skillRating: number }> }>(Astro, `/api/leagues/${slug}/standings`).catch(() => ({ standings: [] }));
 ---
-<BaseLayout title={`${leagueData?.league.name ?? 'League'} | GRID//ONE`}>
+<BaseLayout title={`${leagueData?.league.name ?? 'League'} | RaceHub`}>
   <section class="section-shell">
     {leagueData ? (
       <>

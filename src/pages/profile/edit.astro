@@ -8,7 +8,7 @@ export const prerender = false;
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
 ---
-<BaseLayout title="Edit Profile | GRID//ONE">
+<BaseLayout noindex={true} title="Edit Profile | RaceHub">
   <section class="section-shell">
     <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Account settings</p>
     <h1 class="section-title mt-2">Edit Driver Profile</h1>
