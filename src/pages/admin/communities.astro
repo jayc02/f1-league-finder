@@ -21,7 +21,7 @@ const communities = await prisma.organiserProfile.findMany({
 });
 ---
 
-<BaseLayout title="Admin Communities | GRID//ONE">
+<BaseLayout noindex={true} title="Admin Communities | RaceHub">
   <section class="section-shell">
     <AdminShell title="Community Governance" subtitle="Verify organisers, tune community visibility, and maintain trusted public-facing league profiles." active="communities" />
     <AdminCommunityManager client:load communities={communities} />

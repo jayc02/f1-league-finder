@@ -31,7 +31,7 @@ const users = await prisma.user.findMany({
 });
 ---
 
-<BaseLayout title="Admin Users | GRID//ONE">
+<BaseLayout noindex={true} title="Admin Users | RaceHub">
   <section class="section-shell">
     <AdminShell title="User Management" subtitle="Search, role governance, trust controls, and account moderation across the entire platform." active="users" />
     <AdminUserManager client:load users={users.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }))} />

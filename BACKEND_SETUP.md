@@ -1,7 +1,11 @@
 # Backend setup
 
 ## Environment
-Copy `.env.example` to `.env` and set `DATABASE_URL` for your local PostgreSQL instance.
+Copy `.env.example` to `.env` and configure:
+- `DATABASE_URL`
+- `PUBLIC_SITE_URL` (set to `https://racehub.gg` in production)
+- `UPLOAD_STORAGE_DIR` (mount to persistent storage in production)
+- `RESEND_API_KEY` and `EMAIL_FROM` for dispute and moderation emails
 
 ## First-time local setup
 1. `npm install`
@@ -10,9 +14,7 @@ Copy `.env.example` to `.env` and set `DATABASE_URL` for your local PostgreSQL i
 4. `npm run db:seed`
 5. `npm run dev`
 
-## Applying new schema changes (like RaceSlot.track/eventNotes/visibility)
-If your code has newer Prisma models but your DB is behind, apply committed migrations:
-
+## Applying new schema changes
 1. `npm run db:status`
 2. `npm run db:deploy`
 3. `npm run db:generate`
@@ -22,6 +24,6 @@ For development databases, you can also use:
 - `npm run db:migrate -- --name <descriptive_name>`
 
 ## Seed login credentials
-- Admin: `admin@f1grid.local` / `ChangeMe123!`
-- Organiser: `organiser1@f1grid.local` / `ChangeMe123!`
-- Player: `player1@f1grid.local` / `ChangeMe123!`
+- Admin: `admin@racehub.local` / `ChangeMe123!`
+- Organiser: `organiser1@racehub.local` / `ChangeMe123!`
+- Player: `player1@racehub.local` / `ChangeMe123!`

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import type { APIContext } from 'astro';
 import { prisma } from '@/lib/db/prisma';
 
-const SESSION_COOKIE = 'f1_session';
+const SESSION_COOKIE = 'racehub_session';
 const SESSION_TTL_DAYS = 30;
 
 const hashToken = (token: string) => crypto.createHash('sha256').update(token).digest('hex');

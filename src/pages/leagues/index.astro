@@ -5,7 +5,7 @@ import { fetchFromApi } from '@/lib/server-api';
 export const prerender = false;
 const { leagues } = await fetchFromApi<{ leagues: Array<{ id: string; name: string; slug: string; description: string; region: string; owner: { username: string }; _count: { raceSlots: number } }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
 ---
-<BaseLayout title="Leagues | GRID//ONE">
+<BaseLayout title="Leagues | RaceHub">
   <section class="section-shell">
     <h1 class="section-title">Leagues</h1>
     <div class="mt-8 grid gap-4 md:grid-cols-2">
