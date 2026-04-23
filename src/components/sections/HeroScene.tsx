@@ -11,11 +11,12 @@ export default function HeroScene() {
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
         className="absolute inset-0 z-0 h-full w-full object-cover"
-        src="/output.mp4"
         aria-hidden="true"
-      />
+      >
+        <source src="/videos/output.mp4" type="video/mp4" />
+      </video>
       <div className="absolute inset-0 z-10 bg-slate-950/25" aria-hidden="true" />
       <div className="absolute inset-0 z-[16] bg-[radial-gradient(circle_at_70%_20%,rgba(181,31,47,.2),transparent_42%)]" aria-hidden="true" />
       <div className="pointer-events-none absolute left-0 top-0 z-20 h-36 w-full bg-gradient-to-b from-black to-transparent" aria-hidden="true" />

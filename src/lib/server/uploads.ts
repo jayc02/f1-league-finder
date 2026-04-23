@@ -1,8 +1,7 @@
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { HttpError } from '@/lib/utils/http';
-import { siteConfig } from '@/lib/config';
+import { supabaseAdmin } from '@/lib/server/supabase-admin';
 
 const IMAGE_MIME_TO_EXT: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -11,8 +10,6 @@ const IMAGE_MIME_TO_EXT: Record<string, string> = {
   'image/gif': '.gif',
   'image/avif': '.avif',
 };
-
-const UPLOAD_ROOT = path.resolve(process.cwd(), siteConfig.uploadsDir);
 
 const isAllowedMime = (mimeType: string) => Object.prototype.hasOwnProperty.call(IMAGE_MIME_TO_EXT, mimeType);
 
@@ -30,35 +27,23 @@ export const saveUploadedImage = async (
 
   const ext = IMAGE_MIME_TO_EXT[file.type];
   const fileName = `${Date.now()}-${randomUUID()}${ext}`;
-  const relativePath = path.posix.join(siteConfig.uploadsPublicBasePath, options.folder, fileName);
-  const absoluteDir = path.join(UPLOAD_ROOT, options.folder);
-  const absolutePath = path.join(absoluteDir, fileName);
-
-  await mkdir(absoluteDir, { recursive: true });
+  const objectPath = path.posix.join('uploads', options.folder, fileName);
   const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(absolutePath, bytes);
 
-  return relativePath;
-};
+  await supabaseAdmin.upload(objectPath, bytes, file.type);
 
-export const managedUploadPathToDisk = (publicPath: string) => {
-  if (!publicPath.startsWith(`${siteConfig.uploadsPublicBasePath}/`)) return null;
-
-  const relative = publicPath.slice(siteConfig.uploadsPublicBasePath.length).replace(/^\/+/, '');
-  if (!relative || relative.includes('..')) return null;
-
-  return path.join(UPLOAD_ROOT, relative);
+  return supabaseAdmin.getPublicUrl(objectPath);
 };
 
 export const removeManagedUploadIfPresent = async (value: string | null | undefined) => {
   if (!value) return;
 
-  const absolutePath = managedUploadPathToDisk(value);
-  if (!absolutePath) return;
+  const objectPath = supabaseAdmin.extractObjectPathFromPublicUrl(value);
+  if (!objectPath) return;
 
   try {
-    await unlink(absolutePath);
+    await supabaseAdmin.remove(objectPath);
   } catch {
-    // No-op: file may not exist on disk in some deployment environments.
+    // Keep request success path stable even if deletion fails.
   }
 };
