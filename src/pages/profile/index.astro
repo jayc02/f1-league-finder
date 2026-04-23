@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { buildAccolades, buildProfileStatus, groupAccolades, pickFeaturedAccolade } from '@/server/services/accolade.service';
@@ -117,7 +118,9 @@ const performanceHighlights = [
         {featuredAccolade && (
           <div class="mt-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4">
             <p class="text-xs uppercase tracking-[0.16em] text-amber-100/90">Featured Accolade</p>
-            <p class="mt-1 font-display text-2xl text-white">{featuredAccolade.title}</p>
+            <div class="mt-2">
+              <AccoladeBadge accolade={featuredAccolade} />
+            </div>
             <p class="mt-1 text-sm text-amber-100/80">{featuredAccolade.description}</p>
           </div>
         )}
@@ -144,15 +147,9 @@ const performanceHighlights = [
         {Object.entries(groupedAccolades).map(([category, items]) => (
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-500">{category}</p>
-            <div class="mt-2 flex flex-wrap gap-2">
+            <div class="mt-2 flex flex-wrap gap-2.5">
               {items.length ? items.map((item) => (
-                <span class:list={[
-                  'rounded-full border px-3 py-1 text-xs uppercase tracking-[0.14em]',
-                  item.tier === 'legend' ? 'border-amber-300/40 bg-amber-500/15 text-amber-100' :
-                  item.tier === 'elite' ? 'border-indigo-300/40 bg-indigo-500/15 text-indigo-100' :
-                  item.tier === 'pro' ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100' :
-                  'border-white/20 bg-white/5 text-slate-200',
-                ]} title={item.description}>{item.title}</span>
+                <AccoladeBadge accolade={item} compact />
               )) : <span class="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs uppercase tracking-[0.14em] text-slate-500">No accolades yet</span>}
             </div>
           </div>
