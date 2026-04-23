@@ -34,7 +34,7 @@ const [actions, disputes] = await Promise.all([
 ]);
 ---
 
-<BaseLayout title="Admin Moderation | GRID//ONE">
+<BaseLayout noindex={true} title="Admin Moderation | RaceHub">
   <section class="section-shell">
     <AdminShell title="Moderation Activity" subtitle="Recent platform actions, dispute queues, and operational traceability for admin decisions." active="activity" />
     <AdminModerationFeed client:load actions={actions.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }))} disputes={disputes.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }))} />

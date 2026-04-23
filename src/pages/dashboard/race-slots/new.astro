@@ -11,7 +11,7 @@ if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect(
 const leaguesResponse = await fetchFromApi<{ leagues: Array<{ id: string; name: string; ownerId: string }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
 const leagues = user.role === 'ADMIN' ? leaguesResponse.leagues : leaguesResponse.leagues.filter((league) => league.ownerId === user.id);
 ---
-<BaseLayout title="Create organiser event | GRID//ONE">
+<BaseLayout noindex={true} title="Create organiser event | RaceHub">
   <section class="section-shell">
     <h1 class="section-title">Create organiser event</h1>
     <p class="mt-2 text-slate-300">Build an event in draft, then publish it from your organiser dashboard when you are ready for public discovery.</p>
