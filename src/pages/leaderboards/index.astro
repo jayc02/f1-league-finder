@@ -1,7 +1,9 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
-import { getLeaderboardWindowForUser, getRankedLeaderboard, type CompetitiveLeaderboardType } from '@/server/services/leaderboard.service';
+import { buildAccolades, type PlayerAccolade } from '@/server/services/accolade.service';
+import { getLeaderboardWindowForUser, getRankedLeaderboard, type CompetitiveLeaderboardType, type LeaderboardEntry } from '@/server/services/leaderboard.service';
 
 export const prerender = false;
 
@@ -25,24 +27,59 @@ const userContext = user ? await getLeaderboardWindowForUser(type, user.id, 3) :
 
 const trendLabel: Record<'up' | 'down' | 'stable', string> = { up: '▲ Rising', stable: '■ Stable', down: '▼ Cooling' };
 
-const metricLabel = (entry: (typeof topHundred)[number]) => {
+const metricLabel = (entry: LeaderboardEntry) => {
   if (type === 'honour') return `${entry.honourScore} honour`;
   if (type === 'clean') return `${Math.round(entry.cleanRaceRatio * 100)}% clean ratio`;
   if (type === 'wins') return `${entry.wins} wins`;
   if (type === 'weekly') return `${entry.weeklyPoints} pts / 7d`;
   return `${entry.skillRating} SR`;
 };
+
+const tierScore: Record<PlayerAccolade['tier'], number> = { legend: 4, elite: 3, pro: 2, core: 1 };
+const categoryBias: Record<PlayerAccolade['category'], number> = { rank: 5, performance: 4, clean: 3, status: 2, activity: 1 };
+
+const getTopAccolades = (entry: LeaderboardEntry, limit = 2) => {
+  const accolades = buildAccolades({
+    profile: {
+      role: entry.role,
+      createdAt: entry.createdAt,
+      honourScore: entry.honourScore,
+      region: entry.region,
+    },
+    stats: {
+      starts: entry.starts,
+      wins: entry.wins,
+      podiums: entry.podiums,
+      cleanFinishes: entry.cleanFinishes,
+      bestFinish: entry.bestFinish,
+      weeklyStarts: Math.max(0, Math.round(entry.weeklyPoints / 10)),
+      weeklyPoints: entry.weeklyPoints,
+    },
+    ranks: {
+      global: entry.rank,
+      regional: null,
+      region: entry.region,
+    },
+  });
+
+  return accolades
+    .sort((a, b) => (tierScore[b.tier] - tierScore[a.tier]) || (categoryBias[b.category] - categoryBias[a.category]))
+    .slice(0, limit);
+};
 ---
 <BaseLayout title="Leaderboards | GRID//ONE">
-  <section class="section-shell">
-    <div class="panel rounded-3xl p-5 md:p-8">
-      <p class="text-xs uppercase tracking-[0.26em] text-slate-400">Competitive rankings</p>
+  <section class="section-shell relative isolate">
+    <div class="pointer-events-none absolute inset-x-0 -top-8 bottom-0 -z-20 overflow-hidden rounded-[2.2rem]">
+    </div>
+
+    <div class="panel relative overflow-hidden rounded-3xl p-5 md:p-8">
+      <p class="text-xs uppercase tracking-[0.26em] text-slate-300">Competitive rankings</p>
       <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 class="section-title">Top 100 Leaderboard</h1>
-          <p class="mt-3 max-w-3xl text-sm text-slate-300">{selectedView.description} Full top-100 standings update from confirmed race outcomes and clean-racing events.</p>
+          <p class="mt-3 max-w-3xl text-sm text-slate-200">{selectedView.description} Full top-100 standings update from confirmed race outcomes and clean-racing events.</p>
         </div>
-        <p class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-200">Metric · {selectedView.metric}</p>
+        <p class="rounded-full border border-white/15 bg-black/40 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-100">Metric · {selectedView.metric}</p>
       </div>
       <div class="mt-6 flex flex-wrap gap-2">
         {views.map((view) => (
@@ -51,8 +88,8 @@ const metricLabel = (entry: (typeof topHundred)[number]) => {
             class:list={[
               'rounded-full border px-4 py-2 text-xs uppercase tracking-[0.16em] transition',
               view.key === selectedView.key
-                ? 'border-white/45 bg-white text-black'
-                : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/30 hover:text-white',
+                ? 'border-white/60 bg-white text-black shadow-[0_0_30px_rgba(255,255,255,.2)]'
+                : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/35 hover:text-white',
             ]}
           >
             {view.label}
@@ -62,7 +99,7 @@ const metricLabel = (entry: (typeof topHundred)[number]) => {
     </div>
 
     {userContext.me && (
-      <article class="panel mt-6 rounded-3xl p-4 sm:p-6">
+      <article class="panel mt-6 rounded-3xl border-white/15 bg-gradient-to-br from-emerald-300/10 via-black/70 to-black/70 p-4 sm:p-6">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p class="text-xs uppercase tracking-[0.18em] text-slate-400">Your standing</p>
@@ -73,7 +110,7 @@ const metricLabel = (entry: (typeof topHundred)[number]) => {
         <div class="mt-4 space-y-2">
           {userContext.window.map((entry) => (
             <div class:list={[
-              'grid gap-2 rounded-2xl border px-3 py-3 md:grid-cols-[70px_minmax(180px,1.6fr)_repeat(4,minmax(90px,1fr))] md:items-center',
+              'grid gap-3 rounded-2xl border px-3 py-3 md:grid-cols-[70px_minmax(180px,1.5fr)_minmax(200px,1.2fr)_repeat(4,minmax(82px,1fr))] md:items-center',
               entry.id === user?.id
                 ? 'border-emerald-300/45 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(110,231,183,0.15)]'
                 : 'border-white/10 bg-white/[0.03]',
@@ -82,6 +119,9 @@ const metricLabel = (entry: (typeof topHundred)[number]) => {
               <div class="flex items-center gap-3">
                 <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-9 w-9 rounded-xl border border-white/10 object-cover" />
                 <p class="text-sm font-semibold text-white">{entry.username}</p>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                {getTopAccolades(entry, 2).map((accolade) => <AccoladeBadge accolade={accolade} compact />)}
               </div>
               <p class="text-xs text-slate-300">{entry.skillRating} SR</p>
               <p class="text-xs text-slate-300">{entry.honourScore} Honour</p>
@@ -97,33 +137,39 @@ const metricLabel = (entry: (typeof topHundred)[number]) => {
       {topThree.map((entry, index) => (
         <article class:list={[
           'panel relative overflow-hidden rounded-3xl p-4 sm:p-5',
-          index === 0 ? 'md:col-span-2 border-white/30 bg-gradient-to-br from-white/15 to-white/[0.04]' : '',
+          index === 0 ? 'md:col-span-2 border-amber-200/35 bg-gradient-to-br from-amber-300/20 via-white/[0.12] to-black/50' : '',
+          index === 1 ? 'border-indigo-200/30 bg-gradient-to-br from-indigo-400/18 to-black/55' : '',
+          index === 2 ? 'border-emerald-200/30 bg-gradient-to-br from-emerald-400/16 to-black/55' : '',
         ]}>
-          <div class="absolute right-4 top-4 text-[11px] uppercase tracking-[0.2em] text-slate-400">Rank #{entry.rank}</div>
+          <div class="absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl"></div>
+          <div class="absolute right-4 top-4 text-[11px] uppercase tracking-[0.2em] text-slate-300">Rank #{entry.rank}</div>
           <div class="flex items-center gap-4">
-            <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-14 w-14 rounded-2xl border border-white/15 bg-white/5 object-cover" />
+            <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-14 w-14 rounded-2xl border border-white/20 bg-white/5 object-cover" />
             <div>
               <h2 class="font-display text-2xl text-white">{entry.username}</h2>
-              <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{entry.region} · {trendLabel[entry.trend]}</p>
+              <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-300">{entry.region} · {trendLabel[entry.trend]}</p>
             </div>
           </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {getTopAccolades(entry, 3).map((accolade) => <AccoladeBadge accolade={accolade} compact />)}
+          </div>
           <div class="mt-5 grid grid-cols-2 gap-3 text-sm">
-            <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Primary</span>{metricLabel(entry)}</p>
-            <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Starts</span>{entry.starts}</p>
-            <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Podiums</span>{entry.podiums}</p>
-            <p class="rounded-xl border border-white/10 bg-black/20 px-3 py-2"><span class="block text-xs text-slate-400">Avg Finish</span>{entry.averageFinish ? entry.averageFinish.toFixed(1) : '—'}</p>
+            <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Primary</span>{metricLabel(entry)}</p>
+            <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Starts</span>{entry.starts}</p>
+            <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Podiums</span>{entry.podiums}</p>
+            <p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Avg Finish</span>{entry.averageFinish ? entry.averageFinish.toFixed(1) : '—'}</p>
           </div>
         </article>
       ))}
     </div>
 
-    <div class="mt-6 panel rounded-3xl p-3 sm:p-4 md:p-6">
-      <div class="hidden grid-cols-[70px_minmax(210px,1.8fr)_repeat(8,minmax(80px,1fr))] items-center px-4 pb-3 text-[11px] uppercase tracking-[0.2em] text-slate-500 md:grid">
-        <p>Rank</p><p>Driver</p><p>SR</p><p>Honour</p><p>Starts</p><p>Wins</p><p>Podiums</p><p>Clean</p><p>7D</p><p>Trend</p>
+    <div class="mt-6 panel rounded-3xl border-white/15 bg-black/45 p-3 sm:p-4 md:p-6">
+      <div class="hidden grid-cols-[70px_minmax(220px,1.45fr)_minmax(220px,1.35fr)_repeat(8,minmax(78px,1fr))] items-center px-4 pb-3 text-[11px] uppercase tracking-[0.2em] text-slate-500 md:grid">
+        <p>Rank</p><p>Driver</p><p>Accolades</p><p>SR</p><p>Honour</p><p>Starts</p><p>Wins</p><p>Podiums</p><p>Clean</p><p>7D</p><p>Trend</p>
       </div>
       <div class="space-y-2">
         {remaining.map((entry) => (
-          <article class="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/35 hover:bg-white/[0.06] md:grid-cols-[70px_minmax(210px,1.8fr)_repeat(8,minmax(80px,1fr))] md:items-center">
+          <article class="grid gap-2 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.06] via-white/[0.03] to-white/[0.02] px-3 py-3 transition hover:border-white/35 hover:bg-white/[0.06] md:grid-cols-[70px_minmax(220px,1.45fr)_minmax(220px,1.35fr)_repeat(8,minmax(78px,1fr))] md:items-center">
             <p class="text-lg font-semibold text-white">#{entry.rank}</p>
             <div class="flex items-center gap-3">
               <img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
@@ -132,14 +178,17 @@ const metricLabel = (entry: (typeof topHundred)[number]) => {
                 <p class="text-xs uppercase tracking-[0.18em] text-slate-500">{entry.region}</p>
               </div>
             </div>
-            <p class="text-sm text-slate-200">{entry.skillRating}</p>
-            <p class="text-sm text-slate-200">{entry.honourScore}</p>
-            <p class="text-sm text-slate-200">{entry.starts}</p>
-            <p class="text-sm text-slate-200">{entry.wins}</p>
-            <p class="text-sm text-slate-200">{entry.podiums}</p>
-            <p class="text-sm text-slate-200">{Math.round(entry.cleanRaceRatio * 100)}%</p>
-            <p class="text-sm text-slate-200">{entry.weeklyPoints}</p>
-            <p class="text-xs uppercase tracking-[0.18em] text-slate-400">{trendLabel[entry.trend]}</p>
+            <div class="flex flex-wrap gap-1.5">
+              {getTopAccolades(entry, 2).map((accolade) => <AccoladeBadge accolade={accolade} compact />)}
+            </div>
+            <p class="text-sm text-slate-100">{entry.skillRating}</p>
+            <p class="text-sm text-slate-100">{entry.honourScore}</p>
+            <p class="text-sm text-slate-100">{entry.starts}</p>
+            <p class="text-sm text-slate-100">{entry.wins}</p>
+            <p class="text-sm text-slate-100">{entry.podiums}</p>
+            <p class="text-sm text-slate-100">{Math.round(entry.cleanRaceRatio * 100)}%</p>
+            <p class="text-sm text-slate-100">{entry.weeklyPoints}</p>
+            <p class="text-xs uppercase tracking-[0.18em] text-slate-300">{trendLabel[entry.trend]}</p>
           </article>
         ))}
       </div>
