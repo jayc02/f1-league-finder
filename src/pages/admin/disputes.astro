@@ -31,7 +31,7 @@ const disputes = await prisma.dispute.findMany({
 });
 ---
 
-<BaseLayout title="Admin Disputes | GRID//ONE">
+<BaseLayout noindex={true} title="Admin Disputes | RaceHub">
   <section class="section-shell">
     <AdminShell title="Dispute Command" subtitle="End-to-end dispute moderation including lifecycle control, communication, and immutable operational history." active="disputes" />
     <AdminDisputeManager client:load disputes={disputes.map((item) => ({ ...item, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString(), resolvedAt: item.resolvedAt?.toISOString() ?? null }))} />

@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import AuthForm from '@/components/auth/AuthForm';
 export const prerender = false;
 ---
-<BaseLayout title="Create account | GRID//ONE">
+<BaseLayout noindex={true} title="Create account | RaceHub">
   <section class="section-shell">
     <AuthForm client:load mode="register" />
   </section>

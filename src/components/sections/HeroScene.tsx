@@ -22,7 +22,7 @@ export default function HeroScene() {
       <div className="pointer-events-none absolute bottom-0 left-0 z-20 h-48 w-full bg-gradient-to-b from-transparent to-black" aria-hidden="true" />
       <div className="section-shell relative z-30 grid min-h-[78vh] content-end gap-10 pb-12">
         <div className="space-y-8">
-          <p className="max-w-fit border border-white/20 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">Competitive F1 Operations Platform</p>
+          <p className="max-w-fit border border-white/20 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">Competitive Sim Racing Operations Platform</p>
           <h1 className="font-display text-5xl leading-[0.94] text-white md:text-7xl lg:text-8xl">
             {words.map((word) => (
               <span className="block overflow-hidden" key={word}>

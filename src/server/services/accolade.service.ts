@@ -39,12 +39,12 @@ export const buildAccolades = (input: AccoladeInput): PlayerAccolade[] => {
   const accolades: PlayerAccolade[] = [];
   const { stats, ranks, profile } = input;
 
-  if (ranks.global === 1) accolades.push(create('world-1', 'World #1', 'Current global leader in GRID//ONE standings.', 'rank', 'legend'));
-  if (ranks.global && ranks.global <= 10) accolades.push(create('top-10', 'Top 10 F1', 'Sits inside the global top ten.', 'rank', 'legend'));
-  if (ranks.global && ranks.global <= 50) accolades.push(create('top-50', 'Top 50 F1', 'Global top fifty contender.', 'rank', 'elite'));
-  if (ranks.global && ranks.global <= 100) accolades.push(create('top-100', 'Top 100 F1', 'Part of the global top hundred.', 'rank', 'elite'));
-  if (ranks.global && ranks.global <= 250) accolades.push(create('top-250', 'Top 250 F1', 'Competitive presence in the top 250.', 'rank', 'pro'));
-  if (ranks.global && ranks.global <= 500) accolades.push(create('top-500', 'Top 500 F1', 'Recognized in the top 500 rankings.', 'rank', 'core'));
+  if (ranks.global === 1) accolades.push(create('world-1', 'World #1', 'Current global leader in RaceHub standings.', 'rank', 'legend'));
+  if (ranks.global && ranks.global <= 10) accolades.push(create('top-10', 'Top 10 Global', 'Sits inside the global top ten.', 'rank', 'legend'));
+  if (ranks.global && ranks.global <= 50) accolades.push(create('top-50', 'Top 50 Global', 'Global top fifty contender.', 'rank', 'elite'));
+  if (ranks.global && ranks.global <= 100) accolades.push(create('top-100', 'Top 100 Global', 'Part of the global top hundred.', 'rank', 'elite'));
+  if (ranks.global && ranks.global <= 250) accolades.push(create('top-250', 'Top 250 Global', 'Competitive presence in the top 250.', 'rank', 'pro'));
+  if (ranks.global && ranks.global <= 500) accolades.push(create('top-500', 'Top 500 Global', 'Recognized in the top 500 rankings.', 'rank', 'core'));
   if (ranks.regional && ranks.regional <= 10) accolades.push(create('regional-top-10', 'Regional Top 10', `${ranks.region} elite ranking.`, 'rank', 'elite'));
   if (ranks.regional && ranks.regional <= 50) accolades.push(create('regional-top-50', 'Regional Top 50', `${ranks.region} front-running status.`, 'rank', 'pro'));
 
