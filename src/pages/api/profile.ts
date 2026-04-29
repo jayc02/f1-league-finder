@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { updateProfileSchema } from '@/lib/validation/profile';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
-import { removeManagedUploadIfPresent, saveUploadedImage } from '@/lib/server/uploads';
+import { removeManagedUploadIfPresent, saveUploadedImage } from '@/lib/server/upload-storage';
 import { requireUser } from '@/server/permissions/authz';
 
 export const PATCH: APIRoute = (context) =>
