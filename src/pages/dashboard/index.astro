@@ -34,7 +34,7 @@ const [upcomingRegistrations, upcomingEvents, organiserProfile] = await withPerf
 
 if (shouldLogPerf()) console.info(`[perf] dashboard.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
-<BaseLayout noindex={true} title="Dashboard | RaceHub" sessionUser={user}>
+<BaseLayout noindex={true} title="Dashboard | RaceHub" sessionUser={user} lightweightApp={true}>
   <section class="section-shell">
     <div class="panel rounded-3xl p-6 md:p-8">
       <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Command center</p>
