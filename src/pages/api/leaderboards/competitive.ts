@@ -13,5 +13,7 @@ export const GET: APIRoute = (context) =>
     if (!validTypes.includes(typeParam)) throw new HttpError(400, 'Invalid leaderboard type.');
 
     const leaderboard = await getCompetitiveLeaderboard(typeParam, getNumericLimit(context, 30, 100));
-    return jsonResponse(200, { type: typeParam, leaderboard });
+    const response = jsonResponse(200, { type: typeParam, leaderboard });
+    response.headers.set('Cache-Control', 'public, s-maxage=45, stale-while-revalidate=60');
+    return response;
   });
