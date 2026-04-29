@@ -6,6 +6,7 @@ import PageMotion from '@/components/motion/PageMotion';
 import CursorGlow from '@/components/ui/CursorGlow';
 import { getSessionUser } from '@/lib/auth/session';
 import { absoluteUrl, siteConfig } from '@/lib/config';
+import SpeedInsights from '@vercel/speed-insights/astro';
 
 interface Props {
   title?: string;
@@ -60,5 +61,6 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
       <slot />
     </main>
     <SiteFooter />
+    <SpeedInsights />
   </body>
 </html>
