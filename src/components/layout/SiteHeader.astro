@@ -74,8 +74,10 @@ const appNav = [
     menu?.classList.toggle('hidden');
   });
 
-  logoutButton?.addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
+  logoutButton?.addEventListener('click', async (event) => {
+    event.preventDefault();
+    menu?.classList.add('hidden');
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    window.location.assign('/');
   });
 </script>

@@ -2,241 +2,93 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import OrganiserEventManager from '@/components/dashboard/OrganiserEventManager';
-import { buildAccolades, pickFeaturedAccolade } from '@/server/services/accolade.service';
-import { getRankedLeaderboard, getRegionalRanks } from '@/server/services/leaderboard.service';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
-const user = await getSessionUser(Astro as never);
+const routeStart = performance.now();
+const user = await withPerf('dashboard.sessionLookup', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
 const now = new Date();
-const isOrganiser = ['ORGANISER', 'ADMIN'].includes(user.role);
 
-const notice = Astro.url.searchParams.get('notice');
-const [upcomingRegistrations, previousEntries, upcomingEvents, recentActivity, profileStats, organiserProfile, organiserEvents, ranks, overallBoard] = await Promise.all([
-  prisma.raceRegistration.findMany({
-    where: { userId: user.id, raceSlot: { scheduledAt: { gte: now } } },
-    include: {
-      raceSlot: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } } },
-    },
-    orderBy: { raceSlot: { scheduledAt: 'asc' } },
-    take: 6,
-  }),
-  prisma.raceResultEntry.findMany({
-    where: { userId: user.id },
-    include: {
-      raceResult: { select: { submittedAt: true, raceSlot: { select: { id: true, title: true, league: { select: { name: true } } } } } },
-    },
-    orderBy: { raceResult: { submittedAt: 'desc' } },
-    take: 6,
-  }),
-  prisma.raceSlot.findMany({
-    where: { scheduledAt: { gte: now }, status: { in: ['OPEN', 'FULL'] }, visibility: 'PUBLIC' },
-    include: { league: { select: { name: true } }, _count: { select: { registrations: true } } },
-    orderBy: { scheduledAt: 'asc' },
-    take: 6,
-  }),
-  prisma.honourEvent.findMany({
-    where: { userId: user.id },
-    select: { id: true, type: true, reason: true, delta: true, createdAt: true },
-    orderBy: { createdAt: 'desc' },
-    take: 6,
-  }),
+const [upcomingRegistrations, upcomingEvents, organiserProfile] = await withPerf('dashboard.dataFetch', () =>
   Promise.all([
-    prisma.raceRegistration.count({ where: { userId: user.id } }),
-    prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: 1 } }),
-    prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: { lte: 3 } } }),
-    prisma.honourEvent.count({ where: { userId: user.id, type: 'CLEAN_RACE', delta: { gt: 0 } } }),
+    prisma.raceRegistration.findMany({
+      where: { userId: user.id, raceSlot: { scheduledAt: { gte: now } } },
+      select: {
+        raceSlot: { select: { id: true, title: true, scheduledAt: true, league: { select: { name: true } } } },
+      },
+      orderBy: { raceSlot: { scheduledAt: 'asc' } },
+      take: 6,
+    }),
+    prisma.raceSlot.findMany({
+      where: { scheduledAt: { gte: now }, status: { in: ['OPEN', 'FULL'] }, visibility: 'PUBLIC' },
+      select: { id: true, title: true, scheduledAt: true, status: true, league: { select: { name: true } } },
+      orderBy: { scheduledAt: 'asc' },
+      take: 6,
+    }),
+    prisma.organiserProfile.findUnique({ where: { userId: user.id }, select: { displayName: true } }),
   ]),
-  isOrganiser ? prisma.organiserProfile.findUnique({ where: { userId: user.id } }) : null,
-  isOrganiser ? prisma.raceSlot.findMany({
-    where: { organiserId: user.id },
-    include: { _count: { select: { registrations: true } } },
-    orderBy: { scheduledAt: 'desc' },
-    take: 30,
-  }) : [],
-  getRegionalRanks(user.id),
-  getRankedLeaderboard('overall'),
-]);
+);
 
-const [entriesCount, winsCount, podiumCount, cleanRaceCount] = profileStats;
-
-const me = overallBoard.find((entry) => entry.id === user.id) ?? null;
-const accolades = buildAccolades({
-  profile: {
-    role: user.role,
-    createdAt: user.createdAt,
-    honourScore: user.honourScore,
-    region: user.region,
-  },
-  stats: {
-    starts: me?.starts ?? 0,
-    wins: winsCount,
-    podiums: podiumCount,
-    cleanFinishes: cleanRaceCount,
-    bestFinish: me?.bestFinish ?? null,
-    weeklyStarts: previousEntries.filter((entry) => new Date(entry.raceResult.submittedAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).length,
-    weeklyPoints: me?.weeklyPoints ?? 0,
-  },
-  ranks,
-});
-const featuredAccolade = pickFeaturedAccolade(accolades);
-
-const draftEvents = organiserEvents.filter((event) => event.status === 'DRAFT');
-const publishedEvents = organiserEvents.filter((event) => ['OPEN', 'FULL', 'LOCKED'].includes(event.status) && event.visibility === 'PUBLIC');
-
-const organiserEventFeed = organiserEvents.map((event) => ({
-  id: event.id,
-  title: event.title,
-  scheduledAt: event.scheduledAt.toISOString(),
-  track: event.track,
-  status: event.status,
-  visibility: event.visibility,
-  maxPlayers: event.maxPlayers,
-  registrations: event._count.registrations,
-  communityName: organiserProfile?.displayName ?? user.username,
-}));
+if (shouldLogPerf()) console.info(`[perf] dashboard.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
-<BaseLayout noindex={true} title="Dashboard | RaceHub">
+<BaseLayout noindex={true} title="Dashboard | RaceHub" sessionUser={user}>
   <section class="section-shell">
     <div class="panel rounded-3xl p-6 md:p-8">
       <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Command center</p>
       <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 class="section-title">{isOrganiser ? 'Organiser Control Centre' : `Driver Hub · ${user.username}`}</h1>
-          <p class="mt-2 text-sm text-slate-300">{isOrganiser ? 'Manage your community brand, publish race inventory, and convert discovery traffic into full grids.' : 'Track momentum and stay race-ready across every championship slot.'}</p>
+          <h1 class="section-title">Driver Hub · {user.username}</h1>
+          <p class="mt-2 text-sm text-slate-300">Track momentum and stay race-ready across every championship slot.</p>
         </div>
         <div class="flex flex-wrap gap-2">
           <a href="/profile/edit" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit profile</a>
-          {isOrganiser && <a href="/dashboard/race-slots/new" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Publish event</a>}
-          {isOrganiser && <a href="/dashboard/community" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit community</a>}
+          <a href="/dashboard/community" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Create Community</a>
         </div>
       </div>
-      <div class="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-5">
+      <div class="mt-6 grid gap-3 sm:grid-cols-2">
         <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Skill Rating</p><p class="mt-2 font-display text-3xl">{user.skillRating}</p></div>
         <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Honour</p><p class="mt-2 font-display text-3xl">{user.honourScore}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Entries</p><p class="mt-2 font-display text-3xl">{entriesCount}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Podiums</p><p class="mt-2 font-display text-3xl">{podiumCount}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Clean Races</p><p class="mt-2 font-display text-3xl">{cleanRaceCount}</p></div>
       </div>
     </div>
 
-    <div class="mt-6 grid gap-4 xl:grid-cols-[1.25fr_1fr]">
-      <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <p class="text-xs uppercase tracking-[0.16em] text-slate-500">Career Status</p>
-        <div class="mt-3 grid gap-3 sm:grid-cols-3">
-          <div class="rounded-xl border border-white/10 bg-black/30 p-3"><p class="text-xs text-slate-400">Global Rank</p><p class="mt-1 text-xl font-display">{ranks.global ? `#${ranks.global}` : '—'}</p></div>
-          <div class="rounded-xl border border-white/10 bg-black/30 p-3"><p class="text-xs text-slate-400">Regional Rank</p><p class="mt-1 text-xl font-display">{ranks.regional ? `#${ranks.regional}` : '—'}</p></div>
-          <div class="rounded-xl border border-white/10 bg-black/30 p-3"><p class="text-xs text-slate-400">Weekly Points</p><p class="mt-1 text-xl font-display">{me?.weeklyPoints ?? 0}</p></div>
-        </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          {accolades.slice(0, 6).map((accolade) => <span class="rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-slate-200">{accolade.title}</span>)}
-          {!accolades.length && <span class="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">No accolades yet</span>}
-        </div>
-      </article>
-      <article class="rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4">
-        <p class="text-xs uppercase tracking-[0.16em] text-amber-100/80">Featured Accolade</p>
-        <p class="mt-2 font-display text-2xl text-white">{featuredAccolade?.title ?? 'Career Building'}</p>
-        <p class="mt-1 text-sm text-amber-100/80">{featuredAccolade?.description ?? 'Complete races and hold clean form to unlock your first major accolade.'}</p>
-        <a href="/leaderboards" class="mt-4 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em] text-white">See full standing</a>
-      </article>
-    </div>
+    <!-- Accolade UI temporarily disabled for MVP clarity/performance. -->
 
-    {isOrganiser && (
-      <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Community</p><p class="mt-2 font-display text-2xl">{organiserProfile?.displayName ?? 'Not setup'}</p><p class="mt-2 text-xs text-slate-400">{organiserProfile?.isPublic ? 'Public profile live' : 'Private profile'}</p></article>
-        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Audience</p><p class="mt-2 font-display text-2xl">{(organiserProfile?.displayedMemberCount ?? 0).toLocaleString()}</p><p class="mt-2 text-xs text-slate-400">Displayed members</p></article>
-        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Published events</p><p class="mt-2 font-display text-2xl">{publishedEvents.length}</p><p class="mt-2 text-xs text-slate-400">Currently discoverable</p></article>
-        <article class="panel rounded-2xl p-5"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Draft queue</p><p class="mt-2 font-display text-2xl">{draftEvents.length}</p><p class="mt-2 text-xs text-slate-400">Pending publication</p></article>
-      </div>
-    )}
-
-    {notice === 'event-created' && (<p class="mt-6 rounded-2xl border border-emerald-300/30 bg-emerald-500/12 px-4 py-3 text-sm text-emerald-100">Event saved as draft. Publish it from the organiser event pipeline.</p>)}
-
-    <div class="mt-8 grid gap-6 xl:grid-cols-[1.25fr_1fr]">
+    <div class="mt-8 grid gap-6 xl:grid-cols-2">
       <article class="panel rounded-3xl p-4 sm:p-6">
-        <div class="flex items-center justify-between">
-          <h2 class="font-display text-2xl">My Upcoming Races</h2>
-          <a href="/race-slots" class="text-xs uppercase tracking-[0.16em] text-slate-400 hover:text-white">Browse slots</a>
-        </div>
+        <h2 class="font-display text-2xl">My Upcoming Races</h2>
         <div class="mt-4 space-y-3">
           {upcomingRegistrations.length ? upcomingRegistrations.map((registration) => (
             <a href={`/race-slots/${registration.raceSlot.id}`} class="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/40 hover:bg-white/[0.07]">
               <p class="text-xs uppercase tracking-[0.18em] text-slate-400">{registration.raceSlot.league.name}</p>
               <h3 class="mt-1 font-semibold text-white">{registration.raceSlot.title}</h3>
-              <div class="mt-3 grid gap-2 text-sm text-slate-300 md:grid-cols-3">
-                <p>{new Date(registration.raceSlot.scheduledAt).toLocaleString()}</p>
-                <p>{registration.raceSlot.crossplay ? 'Crossplay enabled' : registration.raceSlot.platform ?? 'Platform TBD'}</p>
-                <p>{registration.raceSlot._count.registrations}/{registration.raceSlot.maxPlayers} drivers</p>
-              </div>
+              <p class="mt-2 text-xs text-slate-400">{new Date(registration.raceSlot.scheduledAt).toLocaleString()}</p>
             </a>
-          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No upcoming registrations yet. Enter an open race slot to build momentum.</p>}
+          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No upcoming registrations yet.</p>}
         </div>
       </article>
 
       <article class="panel rounded-3xl p-4 sm:p-6">
-        <h2 class="font-display text-2xl">Activity & Performance</h2>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Wins</p><p class="mt-2 font-display text-3xl">{winsCount}</p></div>
-          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Role</p><p class="mt-2 font-display text-3xl">{user.role}</p></div>
-        </div>
-        <div class="mt-4 space-y-2">
-          {recentActivity.length ? recentActivity.map((event) => (
-            <div class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-              <p class="text-slate-200">{event.reason}</p>
-              <p class="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">{event.type} · Δ{event.delta} · {new Date(event.createdAt).toLocaleDateString()}</p>
-            </div>
-          )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-300">No recent honour events.</p>}
-        </div>
-      </article>
-    </div>
-
-    {isOrganiser && (
-      <article class="panel mt-6 rounded-3xl p-4 sm:p-6">
-        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="font-display text-2xl">Organiser Event Pipeline</h2>
-            <p class="text-sm text-slate-400">Manage drafts, publish to discovery, and handle lifecycle updates in one place.</p>
-          </div>
-          <a href="/dashboard/race-slots/new" class="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Create new</a>
-        </div>
-        <OrganiserEventManager client:load events={organiserEventFeed} />
-      </article>
-    )}
-
-    <div class="mt-6 grid gap-6 xl:grid-cols-2">
-      <article class="panel rounded-3xl p-4 sm:p-6">
-        <h2 class="font-display text-2xl">Previous Races</h2>
-        <div class="mt-4 space-y-2">
-          {previousEntries.length ? previousEntries.map((entry) => (
-            <a href={`/race-slots/${entry.raceResult.raceSlot.id}`} class="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/35">
-              <div>
-                <p class="font-medium text-white">{entry.raceResult.raceSlot.title}</p>
-                <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{entry.raceResult.raceSlot.league.name} · {new Date(entry.raceResult.submittedAt).toLocaleDateString()}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-white">P{entry.finishingPosition}</p>
-                <p class="text-xs text-slate-400">{entry.pointsAwarded} pts</p>
-              </div>
-            </a>
-          )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">No completed races recorded yet.</p>}
-        </div>
-      </article>
-
-      <article class="panel rounded-3xl p-4 sm:p-6">
-        <h2 class="font-display text-2xl">Events Coming Up</h2>
+        <h2 class="font-display text-2xl">Available Races</h2>
         <div class="mt-4 space-y-2">
           {upcomingEvents.length ? upcomingEvents.map((slot) => (
             <a href={`/race-slots/${slot.id}`} class="block rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/35">
               <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{slot.league.name} · {slot.status}</p>
               <p class="mt-1 font-medium text-white">{slot.title}</p>
-              <p class="mt-1 text-xs text-slate-400">{new Date(slot.scheduledAt).toLocaleString()} · {slot._count.registrations}/{slot.maxPlayers} drivers</p>
             </a>
           )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-slate-300">No upcoming events available.</p>}
         </div>
       </article>
     </div>
+
+    <article class="panel mt-6 rounded-3xl p-4 sm:p-6">
+      <div class="flex items-center justify-between">
+        <h2 class="font-display text-2xl">My Community</h2>
+        <a href="/dashboard/community" class="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Create Community</a>
+      </div>
+      <p class="mt-3 text-sm text-slate-300">{organiserProfile ? organiserProfile.displayName : 'You can create and manage your community at any time.'}</p>
+    </article>
   </section>
 </BaseLayout>

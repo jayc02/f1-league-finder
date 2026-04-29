@@ -7,14 +7,14 @@ import CommunityEditorForm from '@/components/dashboard/CommunityEditorForm';
 export const prerender = false;
 
 const user = await getSessionUser(Astro as never);
-if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect('/login');
+if (!user) return Astro.redirect('/login');
 
-const community = await prisma.organiserProfile.findUnique({ where: { userId: user.id } });
+const community = await prisma.organiserProfile.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id, displayName: user.username, slug: user.username.toLowerCase().replace(/[^a-z0-9]+/g, '-') } });
 ---
 
 <BaseLayout noindex={true} title="Community settings | RaceHub">
   <section class="section-shell">
-    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Organiser control center</p>
+    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Community control center</p>
     <h1 class="section-title mt-2">Community Branding & Discovery</h1>
     <p class="mt-3 max-w-3xl text-sm text-slate-300">Shape your public community hub, member-growth surface, and trust signals for incoming drivers.</p>
     <div class="mt-8">
