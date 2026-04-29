@@ -2,7 +2,6 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import HeroScene from '@/components/sections/HeroScene';
 import SlotShowcase from '@/components/sections/SlotShowcase';
-import HowItWorksTimeline from '@/components/sections/HowItWorksTimeline';
 import LeaderboardPreview from '@/components/sections/LeaderboardPreview';
 import HonourSystem from '@/components/sections/HonourSystem';
 import OrganiserShowcase from '@/components/sections/OrganiserShowcase.astro';
@@ -73,7 +72,6 @@ const structuredData = {
     </div>
   </section>
 
-  <HowItWorksTimeline client:visible />
   <LeaderboardPreview client:visible globalLeaderboard={globalLb.leaderboard} honourLeaderboard={honourLb.leaderboard} />
   <HonourSystem client:visible />
   <OrganiserShowcase />
