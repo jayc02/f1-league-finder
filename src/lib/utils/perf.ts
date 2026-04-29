@@ -1,6 +1,6 @@
 export const shouldLogPerf = () => {
   const flag = process.env.DEBUG_PERF;
-  return process.env.NODE_ENV !== 'production' || flag === '1' || flag === 'true';
+  return flag === '1' || flag === 'true';
 };
 
 export async function withPerf<T>(label: string, fn: () => Promise<T>): Promise<T> {

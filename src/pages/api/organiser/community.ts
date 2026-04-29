@@ -6,12 +6,11 @@ import { updateCommunitySchema } from '@/lib/validation/community';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { removeManagedUploadIfPresent, saveUploadedImage } from '@/lib/server/uploads';
-import { requireOrganiserOrAdmin, requireUser } from '@/server/permissions/authz';
+import { requireUser } from '@/server/permissions/authz';
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
     const user = await requireUser(context);
-    requireOrganiserOrAdmin(user);
 
     const profile = await prisma.organiserProfile.findUnique({ where: { userId: user.id } });
     return jsonResponse(200, { community: profile });
@@ -20,7 +19,6 @@ export const GET: APIRoute = (context) =>
 export const PATCH: APIRoute = (context) =>
   withErrorHandling(async () => {
     const user = await requireUser(context);
-    requireOrganiserOrAdmin(user);
 
     const existingProfile = await prisma.organiserProfile.findUnique({
       where: { userId: user.id },

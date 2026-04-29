@@ -1,78 +1,37 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
+// import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { buildAccolades, buildProfileStatus, groupAccolades, pickFeaturedAccolade } from '@/server/services/accolade.service';
-import { getRankedLeaderboard, getRegionalRanks } from '@/server/services/leaderboard.service';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
-const user = await getSessionUser(Astro as never);
+const routeStart = performance.now();
+const user = await withPerf('profile.sessionLookup', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
-const now = new Date();
-const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+const [recentResults, upcomingRegistrations, starts] = await withPerf('profile.dataFetch', () =>
+  Promise.all([
+    prisma.raceResultEntry.findMany({
+      where: { userId: user.id },
+      select: { finishingPosition: true, pointsAwarded: true, raceResult: { select: { submittedAt: true, raceSlot: { select: { title: true, id: true } } } } },
+      orderBy: { raceResult: { submittedAt: 'desc' } },
+      take: 8,
+    }),
+    prisma.raceRegistration.findMany({
+      where: { userId: user.id, raceSlot: { scheduledAt: { gte: new Date() } } },
+      select: { raceSlot: { select: { id: true, title: true, scheduledAt: true, league: { select: { name: true } } } } },
+      orderBy: { raceSlot: { scheduledAt: 'asc' } },
+      take: 4,
+    }),
+    prisma.raceRegistration.count({ where: { userId: user.id } }),
+  ]),
+);
 
-const [history, recentResults, upcomingRegistrations, registrations, cleanRaces, wins, podiums, weeklyStarts, ranks, overallBoard] = await Promise.all([
-  prisma.raceResultEntry.findMany({
-    where: { userId: user.id },
-    include: { raceResult: { select: { submittedAt: true, raceSlot: { select: { title: true, id: true, league: { select: { name: true } } } } } } },
-    orderBy: { raceResult: { submittedAt: 'desc' } },
-    take: 12,
-  }),
-  prisma.raceResultEntry.findMany({
-    where: { userId: user.id },
-    include: { raceResult: { select: { submittedAt: true, raceSlot: { select: { title: true, id: true } } } } },
-    orderBy: { raceResult: { submittedAt: 'desc' } },
-    take: 4,
-  }),
-  prisma.raceRegistration.findMany({
-    where: { userId: user.id, raceSlot: { scheduledAt: { gte: now } } },
-    include: { raceSlot: { select: { id: true, title: true, scheduledAt: true, league: { select: { name: true } } } } },
-    orderBy: { raceSlot: { scheduledAt: 'asc' } },
-    take: 4,
-  }),
-  prisma.raceRegistration.count({ where: { userId: user.id } }),
-  prisma.honourEvent.count({ where: { userId: user.id, type: 'CLEAN_RACE', delta: { gt: 0 } } }),
-  prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: 1 } }),
-  prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: { lte: 3 } } }),
-  prisma.raceResultEntry.count({ where: { userId: user.id, raceResult: { submittedAt: { gte: weekAgo } } } }),
-  getRegionalRanks(user.id),
-  getRankedLeaderboard('overall'),
-]);
-
-const me = overallBoard.find((entry) => entry.id === user.id) ?? null;
-const status = buildProfileStatus(me);
-const accolades = buildAccolades({
-  profile: {
-    role: user.role,
-    createdAt: user.createdAt,
-    honourScore: user.honourScore,
-    region: user.region,
-  },
-  stats: {
-    starts: me?.starts ?? history.length,
-    wins,
-    podiums,
-    cleanFinishes: cleanRaces,
-    bestFinish: me?.bestFinish ?? null,
-    weeklyStarts,
-    weeklyPoints: me?.weeklyPoints ?? 0,
-  },
-  ranks,
-});
-const featuredAccolade = pickFeaturedAccolade(accolades);
-const groupedAccolades = groupAccolades(accolades);
-
-const performanceHighlights = [
-  { label: 'Win Rate', value: `${Math.round((status?.winRate ?? 0) * 100)}%` },
-  { label: 'Podium Rate', value: `${Math.round((status?.podiumRate ?? 0) * 100)}%` },
-  { label: 'Clean Ratio', value: `${Math.round((status?.cleanRaceRatio ?? 0) * 100)}%` },
-  { label: 'Best Finish', value: status?.bestFinish ? `P${status.bestFinish}` : '—' },
-];
+if (shouldLogPerf()) console.info(`[perf] profile.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
-<BaseLayout title="Profile | RaceHub">
+<BaseLayout title="Profile | RaceHub" noindex={true} sessionUser={user}>
   <section class="section-shell">
     <div class="panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -81,51 +40,21 @@ const performanceHighlights = [
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Driver Identity</p>
             <h1 class="mt-1 font-display text-4xl">{user.username}</h1>
-            <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{user.role} · {user.region ?? 'GLOBAL'} · {user.preferredPlatform ?? 'Platform TBD'}</p>
-            <p class="mt-3 max-w-2xl text-sm text-slate-300">{user.bio ?? 'No bio added yet. Add your racecraft profile and preferred style.'}</p>
+            <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{user.region ?? 'GLOBAL'} · {user.preferredPlatform ?? 'Platform TBD'}</p>
           </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <a href="/profile/edit" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Edit profile</a>
-          <a href="/leaderboards" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white">Leaderboards</a>
-        </div>
+        <a href="/profile/edit" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Edit profile</a>
       </div>
-
-      <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Global Rank</p><p class="mt-2 font-display text-3xl">{ranks.global ? `#${ranks.global}` : '—'}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Regional Rank</p><p class="mt-2 font-display text-3xl">{ranks.regional ? `#${ranks.regional}` : '—'}</p></div>
+      <div class="mt-6 grid gap-3 sm:grid-cols-3">
         <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Skill Rating</p><p class="mt-2 font-display text-3xl">{user.skillRating}</p></div>
         <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Honour</p><p class="mt-2 font-display text-3xl">{user.honourScore}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Starts</p><p class="mt-2 font-display text-3xl">{me?.starts ?? 0}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Accolades</p><p class="mt-2 font-display text-3xl">{accolades.length}</p></div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Starts</p><p class="mt-2 font-display text-3xl">{starts}</p></div>
       </div>
     </div>
 
-    <div class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-      <article class="panel rounded-3xl p-6">
-        <div class="flex items-center justify-between">
-          <h2 class="font-display text-2xl">Profile Status</h2>
-          <p class="text-xs uppercase tracking-[0.16em] text-slate-400">{status?.movement === 'up' ? 'Rising form' : status?.movement === 'down' ? 'Needs momentum' : 'Stable pace'}</p>
-        </div>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          {performanceHighlights.map((metric) => (
-            <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <p class="text-xs text-slate-400">{metric.label}</p>
-              <p class="mt-2 font-display text-3xl">{metric.value}</p>
-            </div>
-          ))}
-        </div>
-        {featuredAccolade && (
-          <div class="mt-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 p-4">
-            <p class="text-xs uppercase tracking-[0.16em] text-amber-100/90">Featured Accolade</p>
-            <div class="mt-2">
-              <AccoladeBadge accolade={featuredAccolade} />
-            </div>
-            <p class="mt-1 text-sm text-amber-100/80">{featuredAccolade.description}</p>
-          </div>
-        )}
-      </article>
+    <!-- Accolades section temporarily disabled for MVP cleanup. -->
 
+    <div class="mt-6 grid gap-6 xl:grid-cols-2">
       <article class="panel rounded-3xl p-6">
         <h2 class="font-display text-2xl">Upcoming Races</h2>
         <div class="mt-4 space-y-2">
@@ -133,64 +62,19 @@ const performanceHighlights = [
             <a href={`/race-slots/${registration.raceSlot.id}`} class="block rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/35">
               <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{registration.raceSlot.league.name}</p>
               <p class="mt-1 font-medium text-white">{registration.raceSlot.title}</p>
-              <p class="mt-1 text-xs text-slate-400">{new Date(registration.raceSlot.scheduledAt).toLocaleString()}</p>
             </a>
-          )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No upcoming races. Register to keep your streak active.</p>}
+          )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No upcoming races.</p>}
         </div>
       </article>
-    </div>
-
-    <article class="panel mt-6 rounded-3xl p-6">
-      <h2 class="font-display text-2xl">Accolades</h2>
-      <p class="mt-2 text-sm text-slate-300">Status badges are automatically earned from verified results, ranking position, honour history, and activity momentum.</p>
-      <div class="mt-5 space-y-4">
-        {Object.entries(groupedAccolades).map(([category, items]) => (
-          <div>
-            <p class="text-xs uppercase tracking-[0.2em] text-slate-500">{category}</p>
-            <div class="mt-2 flex flex-wrap gap-2.5">
-              {items.length ? items.map((item) => (
-                <AccoladeBadge accolade={item} compact />
-              )) : <span class="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs uppercase tracking-[0.14em] text-slate-500">No accolades yet</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </article>
-
-    <div class="mt-6 grid gap-6 xl:grid-cols-2">
       <article class="panel rounded-3xl p-6">
         <h2 class="font-display text-2xl">Recent Results</h2>
         <div class="mt-4 space-y-2">
           {recentResults.length ? recentResults.map((entry) => (
             <a href={`/race-slots/${entry.raceResult.raceSlot.id}`} class="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/35">
-              <div>
-                <p class="font-medium text-white">{entry.raceResult.raceSlot.title}</p>
-                <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{new Date(entry.raceResult.submittedAt).toLocaleDateString()}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-white">P{entry.finishingPosition}</p>
-                <p class="text-xs text-slate-400">{entry.pointsAwarded} pts · Δ{entry.ratingDelta}</p>
-              </div>
+              <p class="font-medium text-white">{entry.raceResult.raceSlot.title}</p>
+              <p class="text-sm font-semibold text-white">P{entry.finishingPosition}</p>
             </a>
           )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No race results yet.</p>}
-        </div>
-      </article>
-
-      <article class="panel rounded-3xl p-6">
-        <h2 class="font-display text-2xl">Race History</h2>
-        <div class="mt-4 space-y-2">
-          {history.length ? history.map((entry) => (
-            <a href={`/race-slots/${entry.raceResult.raceSlot.id}`} class="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/35">
-              <div>
-                <p class="font-medium text-white">{entry.raceResult.raceSlot.title}</p>
-                <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{entry.raceResult.raceSlot.league.name} · {new Date(entry.raceResult.submittedAt).toLocaleDateString()}</p>
-              </div>
-              <div class="text-right">
-                <p class="text-sm font-semibold text-white">P{entry.finishingPosition}</p>
-                <p class="text-xs text-slate-400">{entry.pointsAwarded} pts</p>
-              </div>
-            </a>
-          )) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No race history yet.</p>}
         </div>
       </article>
     </div>
