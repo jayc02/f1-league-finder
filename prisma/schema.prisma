@@ -103,6 +103,9 @@ model User {
   disputeEmailsReceived DisputeEmailLog[]    @relation("DisputeEmailRecipient")
   resultEntries       RaceResultEntry[]
   submittedResults    RaceResult[]
+
+  @@index([skillRating])
+  @@index([honourScore])
 }
 
 model Session {
@@ -174,6 +177,8 @@ model League {
   owner             User              @relation("LeagueOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   organiserProfile  OrganiserProfile? @relation(fields: [organiserProfileId], references: [id], onDelete: SetNull)
   raceSlots         RaceSlot[]
+
+  @@index([slug])
 }
 
 model RaceSlot {
@@ -213,7 +218,10 @@ model RaceSlot {
   @@index([leagueId, scheduledAt])
   @@index([status, scheduledAt])
   @@index([visibility, scheduledAt])
+  @@index([scheduledAt])
+  @@index([status])
 }
+
 
 model RaceRegistration {
   id         String   @id @default(cuid())
@@ -226,6 +234,8 @@ model RaceRegistration {
 
   @@unique([raceSlotId, userId])
   @@index([userId, createdAt])
+  @@index([userId])
+  @@index([raceSlotId])
 }
 
 model RaceResult {
