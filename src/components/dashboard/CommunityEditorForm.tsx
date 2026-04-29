@@ -174,9 +174,7 @@ export default function CommunityEditorForm({ initialState }: Props) {
             <input type="number" min={0} value={form.displayedMemberCount} onChange={(event) => setForm((state) => ({ ...state, displayedMemberCount: Number(event.target.value) || 0 }))} placeholder="Member count" className="rounded-xl border border-white/10 bg-white/5 px-4 py-3" />
             <select value={form.memberCountSource} onChange={(event) => setForm((state) => ({ ...state, memberCountSource: event.target.value as CommunityState['memberCountSource'] }))} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
               <option value="manual">Manual</option>
-              <option value="discord-sync">Discord sync (planned)</option>
-              <option value="reddit-sync">Reddit sync (planned)</option>
-            </select>
+                          </select>
           </div>
           <textarea value={form.credibilityNotes} onChange={(event) => setForm((state) => ({ ...state, credibilityNotes: event.target.value }))} placeholder="Credibility markers (stewarded since 2024, partnered casters, etc.)" className="min-h-24 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3" />
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isPublic} onChange={(event) => setForm((state) => ({ ...state, isPublic: event.target.checked }))} /> Public profile</label>

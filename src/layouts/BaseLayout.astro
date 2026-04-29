@@ -14,6 +14,8 @@ interface Props {
   canonicalPath?: string;
   ogImage?: string;
   noindex?: boolean;
+  sessionUser?: import('@/lib/api/types').SessionUser | null;
+  lightweightApp?: boolean;
 }
 
 const {
@@ -22,9 +24,11 @@ const {
   canonicalPath = Astro.url.pathname,
   ogImage = '/og/racehub-default.svg',
   noindex = false,
+  sessionUser: providedSessionUser = null,
+  lightweightApp = false,
 } = Astro.props;
 
-const sessionUser = await getSessionUser(Astro as never);
+const sessionUser = providedSessionUser ?? (await getSessionUser(Astro as never));
 const canonicalUrl = absoluteUrl(canonicalPath);
 const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage);
 ---
@@ -54,8 +58,8 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
     <link rel="manifest" href="/site.webmanifest" />
   </head>
   <body>
-    <CursorGlow client:load />
-    <PageMotion client:load />
+    {!lightweightApp && <CursorGlow client:load />}
+    {!lightweightApp && <PageMotion client:load />}
     <SiteHeader user={sessionUser} />
     <main class="pt-24">
       <slot />
