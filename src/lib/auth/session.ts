@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type { APIContext } from 'astro';
 import { prisma } from '@/lib/db/prisma';
+import { withPerf } from '@/lib/utils/perf';
 
 const SESSION_COOKIE = 'racehub_session';
 const SESSION_TTL_DAYS = 30;
@@ -48,10 +49,10 @@ export const getSessionUser = async (context: APIContext) => {
   }
 
   const tokenHash = hashToken(rawToken);
-  const session = await prisma.session.findUnique({
+  const session = await withPerf('session.findUnique', () => prisma.session.findUnique({
     where: { tokenHash },
-    include: { user: true },
-  });
+    select: { id: true, expiresAt: true, user: true },
+  }));
 
   if (!session) return null;
 
@@ -61,10 +62,10 @@ export const getSessionUser = async (context: APIContext) => {
     return null;
   }
 
-  await prisma.session.update({
+  await withPerf('session.touch', () => prisma.session.update({
     where: { id: session.id },
     data: { lastSeenAt: new Date() },
-  });
+  }));
 
   return session.user;
 };

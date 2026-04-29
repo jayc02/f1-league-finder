@@ -27,3 +27,10 @@ For development databases, you can also use:
 - Admin: `admin@racehub.local` / `ChangeMe123!`
 - Organiser: `organiser1@racehub.local` / `ChangeMe123!`
 - Player: `player1@racehub.local` / `ChangeMe123!`
+
+## Production Performance Notes (Vercel)
+- Deploy Vercel serverless functions in the same region as your database to reduce cold network latency.
+- Use a pooled Postgres connection endpoint (or managed pooler) for serverless workloads.
+- Consider Prisma Accelerate/Data Proxy for globally distributed read-heavy traffic.
+- Enable `DEBUG_PERF=1` to emit route/query timing logs in preview/production troubleshooting.
+- Leaderboard API responses include short `s-maxage` caching to smooth repeated traffic bursts.
