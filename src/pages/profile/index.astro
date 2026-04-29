@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 // import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
-import { getRankedLeaderboard, getRegionalRanks } from '@/server/services/leaderboard.service';
+import { getRegionalRanks } from '@/server/services/leaderboard.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -12,7 +12,7 @@ const routeStart = performance.now();
 const user = await withPerf('profile.sessionLookup', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
-const [recentResults, upcomingRegistrations, starts, wins, podiums, cleanRaces, ranks, overall, ownedCommunity] = await withPerf('profile.dataFetch', () =>
+const [recentResults, upcomingRegistrations, starts, wins, podiums, cleanRaces, ranks, ownedCommunity] = await withPerf('profile.dataFetch', () =>
   Promise.all([
     prisma.raceResultEntry.findMany({
       where: { userId: user.id },
@@ -31,20 +31,19 @@ const [recentResults, upcomingRegistrations, starts, wins, podiums, cleanRaces, 
     prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: { lte: 3 } } }),
     prisma.honourEvent.count({ where: { userId: user.id, type: 'CLEAN_RACE', delta: { gt: 0 } } }),
     getRegionalRanks(user.id),
-    getRankedLeaderboard('overall'),
     prisma.organiserProfile.findUnique({ where: { userId: user.id }, select: { displayName: true, slug: true } }),
   ]),
 );
 
-const me = overall.find((entry) => entry.id === user.id) ?? null;
 const completedRaces = recentResults.length;
 const winRate = starts ? Math.round((wins / starts) * 100) : 0;
 const podiumRate = starts ? Math.round((podiums / starts) * 100) : 0;
 const cleanRatio = starts ? Math.round((cleanRaces / starts) * 100) : 0;
+const bestFinish = recentResults.reduce((best, row) => (best ? Math.min(best, row.finishingPosition) : row.finishingPosition), null as number | null);
 
 if (shouldLogPerf()) console.info(`[perf] profile.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
-<BaseLayout title="Profile | RaceHub" noindex={true} sessionUser={user}>
+<BaseLayout title="Profile | RaceHub" noindex={true} sessionUser={user} lightweightApp={true}>
   <section class="section-shell">
     <div class="panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -73,12 +72,12 @@ if (shouldLogPerf()) console.info(`[perf] profile.routeTotal: ${(performance.now
 
     <div class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
       <article class="panel rounded-3xl p-6">
-        <div class="flex items-center justify-between"><h2 class="font-display text-2xl">Profile Status</h2><p class="text-xs uppercase tracking-[0.16em] text-slate-400">{me?.trend ? me.trend : 'stable'}</p></div>
+        <div class="flex items-center justify-between"><h2 class="font-display text-2xl">Profile Status</h2><p class="text-xs uppercase tracking-[0.16em] text-slate-400">stable</p></div>
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
           <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Win Rate</p><p class="mt-2 font-display text-3xl">{winRate}%</p></div>
           <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Podium Rate</p><p class="mt-2 font-display text-3xl">{podiumRate}%</p></div>
           <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Clean Ratio</p><p class="mt-2 font-display text-3xl">{cleanRatio}%</p></div>
-          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Best Finish</p><p class="mt-2 font-display text-3xl">{me?.bestFinish ? `P${me.bestFinish}` : '—'}</p></div>
+          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Best Finish</p><p class="mt-2 font-display text-3xl">{bestFinish ? `P${bestFinish}` : '—'}</p></div>
         </div>
       </article>
 
