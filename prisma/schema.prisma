@@ -104,8 +104,10 @@ model User {
   resultEntries       RaceResultEntry[]
   submittedResults    RaceResult[]
 
+  @@index([role])
   @@index([skillRating])
   @@index([honourScore])
+  @@index([region])
 }
 
 model Session {
@@ -256,6 +258,8 @@ model RaceResult {
   entries      RaceResultEntry[]
   disputes     Dispute[]
   honourEvents HonourEvent[]
+
+  @@index([submittedAt])
 }
 
 model RaceResultEntry {
@@ -271,7 +275,9 @@ model RaceResultEntry {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([raceResultId, userId])
+  @@index([userId])
   @@index([userId, finishingPosition])
+  @@index([userId, pointsAwarded])
 }
 
 model Dispute {
@@ -352,6 +358,8 @@ model HonourEvent {
   appliedBy  User?       @relation("HonourAppliedBy", fields: [appliedById], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+  @@index([userId, type])
+  @@index([userId, type, delta])
 }
 
 model ModerationAction {
