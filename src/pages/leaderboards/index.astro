@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { getSessionUser } from '@/lib/auth/session';
-import { getLeaderboardWindowForUser, getRankedLeaderboard, type CompetitiveLeaderboardType, type LeaderboardEntry } from '@/server/services/leaderboard.service';
+import { getRankedLeaderboard, type CompetitiveLeaderboardType, type LeaderboardEntry } from '@/server/services/leaderboard.service';
 
 export const prerender = false;
 
@@ -17,11 +17,9 @@ const selectedView = views.find((view) => view.key === Astro.url.searchParams.ge
 const type = selectedView.key as CompetitiveLeaderboardType;
 const user = await getSessionUser(Astro as never);
 
-const ranked = await getRankedLeaderboard(type);
-const topHundred = ranked.slice(0, 100);
+const topHundred = await getRankedLeaderboard(type, { limit: 100 });
 const topThree = topHundred.slice(0, 3);
 const remaining = topHundred.slice(3);
-const userContext = user ? await getLeaderboardWindowForUser(type, user.id, 3) : { me: null, window: [] };
 
 const trendLabel: Record<'up' | 'down' | 'stable', string> = { up: '▲ Rising', stable: '■ Stable', down: '▼ Cooling' };
 
@@ -33,6 +31,8 @@ const metricLabel = (entry: LeaderboardEntry) => {
   return `${entry.skillRating} SR`;
 };
 ---
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+
 <BaseLayout title="Leaderboards | RaceHub" sessionUser={user} lightweightApp={true}>
   <section class="section-shell relative isolate">
     <div class="panel relative overflow-hidden rounded-3xl p-5 md:p-8">
@@ -47,7 +47,7 @@ const metricLabel = (entry: LeaderboardEntry) => {
       <div class="mt-6 flex flex-wrap gap-2">{views.map((view) => <a href={`/leaderboards?view=${view.key}`} class:list={['rounded-full border px-4 py-2 text-xs uppercase tracking-[0.16em] transition', view.key === selectedView.key ? 'border-white/60 bg-white text-black shadow-[0_0_30px_rgba(255,255,255,.2)]' : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/35 hover:text-white']}>{view.label}</a>)}</div>
     </div>
 
-    {userContext.me && <article class="panel mt-6 rounded-3xl border-white/15 bg-gradient-to-br from-emerald-300/10 via-black/70 to-black/70 p-4 sm:p-6"><div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs uppercase tracking-[0.18em] text-slate-400">Your standing</p><h2 class="font-display text-2xl">Around Your Rank · #{userContext.me.rank}</h2></div><a href="/profile" class="text-xs uppercase tracking-[0.16em] text-slate-300 hover:text-white">Open profile</a></div><div class="mt-4 space-y-2">{userContext.window.map((entry) => <div class:list={['grid gap-3 rounded-2xl border px-3 py-3 md:grid-cols-[70px_minmax(180px,1.5fr)_repeat(5,minmax(82px,1fr))] md:items-center', entry.id === user?.id ? 'border-emerald-300/45 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(110,231,183,0.15)]' : 'border-white/10 bg-white/[0.03]']}><p class="font-semibold text-white">#{entry.rank}</p><div class="flex items-center gap-3"><img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-9 w-9 rounded-xl border border-white/10 object-cover" /><p class="text-sm font-semibold text-white">{entry.username}</p></div><p class="text-xs text-slate-300">{entry.skillRating} SR</p><p class="text-xs text-slate-300">{entry.honourScore} Honour</p><p class="text-xs text-slate-300">{entry.starts} Starts</p><p class="text-xs text-slate-300">{entry.wins} Wins</p><p class="text-xs text-slate-300">{Math.round(entry.cleanRaceRatio * 100)}% Clean</p></div>)}</div></article>}
+    {user && <article id="your-standing" class="panel mt-6 rounded-3xl border-white/15 bg-gradient-to-br from-emerald-300/10 via-black/70 to-black/70 p-4 sm:p-6"><p class="text-xs uppercase tracking-[0.18em] text-slate-400">Your standing</p><div class="mt-3 text-sm text-slate-300">Loading your rank…</div></article>}
 
     <div class="mt-8 grid gap-4 md:grid-cols-3">{topThree.map((entry, index) => <article class:list={['panel relative overflow-hidden rounded-3xl p-4 sm:p-5', index === 0 ? 'md:col-span-2 border-amber-200/35 bg-gradient-to-br from-amber-300/20 via-white/[0.12] to-black/50' : '', index === 1 ? 'border-indigo-200/30 bg-gradient-to-br from-indigo-400/18 to-black/55' : '', index === 2 ? 'border-emerald-200/30 bg-gradient-to-br from-emerald-400/16 to-black/55' : '']}><div class="absolute right-4 top-4 text-[11px] uppercase tracking-[0.2em] text-slate-300">Rank #{entry.rank}</div><div class="flex items-center gap-4"><img src={entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`} alt={`${entry.username} avatar`} class="h-14 w-14 rounded-2xl border border-white/20 bg-white/5 object-cover" /><div><h2 class="font-display text-2xl text-white">{entry.username}</h2><p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-300">{entry.region} · {trendLabel[entry.trend]}</p></div></div><div class="mt-5 grid grid-cols-2 gap-3 text-sm"><p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Primary</span>{metricLabel(entry)}</p><p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Starts</span>{entry.starts}</p><p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Podiums</span>{entry.podiums}</p><p class="rounded-xl border border-white/10 bg-black/30 px-3 py-2"><span class="block text-xs text-slate-400">Avg Finish</span>{entry.averageFinish ? entry.averageFinish.toFixed(1) : '—'}</p></div></article>)}</div>
 
@@ -57,4 +57,23 @@ const metricLabel = (entry: LeaderboardEntry) => {
       {!topHundred.length && <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-300">No leaderboard data yet. Complete race slots to populate rankings.</p>}
     </div>
   </section>
+  {user && <script is:inline define:vars={{ type }}>
+    const container = document.getElementById('your-standing');
+    if (container) {
+      fetch(`/api/leaderboards/me?view=${type}`, { credentials: 'include' })
+        .then((r) => r.ok ? r.json() : null)
+        .then((payload) => {
+          if (!payload?.me || !Array.isArray(payload.window)) {
+            container.innerHTML = '<p class="text-sm text-slate-300 mt-3">No standing available yet.</p>';
+            return;
+          }
+          const rows = payload.window.map((entry) => `<div class="grid gap-3 rounded-2xl border px-3 py-3 md:grid-cols-[70px_minmax(180px,1.5fr)_repeat(5,minmax(82px,1fr))] md:items-center ${entry.id === payload.me.id ? 'border-emerald-300/45 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(110,231,183,0.15)]' : 'border-white/10 bg-white/[0.03]'}"><p class="font-semibold text-white">#${entry.rank}</p><div class="flex items-center gap-3"><img src="${entry.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${entry.username}`}" class="h-9 w-9 rounded-xl border border-white/10 object-cover" /><p class="text-sm font-semibold text-white">${entry.username}</p></div><p class="text-xs text-slate-300">${entry.skillRating} SR</p><p class="text-xs text-slate-300">${entry.honourScore} Honour</p><p class="text-xs text-slate-300">${entry.starts} Starts</p><p class="text-xs text-slate-300">${entry.wins} Wins</p><p class="text-xs text-slate-300">${Math.round(entry.cleanRaceRatio * 100)}% Clean</p></div>`).join('');
+          container.innerHTML = `<div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs uppercase tracking-[0.18em] text-slate-400">Your standing</p><h2 class="font-display text-2xl">Around Your Rank · #${payload.me.rank}</h2></div><a href="/profile" class="text-xs uppercase tracking-[0.16em] text-slate-300 hover:text-white">Open profile</a></div><div class="mt-4 space-y-2">${rows}</div>`;
+        })
+        .catch(() => {
+          container.innerHTML = '<p class="text-sm text-slate-300 mt-3">Unable to load your standing.</p>';
+        });
+    }
+  </script>}
+
 </BaseLayout>

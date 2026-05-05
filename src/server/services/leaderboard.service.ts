@@ -7,36 +7,167 @@ export interface LeaderboardEntry { id:string; rank:number; username:string; ava
 const CACHE_TTL_MS = 45_000;
 const cache = new Map<string, { expires:number; value: LeaderboardEntry[] }>();
 
-const buildBaseRows = async () => withPerf('leaderboard.baseRows', async () => {
-  const users = await prisma.user.findMany({ where: { role: { not: 'ADMIN' } }, select: { id:true, username:true, avatarUrl:true, role:true, createdAt:true, region:true, honourScore:true, skillRating:true }, take: 1000 });
-  if (!users.length) return [];
-  const userIds = users.map((u) => u.id);
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [regs, results, clean, weekly] = await Promise.all([
-    prisma.raceRegistration.groupBy({ by:['userId'], where:{ userId:{ in:userIds } }, _count:{ userId:true } }),
-    prisma.raceResultEntry.findMany({ where:{ userId:{ in:userIds } }, select:{ userId:true, finishingPosition:true, pointsAwarded:true } }),
-    prisma.honourEvent.groupBy({ by:['userId'], where:{ userId:{ in:userIds }, type:'CLEAN_RACE', delta:{ gt:0 } }, _count:{ userId:true } }),
-    prisma.raceResultEntry.findMany({ where:{ userId:{ in:userIds }, raceResult:{ submittedAt:{ gte:sevenDaysAgo } } }, select:{ userId:true, pointsAwarded:true } }),
-  ]);
-  const regMap = new Map(regs.map((e) => [e.userId, e._count.userId]));
-  const cleanMap = new Map(clean.map((e)=>[e.userId,e._count.userId]));
-  const resultStats = new Map<string, {wins:number;podiums:number;points:number;finishes:number;finishSum:number;bestFinish:number|null}>();
-  for (const e of results){const c=resultStats.get(e.userId)??{wins:0,podiums:0,points:0,finishes:0,finishSum:0,bestFinish:null};c.wins+=e.finishingPosition===1?1:0;c.podiums+=e.finishingPosition<=3?1:0;c.points+=e.pointsAwarded;c.finishes++;c.finishSum+=e.finishingPosition;c.bestFinish=c.bestFinish?Math.min(c.bestFinish,e.finishingPosition):e.finishingPosition;resultStats.set(e.userId,c)}
-  const weeklyMap=new Map<string,number>(); for (const e of weekly) weeklyMap.set(e.userId,(weeklyMap.get(e.userId)??0)+e.pointsAwarded);
-  return users.map((u)=>{const r=resultStats.get(u.id)??{wins:0,podiums:0,points:0,finishes:0,finishSum:0,bestFinish:null};const wp=weeklyMap.get(u.id)??0;const cf=cleanMap.get(u.id)??0;return {...u,racesEntered:regMap.get(u.id)??0,starts:r.finishes,wins:r.wins,podiums:r.podiums,cleanFinishes:cf,cleanRaceRatio:r.finishes?cf/r.finishes:0,points:r.points,weeklyPoints:wp,averageFinish:r.finishes?r.finishSum/r.finishes:null,bestFinish:r.bestFinish,trend:wp>=30?'up':wp>0?'stable':'down'};});
-});
+const orderByByType: Record<CompetitiveLeaderboardType, string> = {
+  overall: 'skill_rating DESC, points DESC, honour_score DESC, id ASC',
+  honour: 'honour_score DESC, clean_race_ratio DESC, skill_rating DESC, id ASC',
+  clean: 'clean_race_ratio DESC, clean_finishes DESC, honour_score DESC, id ASC',
+  wins: 'wins DESC, podiums DESC, skill_rating DESC, id ASC',
+  weekly: 'weekly_points DESC, skill_rating DESC, id ASC',
+};
 
-const sortRowsByType = (rows: Awaited<ReturnType<typeof buildBaseRows>>, type: CompetitiveLeaderboardType) => [...rows].sort((a,b)=> type==='honour'? b.honourScore-a.honourScore||b.cleanRaceRatio-a.cleanRaceRatio||b.skillRating-a.skillRating : type==='clean'? b.cleanRaceRatio-a.cleanRaceRatio||b.cleanFinishes-a.cleanFinishes||b.honourScore-a.honourScore : type==='wins'? b.wins-a.wins||b.podiums-a.podiums||b.skillRating-a.skillRating : type==='weekly'? b.weeklyPoints-a.weeklyPoints||b.skillRating-a.skillRating : b.skillRating-a.skillRating||b.points-a.points||b.honourScore-a.honourScore).map((r,i)=>({...r,rank:i+1}));
+const leaderboardCTE = `
+WITH weekly_cutoff AS (
+  SELECT NOW() - INTERVAL '7 days' AS ts
+),
+registration_stats AS (
+  SELECT rr."userId" AS user_id, COUNT(*)::int AS races_entered
+  FROM "RaceRegistration" rr
+  GROUP BY rr."userId"
+),
+result_stats AS (
+  SELECT rre."userId" AS user_id,
+    COUNT(*)::int AS starts,
+    SUM(CASE WHEN rre."finishingPosition" = 1 THEN 1 ELSE 0 END)::int AS wins,
+    SUM(CASE WHEN rre."finishingPosition" <= 3 THEN 1 ELSE 0 END)::int AS podiums,
+    COALESCE(SUM(rre."pointsAwarded"), 0)::int AS points,
+    AVG(rre."finishingPosition")::float8 AS average_finish,
+    MIN(rre."finishingPosition")::int AS best_finish
+  FROM "RaceResultEntry" rre
+  GROUP BY rre."userId"
+),
+clean_stats AS (
+  SELECT he."userId" AS user_id, COUNT(*)::int AS clean_finishes
+  FROM "HonourEvent" he
+  WHERE he.type = 'CLEAN_RACE' AND he.delta > 0
+  GROUP BY he."userId"
+),
+weekly_stats AS (
+  SELECT rre."userId" AS user_id, COALESCE(SUM(rre."pointsAwarded"), 0)::int AS weekly_points
+  FROM "RaceResultEntry" rre
+  INNER JOIN "RaceResult" rr ON rr.id = rre."raceResultId"
+  WHERE rr."submittedAt" >= (SELECT ts FROM weekly_cutoff)
+  GROUP BY rre."userId"
+),
+leaderboard_base AS (
+  SELECT u.id,
+    u.username,
+    u."avatarUrl" AS avatar_url,
+    u.role,
+    u."createdAt" AS created_at,
+    u.region::text AS region,
+    u."honourScore" AS honour_score,
+    u."skillRating" AS skill_rating,
+    COALESCE(reg.races_entered, 0)::int AS races_entered,
+    COALESCE(res.starts, 0)::int AS starts,
+    COALESCE(res.wins, 0)::int AS wins,
+    COALESCE(res.podiums, 0)::int AS podiums,
+    COALESCE(clean.clean_finishes, 0)::int AS clean_finishes,
+    CASE WHEN COALESCE(res.starts, 0) > 0 THEN COALESCE(clean.clean_finishes, 0)::float8 / res.starts::float8 ELSE 0::float8 END AS clean_race_ratio,
+    COALESCE(res.points, 0)::int AS points,
+    COALESCE(weekly.weekly_points, 0)::int AS weekly_points,
+    res.average_finish,
+    res.best_finish,
+    CASE WHEN COALESCE(weekly.weekly_points, 0) >= 30 THEN 'up' WHEN COALESCE(weekly.weekly_points, 0) > 0 THEN 'stable' ELSE 'down' END::text AS trend
+  FROM "User" u
+  LEFT JOIN registration_stats reg ON reg.user_id = u.id
+  LEFT JOIN result_stats res ON res.user_id = u.id
+  LEFT JOIN clean_stats clean ON clean.user_id = u.id
+  LEFT JOIN weekly_stats weekly ON weekly.user_id = u.id
+  WHERE u.role != 'ADMIN'
+)
+`;
 
-export const getRankedLeaderboard = async (type: CompetitiveLeaderboardType): Promise<LeaderboardEntry[]> => {
-  const key=`ranked:${type}`; const cached=cache.get(key); if(cached&&cached.expires>Date.now()) return cached.value;
-  const ranked = sortRowsByType(await buildBaseRows(), type);
+const fetchRankedLeaderboard = async (type: CompetitiveLeaderboardType, limit: number): Promise<LeaderboardEntry[]> => {
+  const orderBy = orderByByType[type];
+  const rows = await withPerf('leaderboard.baseRows', () => prisma.$queryRawUnsafe<Array<any>>(`${leaderboardCTE}
+    SELECT id, username, avatar_url, role::text, created_at, region, honour_score, skill_rating,
+      races_entered, starts, wins, podiums, clean_finishes, clean_race_ratio, points, weekly_points,
+      average_finish, best_finish, trend,
+      ROW_NUMBER() OVER (ORDER BY ${orderBy})::int AS rank
+    FROM leaderboard_base
+    ORDER BY ${orderBy}
+    LIMIT $1
+  `, limit));
+
+  return rows.map((row) => ({
+    id: row.id,
+    rank: Number(row.rank),
+    username: row.username,
+    avatarUrl: row.avatar_url,
+    role: row.role,
+    createdAt: new Date(row.created_at),
+    region: row.region,
+    honourScore: Number(row.honour_score),
+    skillRating: Number(row.skill_rating),
+    racesEntered: Number(row.races_entered),
+    starts: Number(row.starts),
+    wins: Number(row.wins),
+    podiums: Number(row.podiums),
+    cleanFinishes: Number(row.clean_finishes),
+    cleanRaceRatio: Number(row.clean_race_ratio),
+    points: Number(row.points),
+    weeklyPoints: Number(row.weekly_points),
+    averageFinish: row.average_finish == null ? null : Number(row.average_finish),
+    bestFinish: row.best_finish == null ? null : Number(row.best_finish),
+    trend: row.trend,
+  }));
+};
+
+export const getRankedLeaderboard = async (type: CompetitiveLeaderboardType, options: { limit?: number } = {}): Promise<LeaderboardEntry[]> => {
+  const limit = options.limit ?? 100;
+  const key=`ranked:${type}:${limit}`; const cached=cache.get(key); if(cached&&cached.expires>Date.now()) return cached.value;
+  const ranked = await withPerf('getRankedLeaderboard', () => fetchRankedLeaderboard(type, limit));
   cache.set(key,{value:ranked,expires:Date.now()+CACHE_TTL_MS});
   return ranked;
 };
-export const getCompetitiveLeaderboard = async (type: CompetitiveLeaderboardType, limit: number) => (await getRankedLeaderboard(type)).slice(0, limit);
-export const getLeaderboardWindowForUser = async (type: CompetitiveLeaderboardType, userId: string, radius = 3) => { const ranked = await getRankedLeaderboard(type); const index = ranked.findIndex((entry) => entry.id === userId); if (index === -1) return { me: null, window: [] }; return { me: ranked[index], window: ranked.slice(Math.max(index - radius, 0), index + radius + 1) }; };
-export const getRegionalRanks = async (userId: string) => { const [overall, user] = await Promise.all([getRankedLeaderboard('overall'), prisma.user.findUnique({ where: { id: userId }, select: { region: true } })]); const global = overall.find((entry) => entry.id === userId)?.rank ?? null; const regionalPool = overall.filter((entry) => entry.region === (user?.region ?? 'GLOBAL')); const regional = regionalPool.find((entry) => entry.id === userId)?.rank ?? null; return { global, regional, region: user?.region ?? 'GLOBAL' }; };
-export const getGlobalSkillLeaderboard = async (limit: number) => (await getRankedLeaderboard('overall')).slice(0, limit);
-export const getHonourLeaderboard = async (limit: number) => (await getRankedLeaderboard('honour')).slice(0, limit);
+
+export const getCompetitiveLeaderboard = async (type: CompetitiveLeaderboardType, limit: number) => getRankedLeaderboard(type, { limit });
+
+export const getLeaderboardWindowForUser = async (type: CompetitiveLeaderboardType, userId: string, radius = 3) => withPerf('getLeaderboardWindowForUser', async () => {
+  const orderBy = orderByByType[type];
+  const rows = await prisma.$queryRawUnsafe<Array<any>>(`${leaderboardCTE}
+    , ranked AS (
+      SELECT *, ROW_NUMBER() OVER (ORDER BY ${orderBy})::int AS rank
+      FROM leaderboard_base
+    ), me AS (
+      SELECT rank FROM ranked WHERE id = $1
+    )
+    SELECT r.id, r.username, r.avatar_url, r.role::text, r.created_at, r.region, r.honour_score, r.skill_rating,
+      r.races_entered, r.starts, r.wins, r.podiums, r.clean_finishes, r.clean_race_ratio, r.points, r.weekly_points,
+      r.average_finish, r.best_finish, r.trend, r.rank
+    FROM ranked r
+    CROSS JOIN me
+    WHERE r.rank BETWEEN GREATEST(me.rank - $2, 1) AND me.rank + $2
+    ORDER BY r.rank ASC
+  `, userId, radius);
+
+  if (!rows.length) return { me: null, window: [] };
+  const window = rows.map((row) => ({
+    id: row.id,
+    rank: Number(row.rank),
+    username: row.username,
+    avatarUrl: row.avatar_url,
+    role: row.role,
+    createdAt: new Date(row.created_at),
+    region: row.region,
+    honourScore: Number(row.honour_score),
+    skillRating: Number(row.skill_rating),
+    racesEntered: Number(row.races_entered),
+    starts: Number(row.starts),
+    wins: Number(row.wins),
+    podiums: Number(row.podiums),
+    cleanFinishes: Number(row.clean_finishes),
+    cleanRaceRatio: Number(row.clean_race_ratio),
+    points: Number(row.points),
+    weeklyPoints: Number(row.weekly_points),
+    averageFinish: row.average_finish == null ? null : Number(row.average_finish),
+    bestFinish: row.best_finish == null ? null : Number(row.best_finish),
+    trend: row.trend,
+  })) as LeaderboardEntry[];
+  return { me: window.find((entry) => entry.id === userId) ?? null, window };
+});
+
+export const getRegionalRanks = async (userId: string) => { const [overall, user] = await Promise.all([getRankedLeaderboard('overall', { limit: 1000 }), prisma.user.findUnique({ where: { id: userId }, select: { region: true } })]); const global = overall.find((entry) => entry.id === userId)?.rank ?? null; const regionalPool = overall.filter((entry) => entry.region === (user?.region ?? 'GLOBAL')); const regional = regionalPool.find((entry) => entry.id === userId)?.rank ?? null; return { global, regional, region: user?.region ?? 'GLOBAL' }; };
+export const getGlobalSkillLeaderboard = async (limit: number) => getRankedLeaderboard('overall', { limit });
+export const getHonourLeaderboard = async (limit: number) => getRankedLeaderboard('honour', { limit });
 export const getLeagueStandings = async (leagueSlug: string, limit: number) => { const league = await prisma.league.findUnique({ where: { slug: leagueSlug }, select: { id: true, name: true, slug: true, raceSlots: { where: { status: 'COMPLETED', result: { isNot: null } }, select: { result: { select: { entries: { select: { userId: true, pointsAwarded: true } } } } } } } }); if (!league) return null; const aggregate = new Map<string, number>(); for (const slot of league.raceSlots) for (const entry of slot.result?.entries ?? []) aggregate.set(entry.userId, (aggregate.get(entry.userId) ?? 0) + entry.pointsAwarded); const ids = [...aggregate.keys()]; const users = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, username: true, avatarUrl: true, skillRating: true, honourScore: true } }) : []; const standings = users.map((u) => ({ ...u, points: aggregate.get(u.id) ?? 0 })).sort((a, b) => b.points - a.points || b.skillRating - a.skillRating).slice(0, limit); return { league: { id: league.id, name: league.name, slug: league.slug }, standings }; };
