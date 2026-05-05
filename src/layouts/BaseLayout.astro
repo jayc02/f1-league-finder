@@ -37,6 +37,62 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <style is:inline>
+      html,
+      body {
+        background: #020617;
+        color: #fff;
+      }
+
+      #app-boot-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 20% -10%, rgba(255, 255, 255, 0.04) 0%, transparent 36%),
+          radial-gradient(circle at 85% 12%, rgba(255, 255, 255, 0.03) 0%, transparent 34%),
+          linear-gradient(180deg, #020617 0%, #01030a 60%, #020617 100%);
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 220ms ease, visibility 220ms ease;
+      }
+
+      #app-boot-screen .boot-mark {
+        width: 68px;
+        height: 68px;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        background: linear-gradient(140deg, rgba(181, 31, 47, 0.62), rgba(255, 255, 255, 0.14));
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 16px 44px rgba(0, 0, 0, 0.48);
+      }
+
+      #app-shell {
+        opacity: 0;
+        transition: opacity 220ms ease;
+      }
+
+      body.app-ready #app-shell {
+        opacity: 1;
+      }
+
+      body.app-ready #app-boot-screen {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+    </style>
+    <noscript>
+      <style>
+        #app-shell {
+          opacity: 1 !important;
+        }
+
+        #app-boot-screen {
+          display: none !important;
+        }
+      </style>
+    </noscript>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
@@ -58,13 +114,31 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
     <link rel="manifest" href="/site.webmanifest" />
   </head>
   <body>
-    {!lightweightApp && <CursorGlow client:load />}
-    {!lightweightApp && <PageMotion client:load />}
-    <SiteHeader user={sessionUser} />
-    <main class="pt-24">
-      <slot />
-    </main>
-    <SiteFooter />
-    <SpeedInsights />
+    <div id="app-boot-screen" aria-hidden="true">
+      <div class="boot-mark"></div>
+    </div>
+    <script is:inline>
+      const markReady = () => {
+        requestAnimationFrame(() => {
+          document.body.classList.add('app-ready');
+        });
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', markReady, { once: true });
+      } else {
+        markReady();
+      }
+    </script>
+    <div id="app-shell">
+      {!lightweightApp && <CursorGlow client:load />}
+      {!lightweightApp && <PageMotion client:load />}
+      <SiteHeader user={sessionUser} />
+      <main class="pt-24">
+        <slot />
+      </main>
+      <SiteFooter />
+      <SpeedInsights />
+    </div>
   </body>
 </html>
