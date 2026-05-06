@@ -5,6 +5,11 @@ import { getRankedLeaderboard, type CompetitiveLeaderboardType, type Leaderboard
 
 export const prerender = false;
 
+Astro.response.headers.set(
+  'Cache-Control',
+  'private, no-store'
+);
+
 const views = [
   { key: 'overall', label: 'Overall', metric: 'SR', description: 'Best all-around pace and consistency.' },
   { key: 'honour', label: 'Honour', metric: 'Honour', description: 'Sportsmanship and clean-conduct elites.' },
@@ -31,7 +36,6 @@ const metricLabel = (entry: LeaderboardEntry) => {
   return `${entry.skillRating} SR`;
 };
 ---
-Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
 
 <BaseLayout title="Leaderboards | RaceHub" sessionUser={user} lightweightApp={true}>
   <section class="section-shell relative isolate">
