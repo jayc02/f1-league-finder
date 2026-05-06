@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { privateApiNoStore } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import { withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
@@ -16,5 +17,7 @@ export const GET: APIRoute = (context) =>
     const view = (context.url.searchParams.get('view') ?? 'overall') as CompetitiveLeaderboardType;
     if (!validTypes.includes(view)) throw new HttpError(400, 'Invalid leaderboard type.');
 
-    return jsonResponse(200, await getLeaderboardWindowForUser(view, user.id, 3));
+    const response = jsonResponse(200, await getLeaderboardWindowForUser(view, user.id, 3));
+    response.headers.set('Cache-Control', privateApiNoStore);
+    return response;
   });

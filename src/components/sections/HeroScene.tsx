@@ -11,7 +11,7 @@ export default function HeroScene() {
         muted
         loop
         playsInline
-        preload="auto"
+        preload="metadata"
         className="absolute inset-0 z-0 h-full w-full object-cover"
         aria-hidden="true"
       >

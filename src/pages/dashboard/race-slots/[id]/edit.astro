@@ -1,10 +1,14 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import RaceSlotEditorForm from '@/components/dashboard/RaceSlotEditorForm';
 
 export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
 
 const user = await getSessionUser(Astro as never);
 if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect('/login');
@@ -13,7 +17,7 @@ if (!id) return Astro.redirect('/dashboard');
 
 const slot = await prisma.raceSlot.findUnique({
   where: { id },
-  include: { league: true },
+  select: { id: true, organiserId: true, leagueId: true, title: true, description: true, scheduledAt: true, registrationCutoffAt: true, maxPlayers: true, platform: true, region: true, track: true, carClass: true, ruleset: true, visibility: true, status: true, crossplay: true, league: { select: { ownerId: true } } },
 });
 if (!slot) return Astro.redirect('/dashboard');
 
@@ -28,7 +32,7 @@ const leagues = await prisma.league.findMany({
 const toLocalInput = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 ---
 
-<BaseLayout noindex={true} title="Edit event | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Edit event | RaceHub">
   <section class="section-shell">
     <h1 class="section-title">Edit organiser event</h1>
     <p class="mt-2 text-slate-300">Adjust schedule, visibility, entry controls, and event publishing status.</p>

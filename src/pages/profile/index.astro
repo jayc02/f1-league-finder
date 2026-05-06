@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 // import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
@@ -8,11 +9,16 @@ import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
+
 const routeStart = performance.now();
 const user = await withPerf('profile.sessionLookup', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
-const [recentResults, upcomingRegistrations, starts, wins, podiums, cleanRaces, ranks, ownedCommunity] = await withPerf('profile.dataFetch', () =>
+const now = new Date();
+
+const [recentResults, upcomingRegistrations, starts, completedRaces, wins, podiums, cleanRaces, ranks, ownedCommunity] = await withPerf('profile.dataFetch', () =>
   Promise.all([
     prisma.raceResultEntry.findMany({
       where: { userId: user.id },
@@ -21,12 +27,13 @@ const [recentResults, upcomingRegistrations, starts, wins, podiums, cleanRaces, 
       take: 8,
     }),
     prisma.raceRegistration.findMany({
-      where: { userId: user.id, raceSlot: { scheduledAt: { gte: new Date() } } },
+      where: { userId: user.id, raceSlot: { scheduledAt: { gte: now } } },
       select: { raceSlot: { select: { id: true, title: true, scheduledAt: true, league: { select: { name: true } } } } },
       orderBy: { raceSlot: { scheduledAt: 'asc' } },
       take: 4,
     }),
     prisma.raceRegistration.count({ where: { userId: user.id } }),
+    prisma.raceResultEntry.count({ where: { userId: user.id } }),
     prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: 1 } }),
     prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: { lte: 3 } } }),
     prisma.honourEvent.count({ where: { userId: user.id, type: 'CLEAN_RACE', delta: { gt: 0 } } }),
@@ -35,7 +42,6 @@ const [recentResults, upcomingRegistrations, starts, wins, podiums, cleanRaces, 
   ]),
 );
 
-const completedRaces = recentResults.length;
 const winRate = starts ? Math.round((wins / starts) * 100) : 0;
 const podiumRate = starts ? Math.round((podiums / starts) * 100) : 0;
 const cleanRatio = starts ? Math.round((cleanRaces / starts) * 100) : 0;

@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { publicApiShort } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { getNumericLimit, withErrorHandling } from '@/lib/utils/handlers';
 import { jsonResponse } from '@/lib/utils/http';
@@ -46,5 +47,7 @@ export const GET: APIRoute = (context) =>
       take: getNumericLimit(context, 24, 100),
     });
 
-    return jsonResponse(200, { communities });
+    const response = jsonResponse(200, { communities });
+    response.headers.set('Cache-Control', publicApiShort);
+    return response;
   });
