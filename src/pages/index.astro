@@ -11,17 +11,19 @@ import { fetchFromApi } from '@/lib/server-api';
 import type { CommunitySummary, RaceSlotSummary } from '@/lib/api/types';
 import type { PublicUser } from '@/server/types/api';
 import { absoluteUrl } from '@/lib/config';
+import { publicPageMedium, setAstroCache } from '@/lib/server/cache-control';
 
 export const prerender = false;
 
-const slotsResponse = await fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?status=OPEN&limit=6').catch(
-  () => ({ raceSlots: [] }),
-);
-const communitiesResponse = await fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?featured=1&limit=3').catch(
-  () => ({ communities: [] }),
-);
-const globalLb = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/global?limit=8').catch(() => ({ leaderboard: [] }));
-const honourLb = await fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/honour?limit=8').catch(() => ({ leaderboard: [] }));
+// Public cached route: homepage renders only public listings and leaderboard previews.
+setAstroCache(Astro, publicPageMedium);
+
+const [slotsResponse, communitiesResponse, globalLb, honourLb] = await Promise.all([
+  fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?status=OPEN&limit=6').catch(() => ({ raceSlots: [] })),
+  fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?featured=1&limit=3').catch(() => ({ communities: [] })),
+  fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/global?limit=8').catch(() => ({ leaderboard: [] })),
+  fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/honour?limit=8').catch(() => ({ leaderboard: [] })),
+]);
 
 const structuredData = {
   '@context': 'https://schema.org',
@@ -42,7 +44,7 @@ const structuredData = {
   canonicalPath="/"
 >
   <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
-  <HeroScene client:load />
+  <HeroScene client:idle />
   <SlotShowcase client:idle raceSlots={slotsResponse.raceSlots} />
 
   <section class="section-shell pt-0" data-reveal>
@@ -58,7 +60,7 @@ const structuredData = {
         {communitiesResponse.communities.length ? communitiesResponse.communities.map((community) => (
           <a href={`/communities/${community.slug}`} class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35 hover:bg-white/[0.06]">
             <div class="flex items-center gap-3">
-              <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
+              <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
               <div>
                 <p class="font-semibold text-white">{community.displayName}</p>
                 <p class="text-xs text-slate-400">{community.region} · {community.platformFocus ?? 'Crossplay'}</p>

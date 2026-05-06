@@ -1,5 +1,6 @@
 export const prerender = false;
 import type { APIRoute } from 'astro';
+import { publicApiShort } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { createRaceSlotSchema } from '@/lib/validation/race-slot';
 import { getNumericLimit, parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -30,7 +31,9 @@ export const GET: APIRoute = (context) =>
       take: getNumericLimit(context, 30, 200),
     });
 
-    return jsonResponse(200, { raceSlots: slots });
+    const response = jsonResponse(200, { raceSlots: slots });
+    response.headers.set('Cache-Control', publicApiShort);
+    return response;
   });
 
 export const POST: APIRoute = (context) =>

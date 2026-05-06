@@ -1,10 +1,14 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import AdminShell from '@/components/admin/AdminShell.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 
 export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
 
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
@@ -20,7 +24,7 @@ const [totalUsers, totalEvents, totalCommunities, openDisputes, latestUsers, lat
 ]);
 ---
 
-<BaseLayout noindex={true} title="Admin Dashboard | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Admin Dashboard | RaceHub">
   <section class="section-shell">
     <AdminShell title="Platform Command Center" subtitle="Global management for users, race inventory, communities, and moderation workflows." active="dashboard" />
 

@@ -1,14 +1,13 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { getSessionUser } from '@/lib/auth/session';
 import { getRankedLeaderboard, type CompetitiveLeaderboardType, type LeaderboardEntry } from '@/server/services/leaderboard.service';
+import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
 
 export const prerender = false;
 
-Astro.response.headers.set(
-  'Cache-Control',
-  'private, no-store'
-);
+// Public cached route: private "Your standing" content loads separately from /api/leaderboards/me.
+setAstroCache(Astro, publicPageShort);
+
 
 const views = [
   { key: 'overall', label: 'Overall', metric: 'SR', description: 'Best all-around pace and consistency.' },
@@ -20,7 +19,6 @@ const views = [
 
 const selectedView = views.find((view) => view.key === Astro.url.searchParams.get('view')) ?? views[0];
 const type = selectedView.key as CompetitiveLeaderboardType;
-const user = await getSessionUser(Astro as never);
 
 const topHundred = await getRankedLeaderboard(type, { limit: 100 });
 const topThree = topHundred.slice(0, 3);
@@ -37,7 +35,7 @@ const metricLabel = (entry: LeaderboardEntry) => {
 };
 ---
 
-<BaseLayout title="Leaderboards | RaceHub" sessionUser={user} lightweightApp={true}>
+<BaseLayout title="Leaderboards | RaceHub" lightweightApp={true}>
   <section class="section-shell relative isolate">
     <div class="panel relative overflow-hidden rounded-3xl p-5 md:p-8">
       <p class="text-xs uppercase tracking-[0.26em] text-slate-300">Competitive rankings</p>

@@ -1,5 +1,6 @@
 export const prerender = false;
 import type { APIRoute } from 'astro';
+import { publicApiShort } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { createLeagueSchema } from '@/lib/validation/league';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -16,7 +17,9 @@ export const GET: APIRoute = () =>
       orderBy: [{ active: 'desc' }, { createdAt: 'desc' }],
     });
 
-    return jsonResponse(200, { leagues });
+    const response = jsonResponse(200, { leagues });
+    response.headers.set('Cache-Control', publicApiShort);
+    return response;
   });
 
 export const POST: APIRoute = (context) =>

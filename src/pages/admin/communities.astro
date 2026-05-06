@@ -1,11 +1,15 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import AdminShell from '@/components/admin/AdminShell.astro';
 import AdminCommunityManager from '@/components/admin/AdminCommunityManager';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 
 export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
 
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
@@ -21,7 +25,7 @@ const communities = await prisma.organiserProfile.findMany({
 });
 ---
 
-<BaseLayout noindex={true} title="Admin Communities | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Admin Communities | RaceHub">
   <section class="section-shell">
     <AdminShell title="Community Governance" subtitle="Verify organisers, tune community visibility, and maintain trusted public-facing league profiles." active="communities" />
     <AdminCommunityManager client:load communities={communities} />

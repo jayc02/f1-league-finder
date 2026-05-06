@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { publicApiShort } from '@/lib/server/cache-control';
 import { getNumericLimit, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { getCompetitiveLeaderboard, type CompetitiveLeaderboardType } from '@/server/services/leaderboard.service';
@@ -14,6 +15,6 @@ export const GET: APIRoute = (context) =>
 
     const leaderboard = await getCompetitiveLeaderboard(typeParam, getNumericLimit(context, 30, 100));
     const response = jsonResponse(200, { type: typeParam, leaderboard });
-    response.headers.set('Cache-Control', 'public, s-maxage=45, stale-while-revalidate=60');
+    response.headers.set('Cache-Control', publicApiShort);
     return response;
   });

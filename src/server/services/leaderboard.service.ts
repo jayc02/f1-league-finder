@@ -167,7 +167,28 @@ export const getLeaderboardWindowForUser = async (type: CompetitiveLeaderboardTy
   return { me: window.find((entry) => entry.id === userId) ?? null, window };
 });
 
-export const getRegionalRanks = async (userId: string) => { const [overall, user] = await Promise.all([getRankedLeaderboard('overall', { limit: 1000 }), prisma.user.findUnique({ where: { id: userId }, select: { region: true } })]); const global = overall.find((entry) => entry.id === userId)?.rank ?? null; const regionalPool = overall.filter((entry) => entry.region === (user?.region ?? 'GLOBAL')); const regional = regionalPool.find((entry) => entry.id === userId)?.rank ?? null; return { global, regional, region: user?.region ?? 'GLOBAL' }; };
+export const getRegionalRanks = async (userId: string) =>
+  withPerf('getRegionalRanks', async () => {
+    const rows = await prisma.$queryRawUnsafe<Array<{ id: string; region: string; global_rank: number; regional_rank: number }>>(`${leaderboardCTE}
+      , ranked AS (
+        SELECT id, region,
+          ROW_NUMBER() OVER (ORDER BY ${orderByByType.overall})::int AS global_rank,
+          ROW_NUMBER() OVER (PARTITION BY region ORDER BY ${orderByByType.overall})::int AS regional_rank
+        FROM leaderboard_base
+      )
+      SELECT id, region, global_rank, regional_rank
+      FROM ranked
+      WHERE id = $1
+      LIMIT 1
+    `, userId);
+
+    const row = rows[0];
+    return {
+      global: row ? Number(row.global_rank) : null,
+      regional: row ? Number(row.regional_rank) : null,
+      region: row?.region ?? 'GLOBAL',
+    };
+  });
 export const getGlobalSkillLeaderboard = async (limit: number) => getRankedLeaderboard('overall', { limit });
 export const getHonourLeaderboard = async (limit: number) => getRankedLeaderboard('honour', { limit });
 export const getLeagueStandings = async (leagueSlug: string, limit: number) => { const league = await prisma.league.findUnique({ where: { slug: leagueSlug }, select: { id: true, name: true, slug: true, raceSlots: { where: { status: 'COMPLETED', result: { isNot: null } }, select: { result: { select: { entries: { select: { userId: true, pointsAwarded: true } } } } } } } }); if (!league) return null; const aggregate = new Map<string, number>(); for (const slot of league.raceSlots) for (const entry of slot.result?.entries ?? []) aggregate.set(entry.userId, (aggregate.get(entry.userId) ?? 0) + entry.pointsAwarded); const ids = [...aggregate.keys()]; const users = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, username: true, avatarUrl: true, skillRating: true, honourScore: true } }) : []; const standings = users.map((u) => ({ ...u, points: aggregate.get(u.id) ?? 0 })).sort((a, b) => b.points - a.points || b.skillRating - a.skillRating).slice(0, limit); return { league: { id: league.id, name: league.name, slug: league.slug }, standings }; };
