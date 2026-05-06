@@ -1,11 +1,15 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import AdminShell from '@/components/admin/AdminShell.astro';
 import AdminDisputeManager from '@/components/admin/AdminDisputeManager';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 
 export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
 
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
@@ -31,7 +35,7 @@ const disputes = await prisma.dispute.findMany({
 });
 ---
 
-<BaseLayout noindex={true} title="Admin Disputes | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Admin Disputes | RaceHub">
   <section class="section-shell">
     <AdminShell title="Dispute Command" subtitle="End-to-end dispute moderation including lifecycle control, communication, and immutable operational history." active="disputes" />
     <AdminDisputeManager client:load disputes={disputes.map((item) => ({ ...item, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString(), resolvedAt: item.resolvedAt?.toISOString() ?? null }))} />

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { SessionUser } from '@/lib/api/types';
 import { apiRequest } from '@/lib/api/http';
 
@@ -6,12 +7,31 @@ interface Props {
 }
 
 export default function AuthNav({ user }: Props) {
+  const [resolvedUser, setResolvedUser] = useState<SessionUser | null>(user);
+
+  useEffect(() => {
+    if (user) return;
+
+    let cancelled = false;
+    apiRequest<{ user: SessionUser | null }>('/api/auth/me')
+      .then((payload) => {
+        if (!cancelled) setResolvedUser(payload.user);
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedUser(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const logout = async () => {
     await apiRequest<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
     window.location.href = '/';
   };
 
-  if (!user) {
+  if (!resolvedUser) {
     return (
       <div className="flex items-center gap-2">
         <a href="/login" className="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/20">
@@ -29,14 +49,14 @@ export default function AuthNav({ user }: Props) {
       <a href="/dashboard" className="hidden rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/20 md:inline-flex">
         Dashboard
       </a>
-      {user.role === 'ADMIN' && (
+      {resolvedUser.role === 'ADMIN' && (
         <a href="/admin" className="hidden rounded-full border border-rose-300/40 bg-rose-500/15 px-4 py-2 text-sm text-rose-100 transition hover:bg-rose-500/25 md:inline-flex">
           Admin
         </a>
       )}
       <a href="/profile" className="hidden items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-slate-100 transition hover:border-white/40 hover:bg-white/10 md:inline-flex">
-        <img src={user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`} alt={`${user.username} avatar`} className="h-7 w-7 rounded-lg border border-white/10 object-cover" />
-        <span>{user.username}</span>
+        <img src={resolvedUser.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${resolvedUser.username}`} alt={`${resolvedUser.username} avatar`} className="h-7 w-7 rounded-lg border border-white/10 object-cover" />
+        <span>{resolvedUser.username}</span>
       </a>
       <button
         type="button"

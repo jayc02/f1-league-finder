@@ -1,9 +1,13 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { fetchFromApi } from '@/lib/server-api';
+import { publicPageMedium, setAstroCache } from '@/lib/server/cache-control';
 import type { CommunitySummary } from '@/lib/api/types';
 
 export const prerender = false;
+
+// Public cached route: communities index renders public organiser profiles only.
+setAstroCache(Astro, publicPageMedium);
 
 const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?limit=30').catch(() => ({ communities: [] }));
 ---
@@ -32,7 +36,7 @@ const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(
           <div class="p-4 sm:p-5">
             <div class="flex items-start justify-between gap-3">
               <div class="flex items-center gap-3">
-                <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} class="h-10 w-10 rounded-xl border border-white/20 bg-black/40 object-cover sm:h-11 sm:w-11" />
+                <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-10 w-10 rounded-xl border border-white/20 bg-black/40 object-cover sm:h-11 sm:w-11" />
                 <div>
                   <h2 class="font-display text-xl sm:text-2xl">{community.displayName}</h2>
                   <p class="text-[11px] uppercase tracking-[0.15em] text-slate-400">{community.region} · {community.platformFocus ?? 'Cross-platform'}</p>

@@ -1,18 +1,47 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import CommunityEditorForm from '@/components/dashboard/CommunityEditorForm';
 
 export const prerender = false;
 
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
+
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
 
-const community = await prisma.organiserProfile.upsert({ where: { userId: user.id }, update: {}, create: { userId: user.id, displayName: user.username, slug: user.username.toLowerCase().replace(/[^a-z0-9]+/g, '-') } });
+const community = await prisma.organiserProfile.upsert({
+  where: { userId: user.id },
+  update: {},
+  create: { userId: user.id, displayName: user.username, slug: user.username.toLowerCase().replace(/[^a-z0-9]+/g, '-') },
+  select: {
+    displayName: true,
+    slug: true,
+    shortDescription: true,
+    description: true,
+    brandingColor: true,
+    logoUrl: true,
+    bannerUrl: true,
+    websiteUrl: true,
+    discordUrl: true,
+    redditUrl: true,
+    gameFocus: true,
+    platformFocus: true,
+    region: true,
+    tags: true,
+    displayedMemberCount: true,
+    memberCountSource: true,
+    isPublic: true,
+    featured: true,
+    credibilityNotes: true,
+  },
+});
 ---
 
-<BaseLayout noindex={true} title="Community settings | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Community settings | RaceHub">
   <section class="section-shell">
     <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Community control center</p>
     <h1 class="section-title mt-2">Community Branding & Discovery</h1>

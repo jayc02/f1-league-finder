@@ -1,11 +1,15 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import AdminShell from '@/components/admin/AdminShell.astro';
 import AdminRaceManager from '@/components/admin/AdminRaceManager';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 
 export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
 
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
@@ -23,7 +27,7 @@ const raceSlots = await prisma.raceSlot.findMany({
 });
 ---
 
-<BaseLayout noindex={true} title="Admin Races | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Admin Races | RaceHub">
   <section class="section-shell">
     <AdminShell title="Race & Event Oversight" subtitle="Platform-wide control of slot lifecycle, visibility states, organiser output, and event moderation." active="races" />
     <AdminRaceManager client:load raceSlots={raceSlots.map((slot) => ({ ...slot, scheduledAt: slot.scheduledAt.toISOString(), registrationCutoffAt: slot.registrationCutoffAt.toISOString() }))} />

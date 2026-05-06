@@ -1,14 +1,18 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import ProfileEditor from '@/components/profile/ProfileEditor';
 
 export const prerender = false;
 
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
+
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
 ---
-<BaseLayout noindex={true} title="Edit Profile | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Edit Profile | RaceHub">
   <section class="section-shell">
     <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Account settings</p>
     <h1 class="section-title mt-2">Edit Driver Profile</h1>
