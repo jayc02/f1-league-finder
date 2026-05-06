@@ -69,3 +69,42 @@ export const getSessionUser = async (context: APIContext) => {
 
   return session.user;
 };
+
+export const getSessionNavUser = async (context: APIContext) => {
+  const rawToken = context.cookies.get(SESSION_COOKIE)?.value;
+  if (!rawToken) {
+    return null;
+  }
+
+  const tokenHash = hashToken(rawToken);
+  const session = await withPerf('session.nav.findUnique', () => prisma.session.findUnique({
+    where: { tokenHash },
+    select: {
+      id: true,
+      expiresAt: true,
+      user: {
+        select: {
+          id: true,
+          username: true,
+          avatarUrl: true,
+          role: true,
+        },
+      },
+    },
+  }));
+
+  if (!session) return null;
+
+  if (session.expiresAt.getTime() < Date.now()) {
+    await prisma.session.delete({ where: { id: session.id } });
+    context.cookies.delete(SESSION_COOKIE, { path: '/' });
+    return null;
+  }
+
+  await withPerf('session.nav.touch', () => prisma.session.update({
+    where: { id: session.id },
+    data: { lastSeenAt: new Date() },
+  }));
+
+  return session.user;
+};
