@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { privateApiNoStore } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { updateProfileSchema } from '@/lib/validation/profile';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -83,5 +84,7 @@ export const PATCH: APIRoute = (context) =>
       await removeManagedUploadIfPresent(user.avatarUrl);
     }
 
-    return jsonResponse(200, { user: updated });
+    const response = jsonResponse(200, { user: updated });
+    response.headers.set('Cache-Control', privateApiNoStore);
+    return response;
   });

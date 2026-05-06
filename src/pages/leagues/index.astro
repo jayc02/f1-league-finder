@@ -1,8 +1,12 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { fetchFromApi } from '@/lib/server-api';
+import { publicPageMedium, setAstroCache } from '@/lib/server/cache-control';
 
 export const prerender = false;
+
+// Public cached route: leagues index renders public league summaries only.
+setAstroCache(Astro, publicPageMedium);
 const { leagues } = await fetchFromApi<{ leagues: Array<{ id: string; name: string; slug: string; description: string; region: string; owner: { username: string }; _count: { raceSlots: number } }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
 ---
 <BaseLayout title="Leagues | RaceHub">

@@ -1,10 +1,14 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
 
 const routeStart = performance.now();
 const user = await withPerf('dashboard.sessionLookup', () => getSessionUser(Astro as never));
@@ -34,7 +38,7 @@ const [upcomingRegistrations, upcomingEvents, organiserProfile] = await withPerf
 
 if (shouldLogPerf()) console.info(`[perf] dashboard.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
-<BaseLayout noindex={true} title="Dashboard | RaceHub" sessionUser={user} lightweightApp={true}>
+<BaseLayout noindex={true} sessionUser={user} title="Dashboard | RaceHub" lightweightApp={true}>
   <section class="section-shell">
     <div class="panel rounded-3xl p-6 md:p-8">
       <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Command center</p>

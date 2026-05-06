@@ -1,17 +1,21 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import { fetchFromApi } from '@/lib/server-api';
 import RaceSlotEditorForm from '@/components/dashboard/RaceSlotEditorForm';
 
 export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
 const user = await getSessionUser(Astro as never);
 if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect('/login');
 
 const leaguesResponse = await fetchFromApi<{ leagues: Array<{ id: string; name: string; ownerId: string }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
 const leagues = user.role === 'ADMIN' ? leaguesResponse.leagues : leaguesResponse.leagues.filter((league) => league.ownerId === user.id);
 ---
-<BaseLayout noindex={true} title="Create organiser event | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} title="Create organiser event | RaceHub">
   <section class="section-shell">
     <h1 class="section-title">Create organiser event</h1>
     <p class="mt-2 text-slate-300">Build an event in draft, then publish it from your organiser dashboard when you are ready for public discovery.</p>
