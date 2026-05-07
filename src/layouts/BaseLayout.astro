@@ -19,6 +19,8 @@ interface Props {
   lightweightApp?: boolean;
 }
 
+const hasSessionUserProp = Object.prototype.hasOwnProperty.call(Astro.props, 'sessionUser');
+
 const {
   title = 'RaceHub | Competitive Sim Racing Platform',
   description = siteConfig.defaultDescription,
@@ -31,6 +33,7 @@ const {
 } = Astro.props;
 
 const sessionUser = providedSessionUser ?? (resolveSession ? await getSessionUser(Astro as never) : null);
+const authStateKnown = hasSessionUserProp || resolveSession;
 const canonicalUrl = absoluteUrl(canonicalPath);
 const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage);
 ---
@@ -76,7 +79,7 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
     <div id="app-shell">
       {!lightweightApp && <CursorGlow client:load />}
       {!lightweightApp && <PageMotion client:load />}
-      <SiteHeader user={sessionUser} />
+      <SiteHeader user={sessionUser} authStateKnown={authStateKnown} />
       <main class="pt-24">
         <slot />
       </main>

@@ -4,9 +4,10 @@ import AuthNav from './AuthNav';
 
 interface Props {
   user: SessionUser | null;
+  authStateKnown?: boolean;
 }
 
-const { user } = Astro.props;
+const { user, authStateKnown = false } = Astro.props;
 const appNav = [
   { label: 'Race Slots', href: '/race-slots' },
   { label: 'Communities', href: '/communities' },
@@ -25,7 +26,7 @@ const appNav = [
     </nav>
 
     <div class="hidden lg:block">
-      <AuthNav client:idle user={user} />
+      <AuthNav client:idle user={user} authStateKnown={authStateKnown} />
     </div>
 
     <button
