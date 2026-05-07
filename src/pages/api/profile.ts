@@ -23,11 +23,11 @@ export const PATCH: APIRoute = (context) =>
 
       nextAvatarUrl = typeof avatarUrlInput === 'string' && avatarUrlInput.trim() ? avatarUrlInput.trim() : undefined;
 
-      if (avatarInput instanceof File && avatarInput.size > 0) {
+      if (avatarInput instanceof File && (avatarInput.size > 0 || avatarInput.name)) {
         nextAvatarUrl = await saveUploadedImage(avatarInput, {
           folder: 'avatars',
           maxBytes: 2 * 1024 * 1024,
-          label: 'Avatar image',
+          label: 'profile picture',
         });
       }
 
