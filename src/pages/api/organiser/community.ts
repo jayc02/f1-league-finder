@@ -36,19 +36,19 @@ export const PATCH: APIRoute = (context) =>
       let logoUrl = typeof formData.get('logoUrl') === 'string' && String(formData.get('logoUrl')).trim() ? String(formData.get('logoUrl')).trim() : undefined;
       let bannerUrl = typeof formData.get('bannerUrl') === 'string' && String(formData.get('bannerUrl')).trim() ? String(formData.get('bannerUrl')).trim() : undefined;
 
-      if (logoFile instanceof File && logoFile.size > 0) {
+      if (logoFile instanceof File && (logoFile.size > 0 || logoFile.name)) {
         logoUrl = await saveUploadedImage(logoFile, {
           folder: 'community-logos',
           maxBytes: 2 * 1024 * 1024,
-          label: 'Community logo',
+          label: 'community logo',
         });
       }
 
-      if (bannerFile instanceof File && bannerFile.size > 0) {
+      if (bannerFile instanceof File && (bannerFile.size > 0 || bannerFile.name)) {
         bannerUrl = await saveUploadedImage(bannerFile, {
           folder: 'community-banners',
           maxBytes: 5 * 1024 * 1024,
-          label: 'Community banner',
+          label: 'community banner',
         });
       }
 
