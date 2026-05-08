@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { prisma } from '@/lib/db/prisma';
 import { updateLeagueSchema } from '@/lib/validation/league';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -9,6 +10,7 @@ import { requireUser } from '@/server/permissions/authz';
 
 export const PATCH: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const user = await requireUser(context);
     const leagueId = context.params.id;
     if (!leagueId) throw new HttpError(400, 'League ID is required.');

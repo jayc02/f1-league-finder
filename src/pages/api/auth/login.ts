@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { prisma } from '@/lib/db/prisma';
 import { loginSchema } from '@/lib/validation/auth';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -10,6 +11,7 @@ import { createSession } from '@/lib/auth/session';
 
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const body = await parseBody(context.request, loginSchema);
 
     const user = await prisma.user.findUnique({ where: { email: body.email.toLowerCase() } });
