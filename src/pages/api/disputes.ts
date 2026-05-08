@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { prisma } from '@/lib/db/prisma';
 import { createDisputeSchema } from '@/lib/validation/dispute';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -28,6 +29,7 @@ export const GET: APIRoute = (context) =>
 
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const user = await requireUser(context);
     const body = await parseBody(context.request, createDisputeSchema);
 

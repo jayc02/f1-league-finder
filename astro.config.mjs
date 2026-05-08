@@ -10,6 +10,9 @@ export default defineConfig({
   output: 'server',
   adapter: vercel(),
   integrations: [react(), tailwind({ applyBaseStyles: false })],
+  security: {
+    checkOrigin: false,
+  },
   vite: {
     build: {
       target: 'esnext',

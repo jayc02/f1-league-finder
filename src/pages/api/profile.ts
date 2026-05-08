@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { privateApiNoStore } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { updateProfileSchema } from '@/lib/validation/profile';
@@ -11,6 +12,7 @@ import { requireUser } from '@/server/permissions/authz';
 
 export const PATCH: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const user = await requireUser(context);
     const contentType = context.request.headers.get('content-type') ?? '';
     let body: ReturnType<typeof updateProfileSchema.parse>;
