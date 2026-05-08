@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { prisma } from '@/lib/db/prisma';
 import { adminDisputeEmailSchema } from '@/lib/validation/admin';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -10,6 +11,7 @@ import { sendPlatformEmail } from '@/server/services/email.service';
 
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const admin = await requireUser(context);
     requireAdmin(admin);
 
