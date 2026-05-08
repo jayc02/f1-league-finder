@@ -1,5 +1,6 @@
 export const prerender = false;
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { publicApiShort } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { createRaceSlotSchema } from '@/lib/validation/race-slot';
@@ -38,6 +39,7 @@ export const GET: APIRoute = (context) =>
 
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const user = await requireUser(context);
     requireOrganiserOrAdmin(user);
 

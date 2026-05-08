@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import type { z } from 'zod';
 import { HonourEventType } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
@@ -33,6 +34,7 @@ export const GET: APIRoute = (context) =>
 
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const user = await requireUser(context);
     const raceSlotId = context.params.id;
     if (!raceSlotId) throw new HttpError(400, 'Race slot ID is required.');

@@ -1,6 +1,7 @@
 export const prerender = false;
 
 import type { APIRoute } from 'astro';
+import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { prisma } from '@/lib/db/prisma';
 import { updateRaceSlotSchema } from '@/lib/validation/race-slot';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
@@ -56,6 +57,7 @@ export const GET: APIRoute = (context) =>
 
 export const PATCH: APIRoute = (context) =>
   withErrorHandling(async () => {
+    assertAllowedOrigin(context.request);
     const user = await requireUser(context);
     const id = context.params.id;
     if (!id) throw new HttpError(400, 'Race slot ID is required.');
