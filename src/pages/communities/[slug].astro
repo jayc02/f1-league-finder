@@ -1,9 +1,13 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { fetchFromApi } from '@/lib/server-api';
+import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
 import type { CommunitySummary, RaceSlotSummary } from '@/lib/api/types';
 
 export const prerender = false;
+
+// Public cached route: detail pages only render public organiser profiles.
+setAstroCache(Astro, publicPageShort);
 
 const slug = Astro.params.slug;
 if (!slug) return Astro.redirect('/communities');
