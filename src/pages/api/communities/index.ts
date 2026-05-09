@@ -14,6 +14,7 @@ export const GET: APIRoute = (context) =>
 
     const communities = await prisma.organiserProfile.findMany({
       where: {
+        // General discovery includes every public OrganiserProfile; featured is only applied when explicitly requested.
         isPublic: true,
         ...(region ? { region: region as never } : {}),
         ...(featuredOnly ? { featured: true } : {}),
