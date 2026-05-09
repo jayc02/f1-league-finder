@@ -6,15 +6,50 @@ import { prisma } from '@/lib/db/prisma';
 import { updateCommunitySchema } from '@/lib/validation/community';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
+import { privateApiNoStore } from '@/lib/server/cache-control';
 import { removeManagedUploadIfPresent, saveUploadedImage } from '@/lib/server/upload-storage';
 import { requireUser } from '@/server/permissions/authz';
+
+const normalizeSlug = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 80);
+
+const buildCommunityResponse = (community: { id: string; slug: string; displayName: string; isPublic?: boolean | null }) => ({
+  community: {
+    id: community.id,
+    slug: community.slug,
+    displayName: community.displayName,
+    ...(community.isPublic ? { publicUrl: `/communities/${community.slug}` } : {}),
+    manageUrl: '/dashboard/community',
+  },
+});
+
+const ensureCreateSlug = async (requestedSlug: string, displayName: string) => {
+  const base = normalizeSlug(requestedSlug || displayName) || 'community';
+  let candidate = base;
+  let suffix = 2;
+
+  while (await prisma.organiserProfile.findUnique({ where: { slug: candidate }, select: { id: true } })) {
+    const suffixText = `-${suffix}`;
+    candidate = `${base.slice(0, 80 - suffixText.length)}${suffixText}`;
+    suffix += 1;
+  }
+
+  return candidate;
+};
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
     const user = await requireUser(context);
 
     const profile = await prisma.organiserProfile.findUnique({ where: { userId: user.id } });
-    return jsonResponse(200, { community: profile });
+    const response = jsonResponse(200, { community: profile });
+    response.headers.set('Cache-Control', privateApiNoStore);
+    return response;
   });
 
 export const PATCH: APIRoute = (context) =>
@@ -94,18 +129,23 @@ export const PATCH: APIRoute = (context) =>
       body = await parseBody(context.request, updateCommunitySchema);
     }
 
-    const existingBySlug = await prisma.organiserProfile.findUnique({ where: { slug: body.slug }, select: { userId: true } });
-    if (existingBySlug && existingBySlug.userId !== user.id) {
+    const normalizedSlug = normalizeSlug(body.slug || body.displayName);
+    if (!normalizedSlug) throw new HttpError(400, 'A valid community slug is required.');
+
+    const existingBySlug = await prisma.organiserProfile.findUnique({ where: { slug: normalizedSlug }, select: { userId: true } });
+    if (existingProfile && existingBySlug && existingBySlug.userId !== user.id) {
       throw new HttpError(409, 'That community slug is already in use.');
     }
 
+    const createSlug = existingProfile ? normalizedSlug : await ensureCreateSlug(normalizedSlug, body.displayName);
+
     const community = await prisma.organiserProfile.upsert({
       where: { userId: user.id },
-      update: body,
+      update: { ...body, slug: normalizedSlug },
       create: {
         userId: user.id,
         displayName: body.displayName,
-        slug: body.slug,
+        slug: createSlug,
         shortDescription: body.shortDescription,
         description: body.description,
         brandingColor: body.brandingColor,
@@ -135,5 +175,7 @@ export const PATCH: APIRoute = (context) =>
       await removeManagedUploadIfPresent(existingProfile?.bannerUrl);
     }
 
-    return jsonResponse(200, { community });
+    const response = jsonResponse(200, buildCommunityResponse(community));
+    response.headers.set('Cache-Control', privateApiNoStore);
+    return response;
   });

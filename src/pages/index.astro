@@ -18,12 +18,18 @@ export const prerender = false;
 // Public cached route: homepage renders only public listings and leaderboard previews.
 setAstroCache(Astro, publicPageMedium);
 
-const [slotsResponse, communitiesResponse, globalLb, honourLb] = await Promise.all([
+const [slotsResponse, featuredCommunitiesResponse, globalLb, honourLb] = await Promise.all([
   fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?status=OPEN&limit=6').catch(() => ({ raceSlots: [] })),
   fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?featured=1&limit=3').catch(() => ({ communities: [] })),
   fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/global?limit=8').catch(() => ({ leaderboard: [] })),
   fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/honour?limit=8').catch(() => ({ leaderboard: [] })),
 ]);
+
+const fallbackCommunitiesResponse = featuredCommunitiesResponse.communities.length
+  ? { communities: [] }
+  : await fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?limit=3').catch(() => ({ communities: [] }));
+const showcaseCommunities = featuredCommunitiesResponse.communities.length ? featuredCommunitiesResponse.communities : fallbackCommunitiesResponse.communities;
+const showingFeaturedCommunities = featuredCommunitiesResponse.communities.length > 0;
 
 const structuredData = {
   '@context': 'https://schema.org',
@@ -51,13 +57,13 @@ const structuredData = {
     <div class="panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Featured communities</p>
-          <h2 class="mt-2 font-display text-3xl md:text-4xl">Join organiser programs with active race pipelines.</h2>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{showingFeaturedCommunities ? 'Featured communities' : 'Latest public communities'}</p>
+          <h2 class="mt-2 font-display text-3xl md:text-4xl">{showingFeaturedCommunities ? 'Join featured organiser programs with active race pipelines.' : 'Discover public organiser programs while featured spotlights are being curated.'}</h2>
         </div>
         <a href="/communities" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.18em] transition hover:border-white/40 hover:bg-white/10">Browse all communities</a>
       </div>
       <div class="mt-6 grid gap-4 md:grid-cols-3">
-        {communitiesResponse.communities.length ? communitiesResponse.communities.map((community) => (
+        {showcaseCommunities.length ? showcaseCommunities.map((community) => (
           <a href={`/communities/${community.slug}`} class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35 hover:bg-white/[0.06]">
             <div class="flex items-center gap-3">
               <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
@@ -69,7 +75,7 @@ const structuredData = {
             <p class="mt-3 text-sm text-slate-300">{community.shortDescription ?? community.description ?? 'Organiser-led race community.'}</p>
             <p class="mt-3 text-xs uppercase tracking-[0.14em] text-slate-500">{community.displayedMemberCount.toLocaleString()} members · {community._count.raceSlots} active events</p>
           </a>
-        )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">Featured communities are loading.</p>}
+        )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No featured communities are available yet. Browse all public communities to discover new organiser profiles.</p>}
       </div>
     </div>
   </section>

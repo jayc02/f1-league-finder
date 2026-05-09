@@ -10,8 +10,8 @@ export const GET: APIRoute = (context) =>
     const slug = context.params.slug;
     if (!slug) throw new HttpError(400, 'Community slug is required.');
 
-    const community = await prisma.organiserProfile.findUnique({
-      where: { slug },
+    const community = await prisma.organiserProfile.findFirst({
+      where: { slug, isPublic: true },
       include: {
         user: { select: { id: true, username: true, honourScore: true } },
         leagues: {
@@ -22,7 +22,7 @@ export const GET: APIRoute = (context) =>
       },
     });
 
-    if (!community || !community.isPublic) throw new HttpError(404, 'Community not found.');
+    if (!community) throw new HttpError(404, 'Community not found.');
 
     const now = new Date();
     const [upcomingEvents, recentEvents] = await Promise.all([
