@@ -1,16 +1,27 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { fetchFromApi } from '@/lib/server-api';
-import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
-import type { CommunitySummary } from '@/lib/api/types';
+import { setAstroCache } from '@/lib/server/cache-control';
+import { getPublicCommunitySummaries, type PublicCommunitySummary } from '@/server/services/community.service';
 
 export const prerender = false;
 
-// Public cached route: communities index renders public organiser profiles only.
-// Newly-created communities may take up to this 60s cache TTL to appear publicly.
-setAstroCache(Astro, publicPageShort);
+// Public SSR route: communities index renders public organiser profiles directly from OrganiserProfile.
+// Temporarily disabled public caching while verifying fresh community discovery output.
+setAstroCache(Astro, 'no-store');
 
-const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?limit=30').catch(() => ({ communities: [] }));
+let communities: PublicCommunitySummary[] = [];
+let communitiesError: unknown = null;
+
+try {
+  communities = await getPublicCommunitySummaries(30);
+
+  if (import.meta.env.DEV) {
+    console.log('[communities page]', communities.map((community) => community.slug));
+  }
+} catch (error) {
+  communitiesError = error;
+  console.error('[communities page] Failed to load public communities', error);
+}
 ---
 
 <BaseLayout title="Communities | RaceHub">
@@ -37,6 +48,15 @@ const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(
       <p class="max-w-xl text-xs text-slate-400">Public organiser profiles appear here whether or not they are featured or verified.</p>
     </div>
 
+    {communitiesError ? (
+      <div class="mt-5 rounded-3xl border border-rose-400/30 bg-rose-950/30 p-5 text-sm text-rose-100 shadow-[0_0_40px_rgba(244,63,94,.12)]">
+        <p class="font-display text-2xl text-white">Community discovery is temporarily unavailable.</p>
+        <p class="mt-2 text-rose-100/80">RaceHub could not load public organiser profiles from the database. The issue has been logged server-side.</p>
+        {import.meta.env.DEV && (
+          <pre class="mt-4 overflow-x-auto rounded-2xl border border-rose-300/20 bg-black/45 p-4 text-xs text-rose-50">{communitiesError instanceof Error ? communitiesError.stack ?? communitiesError.message : String(communitiesError)}</pre>
+        )}
+      </div>
+    ) : (
     <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {communities.length ? communities.map((community) => (
         <a href={`/communities/${community.slug}`} class="group panel relative overflow-hidden rounded-3xl border-white/15 transition hover:-translate-y-1 hover:border-white/40">
@@ -82,5 +102,6 @@ const { communities } = await fetchFromApi<{ communities: CommunitySummary[] }>(
         </a>
       )) : <p class="panel rounded-2xl p-6 text-slate-300">No communities are public yet.</p>}
     </div>
+    )}
   </section>
 </BaseLayout>
