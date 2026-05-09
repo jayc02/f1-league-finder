@@ -25,9 +25,20 @@ interface CommunityState {
 
 interface Props {
   initialState: CommunityState;
+  mode?: 'create' | 'edit';
 }
 
-export default function CommunityEditorForm({ initialState }: Props) {
+interface SaveCommunityResponse {
+  community: {
+    id: string;
+    slug: string;
+    displayName: string;
+    publicUrl?: string;
+    manageUrl: string;
+  };
+}
+
+export default function CommunityEditorForm({ initialState, mode = 'create' }: Props) {
   const [form, setForm] = useState(initialState);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -35,6 +46,7 @@ export default function CommunityEditorForm({ initialState }: Props) {
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [bannerPreview, setBannerPreview] = useState('');
+  const [savedCommunity, setSavedCommunity] = useState<SaveCommunityResponse['community'] | null>(null);
 
   const computedSlug = useMemo(() => form.slug || form.displayName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''), [form.slug, form.displayName]);
   const effectiveLogo = logoPreview || form.logoUrl;
@@ -99,14 +111,16 @@ export default function CommunityEditorForm({ initialState }: Props) {
       if (logoFile) payload.append('logo', logoFile);
       if (bannerFile) payload.append('banner', bannerFile);
 
-      await apiRequest('/api/organiser/community', {
+      const response = await apiRequest<SaveCommunityResponse>('/api/organiser/community', {
         method: 'PATCH',
         body: payload,
       });
-      setMessage('Community profile updated.');
+      setSavedCommunity(response.community);
+      setForm((state) => ({ ...state, slug: response.community.slug }));
+      setMessage(mode === 'edit' ? 'Community profile updated.' : 'Community profile created.');
       window.setTimeout(() => {
-        window.location.href = `/communities/${computedSlug}`;
-      }, 800);
+        window.location.href = response.community.manageUrl;
+      }, 1000);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to update community.');
     } finally {
@@ -116,6 +130,17 @@ export default function CommunityEditorForm({ initialState }: Props) {
 
   return (
     <form onSubmit={save} className="panel rounded-3xl p-6 md:p-8">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{mode === 'edit' ? 'Existing OrganiserProfile' : 'New OrganiserProfile'}</p>
+          <h2 className="mt-2 font-display text-2xl text-white">{mode === 'edit' ? 'Edit Community' : 'Create Community'}</h2>
+        </div>
+        {mode === 'edit' && form.isPublic && computedSlug && (
+          <a href={`/communities/${computedSlug}`} className="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">
+            View public page
+          </a>
+        )}
+      </div>
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-4">
           <div>
@@ -183,10 +208,16 @@ export default function CommunityEditorForm({ initialState }: Props) {
       </div>
 
       <div className="mt-6 flex items-center gap-3">
-        <button disabled={saving} className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black disabled:opacity-50">{saving ? 'Saving…' : 'Save community profile'}</button>
+        <button disabled={saving} className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black disabled:opacity-50">{saving ? 'Saving…' : mode === 'edit' ? 'Save Changes' : 'Create Community'}</button>
         <a href="/dashboard" className="rounded-full border border-white/20 px-5 py-2 text-sm">Cancel</a>
       </div>
       {message && <p className="mt-3 text-sm text-slate-300">{message}</p>}
+      {savedCommunity && (
+        <div className="mt-3 flex flex-wrap gap-2 text-sm">
+          <a href={savedCommunity.manageUrl} className="rounded-full border border-white/20 px-4 py-2 text-slate-100">Manage community</a>
+          {savedCommunity.publicUrl && <a href={savedCommunity.publicUrl} className="rounded-full border border-white/20 px-4 py-2 text-slate-100">View public page</a>}
+        </div>
+      )}
     </form>
   );
 }
