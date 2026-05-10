@@ -14,6 +14,30 @@ const withNoStore = (response: Response) => {
   return response;
 };
 
+
+export const GET: APIRoute = (context) =>
+  withErrorHandling(async () => {
+    const user = await requireUser(context);
+    const slug = context.params.slug;
+    if (!slug) throw new HttpError(400, 'Community slug is required.');
+
+    const community = await prisma.organiserProfile.findUnique({
+      where: { slug },
+      select: { id: true, userId: true },
+    });
+    if (!community) throw new HttpError(404, 'Community not found.');
+
+    const member = await prisma.organiserProfileMember.findUnique({
+      where: { organiserProfileId_userId: { organiserProfileId: community.id, userId: user.id } },
+      select: { id: true, role: true, status: true },
+    });
+
+    return withNoStore(jsonResponse(200, {
+      isOwner: community.userId === user.id,
+      member,
+    }));
+  });
+
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
     assertAllowedOrigin(context.request);

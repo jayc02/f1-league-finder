@@ -7,7 +7,17 @@ export const prerender = false;
 
 // Public SSR route: communities index renders public organiser profiles directly from OrganiserProfile.
 // Temporarily disabled public caching while verifying fresh community discovery output.
-setAstroCache(Astro, 'no-store');
+setAstroCache(Astro, 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+
+const safeExternalUrl = (url?: string | null) => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+};
 
 let communities: PublicCommunitySummary[] = [];
 let communitiesError: unknown = null;
@@ -95,13 +105,14 @@ try {
             )}
 
             <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()} <span class="text-[10px] text-slate-500">{community.memberCountSource}</span></p>
+              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()} <span class="text-[10px] text-slate-500">members · {community.memberCountSource}</span></p>
               <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Active events</span>{community._count.raceSlots}</p>
             </div>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <a href={`/communities/${community.slug}`} class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">View Community</a>
-              {community.discordUrl && <a href={community.discordUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-indigo-300/35 bg-indigo-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-indigo-100">Join Discord</a>}
-              {community.redditUrl && <a href={community.redditUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-orange-300/35 bg-orange-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-orange-100">Join Reddit</a>}
+            <div class="mt-4 grid gap-2 sm:grid-cols-2">
+              <a href={`/communities/${community.slug}`} class="rounded-full bg-white px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-black">View Community</a>
+              <button type="button" data-community-join={community.slug} class="rounded-full border border-emerald-300/35 bg-emerald-500/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-100">Join Community</button>
+              {safeExternalUrl(community.discordUrl) && <a href={safeExternalUrl(community.discordUrl)!} target="_blank" rel="noreferrer noopener" class="rounded-full border border-indigo-300/35 bg-indigo-500/15 px-4 py-2 text-center text-xs uppercase tracking-[0.16em] text-indigo-100">Join Discord</a>}
+              {safeExternalUrl(community.redditUrl) && <a href={safeExternalUrl(community.redditUrl)!} target="_blank" rel="noreferrer noopener" class="rounded-full border border-orange-300/35 bg-orange-500/15 px-4 py-2 text-center text-xs uppercase tracking-[0.16em] text-orange-100">Join Reddit</a>}
             </div>
           </div>
         </article>
@@ -109,4 +120,57 @@ try {
     </div>
     )}
   </section>
+  <script>
+    const joinButtons = document.querySelectorAll<HTMLButtonElement>('[data-community-join]');
+
+    const setButton = (button: HTMLButtonElement, label: string, disabled = false) => {
+      button.textContent = label;
+      button.disabled = disabled;
+      button.classList.toggle('opacity-60', disabled);
+    };
+
+    joinButtons.forEach((button) => {
+      const slug = button.dataset.communityJoin;
+      if (!slug) return;
+
+      fetch(`/api/communities/${slug}/membership`, { credentials: 'include' })
+        .then(async (response) => {
+          if (response.status === 401) return null;
+          if (!response.ok) throw new Error('Unable to check membership');
+          return response.json();
+        })
+        .then((state) => {
+          if (!state) return;
+          if (state.isOwner) {
+            setButton(button, 'Manage Community');
+            button.addEventListener('click', () => { window.location.href = '/dashboard/community'; }, { once: true });
+            return;
+          }
+          if (state.member?.status === 'ACTIVE') setButton(button, 'Joined', true);
+          if (state.member?.status === 'BANNED') setButton(button, 'Unable to join', true);
+        })
+        .catch(() => undefined);
+
+      button.addEventListener('click', async () => {
+        if (button.disabled || button.textContent === 'Manage Community') return;
+        setButton(button, 'Joining...', true);
+        try {
+          const response = await fetch(`/api/communities/${slug}/join`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'content-type': 'application/json' },
+          });
+          if (response.status === 401) {
+            window.location.href = `/login?redirect=/communities/${slug}`;
+            return;
+          }
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error ?? 'Unable to join community');
+          setButton(button, 'Joined', true);
+        } catch (error) {
+          setButton(button, error instanceof Error ? error.message : 'Unable to join', false);
+        }
+      });
+    });
+  </script>
 </BaseLayout>
