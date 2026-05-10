@@ -1,90 +1,277 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { fetchFromApi } from '@/lib/server-api';
-import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
-import type { CommunitySummary, RaceSlotSummary } from '@/lib/api/types';
+import { getSessionUser } from '@/lib/auth/session';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
+import { prisma } from '@/lib/db/prisma';
+import { getCommunityMemberCountDisplay, getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
+import { getCommunityMembership } from '@/lib/server/community-permissions';
 
 export const prerender = false;
 
-// Public cached route: detail pages only render public organiser profiles.
-setAstroCache(Astro, publicPageShort);
+// This page is public, but it can include membership-only race sections for signed-in viewers.
+// Keep it no-store so personalised community-only data is never publicly cached.
+setAstroCache(Astro, privateNoStore);
 
 const slug = Astro.params.slug;
 if (!slug) return Astro.redirect('/communities');
 
-const response = await fetchFromApi<{
-  community: CommunitySummary & { credibilityNotes?: string | null; user: { username: string; honourScore: number }; leagues: Array<{ id: string; name: string; slug: string; region: string }> };
-  upcomingEvents: RaceSlotSummary[];
-  recentEvents: RaceSlotSummary[];
-}>(Astro, `/api/communities/${slug}`).catch(() => null);
+const safeExternalUrl = (url?: string | null) => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+};
 
-if (!response) return Astro.redirect('/communities');
-const { community, upcomingEvents, recentEvents } = response;
+const raceSelect = {
+  id: true,
+  title: true,
+  track: true,
+  visibility: true,
+  scheduledAt: true,
+  status: true,
+  maxPlayers: true,
+  platform: true,
+  game: true,
+  crossplay: true,
+  registrationCutoffAt: true,
+  league: { select: { id: true, name: true, slug: true } },
+  _count: { select: { registrations: true } },
+} as const;
+
+const community = await prisma.organiserProfile.findFirst({
+  where: { slug, isPublic: true },
+  include: {
+    user: { select: { id: true, username: true, honourScore: true, avatarUrl: true } },
+    leagues: {
+      where: { active: true },
+      select: { id: true, name: true, slug: true, region: true },
+      orderBy: { createdAt: 'desc' },
+      take: 4,
+    },
+    _count: { select: { members: { where: { status: 'ACTIVE' } } } },
+  },
+});
+
+if (!community) {
+  Astro.response.status = 404;
+}
+
+const currentUser = community ? await getSessionUser(Astro as never) : null;
+const membership = community && currentUser ? await getCommunityMembership(currentUser.id, community.id) : null;
+const canSeeCommunityOnly = Boolean(
+  community &&
+  currentUser &&
+  (currentUser.role === 'ADMIN' || currentUser.id === community.userId || membership?.status === 'ACTIVE'),
+);
+
+const now = new Date();
+const [publicRaces, communityOnlyRaces, recentRaces] = community
+  ? await Promise.all([
+      prisma.raceSlot.findMany({
+        where: { ...getPublicUpcomingRaceSlotWhere(), organiserProfileId: community.id },
+        select: raceSelect,
+        orderBy: { scheduledAt: 'asc' },
+        take: 8,
+      }),
+      canSeeCommunityOnly
+        ? prisma.raceSlot.findMany({
+            where: {
+              organiserProfileId: community.id,
+              visibility: 'COMMUNITY_ONLY',
+              status: { in: ['OPEN', 'FULL', 'LOCKED'] },
+              scheduledAt: { gte: now },
+            },
+            select: raceSelect,
+            orderBy: { scheduledAt: 'asc' },
+            take: 8,
+          })
+        : Promise.resolve([]),
+      prisma.raceSlot.findMany({
+        where: {
+          organiserProfileId: community.id,
+          visibility: 'PUBLIC',
+          OR: [{ scheduledAt: { lt: now } }, { status: { in: ['COMPLETED', 'CANCELLED'] } }],
+          NOT: { status: 'DRAFT' },
+        },
+        select: raceSelect,
+        orderBy: { scheduledAt: 'desc' },
+        take: 4,
+      }),
+    ])
+  : [[], [], []];
+
+const memberDisplay = community ? getCommunityMemberCountDisplay(community) : { count: 0, source: 'racehub' };
+const raceHubMembers = community?._count.members ?? 0;
+const externalSource = community && ['discord', 'reddit'].includes(community.memberCountSource.toLowerCase()) ? community.memberCountSource.toLowerCase() : null;
+const externalCount = externalSource && community.displayedMemberCount > 0 ? community.displayedMemberCount : null;
+const discordUrl = safeExternalUrl(community?.discordUrl);
+const redditUrl = safeExternalUrl(community?.redditUrl);
+const websiteUrl = safeExternalUrl(community?.websiteUrl);
+const accent = community?.brandingColor || '#38bdf8';
+
+const RaceCard = (event: (typeof publicRaces)[number]) => {
+  const filled = Math.min(100, Math.round((event._count.registrations / event.maxPlayers) * 100));
+  return { event, filled };
+};
 ---
 
-<BaseLayout title={`${community.displayName} | RaceHub`}>
-  <section class="section-shell">
-    <article class="panel overflow-hidden rounded-3xl">
-      <div class="h-48 sm:h-56 bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(2,6,23,.3),rgba(2,6,23,.9)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=1500&q=80'}')`}>
-        <div class="mx-auto flex h-full w-[min(1120px,94%)] flex-col items-start justify-end gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:pb-6">
-          <div class="flex items-end gap-4">
-            <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-white/20 object-cover" alt={`${community.displayName} logo`} />
-            <div>
-              <h1 class="font-display text-3xl sm:text-4xl text-white">{community.displayName}</h1>
-              <p class="mt-1 text-sm text-slate-200">Operated by @{community.user.username}</p>
+<BaseLayout title={community ? `${community.displayName} | RaceHub` : 'Community not found | RaceHub'}>
+  {community ? (
+    <section class="section-shell">
+      <article class="panel overflow-hidden rounded-3xl border-white/15">
+        <div class="relative min-h-[18rem] bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.92)),url('${community.bannerUrl ?? '/pictures/communititesback.webp'}')`}>
+          <div class="absolute inset-0" style={`background: radial-gradient(circle at 18% 20%, ${accent}33, transparent 34%), linear-gradient(90deg, rgba(0,0,0,.68), transparent 62%)`}></div>
+          <div class="relative mx-auto flex min-h-[18rem] w-[min(1120px,94%)] flex-col justify-end gap-5 pb-6 pt-24 lg:flex-row lg:items-end lg:justify-between">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
+              <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} class="h-20 w-20 rounded-3xl border border-white/25 bg-black/45 object-cover shadow-2xl sm:h-24 sm:w-24" alt={`${community.displayName} logo`} />
+              <div>
+                <div class="flex flex-wrap gap-2">
+                  {community.verified && <span class="rounded-full border border-cyan-300/35 bg-cyan-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-100">Verified</span>}
+                  {community.featured && <span class="rounded-full border border-amber-300/35 bg-amber-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100">Featured</span>}
+                </div>
+                <h1 class="mt-3 font-display text-4xl text-white md:text-6xl">{community.displayName}</h1>
+                <p class="mt-2 max-w-2xl text-sm text-slate-200">{community.shortDescription ?? 'A RaceHub organiser community.'}</p>
+                <p class="mt-2 text-xs uppercase tracking-[0.18em] text-slate-300">{community.region} · {community.platformFocus ?? 'Cross-platform'} · {community.gameFocus ?? 'F1'}</p>
+              </div>
+            </div>
+            <div class="grid w-full gap-2 sm:w-auto sm:grid-cols-2 lg:min-w-80">
+              <button type="button" data-community-join={community.slug} class="rounded-full bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-black">Join Community</button>
+              {discordUrl && <a href={discordUrl} target="_blank" rel="noopener noreferrer" class="rounded-full border border-indigo-300/35 bg-indigo-500/15 px-5 py-3 text-center text-xs uppercase tracking-[0.16em] text-indigo-100">Join Discord</a>}
+              {redditUrl && <a href={redditUrl} target="_blank" rel="noopener noreferrer" class="rounded-full border border-orange-300/35 bg-orange-500/15 px-5 py-3 text-center text-xs uppercase tracking-[0.16em] text-orange-100">Join Reddit</a>}
+              {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-center text-xs uppercase tracking-[0.16em] text-white">Website</a>}
             </div>
           </div>
-          <div class="flex flex-wrap gap-2 sm:justify-end">
-            {community.discordUrl && <a href={community.discordUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Join Discord</a>}
-            {community.redditUrl && <a href={community.redditUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Visit Reddit</a>}
-            <a href="/race-slots" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">View all events</a>
+        </div>
+
+        <div class="grid gap-6 p-5 md:p-8 lg:grid-cols-[1.35fr_.65fr]">
+          <div>
+            <h2 class="font-display text-2xl text-white">Community hub</h2>
+            <p class="mt-3 whitespace-pre-line text-sm leading-7 text-slate-300">{community.description ?? community.shortDescription ?? 'This organiser has not added a long-form community description yet.'}</p>
+            <div class="mt-5 flex flex-wrap gap-2">
+              {(community.tags ?? []).map((tag) => <span class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300">{tag}</span>)}
+            </div>
+            {community.credibilityNotes && <div class="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-slate-300"><p class="text-xs uppercase tracking-[0.18em] text-slate-500">Community rules / notes</p><p class="mt-2 whitespace-pre-line">{community.credibilityNotes}</p></div>}
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">RaceHub members</p><p class="mt-2 font-display text-4xl">{raceHubMembers.toLocaleString()}</p></div>
+            {externalCount && <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">{externalSource} members</p><p class="mt-2 font-display text-4xl">{externalCount.toLocaleString()}</p><p class="text-[11px] text-slate-500">Cached count{community.memberCountLastSyncedAt ? ` · synced ${new Date(community.memberCountLastSyncedAt).toLocaleDateString()}` : ''}</p></div>}
+            {!externalCount && <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Displayed members</p><p class="mt-2 font-display text-4xl">{memberDisplay.count.toLocaleString()}</p><p class="text-[11px] text-slate-500">Source: {memberDisplay.source}</p></div>}
+            <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Operated by</p><p class="mt-2 text-lg font-semibold">@{community.user.username}</p><p class="text-xs text-slate-500">Honour {community.user.honourScore}</p></div>
           </div>
         </div>
-      </div>
-      <div class="p-4 sm:p-6 md:p-8">
-        <p class="max-w-3xl text-slate-300">{community.description ?? community.shortDescription}</p>
-        <div class="mt-5 flex flex-wrap gap-2">
-          <span class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">{community.region}</span>
-          {community.platformFocus && <span class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">{community.platformFocus}</span>}
-          {community.gameFocus && <span class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs">{community.gameFocus}</span>}
-          {community.verified && <span class="rounded-full border border-emerald-300/30 bg-emerald-500/15 px-3 py-1 text-xs text-emerald-100">Verified</span>}
-          {community.featured && <span class="rounded-full border border-amber-300/30 bg-amber-500/15 px-3 py-1 text-xs text-amber-100">Featured</span>}
-        </div>
-        <div class="mt-6 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Displayed members</p><p class="mt-2 font-display text-3xl">{community.displayedMemberCount.toLocaleString()}</p><p class="text-[11px] text-slate-500">Source: {community.memberCountSource}</p></div>
-          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Upcoming events</p><p class="mt-2 font-display text-3xl">{upcomingEvents.length}</p></div>
-          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Recent events</p><p class="mt-2 font-display text-3xl">{recentEvents.length}</p></div>
-          <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Organiser honour</p><p class="mt-2 font-display text-3xl">{community.user.honourScore}</p></div>
-        </div>
-        {community.credibilityNotes && <p class="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">{community.credibilityNotes}</p>}
-      </div>
-    </article>
-
-    <div class="mt-8 grid gap-4 xl:grid-cols-2">
-      <article class="panel rounded-3xl p-6">
-        <h2 class="font-display text-2xl">Upcoming Events</h2>
-        <div class="mt-4 space-y-3">
-          {upcomingEvents.length ? upcomingEvents.map((event) => (
-            <a href={`/race-slots/${event.id}`} class="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
-              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.league.name} · {event.track ?? 'Track TBA'}</p>
-              <h3 class="mt-1 font-semibold">{event.title}</h3>
-              <p class="mt-1 text-sm text-slate-300">{new Date(event.scheduledAt).toLocaleString()} · {event._count.registrations}/{event.maxPlayers} entrants</p>
-            </a>
-          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No public upcoming events.</p>}
-        </div>
       </article>
-      <article class="panel rounded-3xl p-6">
-        <h2 class="font-display text-2xl">Recent Event Log</h2>
-        <div class="mt-4 space-y-3">
-          {recentEvents.length ? recentEvents.map((event) => (
-            <a href={`/race-slots/${event.id}`} class="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
-              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.status}</p>
-              <h3 class="mt-1 font-semibold">{event.title}</h3>
+
+      <div class="mt-8 grid gap-5 xl:grid-cols-2">
+        <article class="panel rounded-3xl p-5 md:p-6">
+          <h2 class="font-display text-2xl">Public races</h2>
+          <div class="mt-4 space-y-3">
+            {publicRaces.length ? publicRaces.map((race) => {
+              const { event, filled } = RaceCard(race);
+              return <a href={`/race-slots/${event.id}`} class="block rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-white/35">
+                <div class="flex items-start justify-between gap-3"><div><p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.league.name} · {event.game} · {event.platform ?? 'Cross-platform'}</p><h3 class="mt-1 font-semibold text-white">{event.title}</h3></div><span class="rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-emerald-100">{event.visibility}</span></div>
+                <p class="mt-2 text-sm text-slate-300">{event.track ?? 'Track TBA'} · {new Date(event.scheduledAt).toLocaleString()}</p>
+                <div class="mt-3 h-2 rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-emerald-300 to-cyan-200" style={`width:${filled}%`}></div></div>
+                <p class="mt-2 text-xs text-slate-400">{event._count.registrations}/{event.maxPlayers} registered · View details</p>
+              </a>;
+            }) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No public upcoming races are listed yet.</p>}
+          </div>
+        </article>
+
+        <article class="panel rounded-3xl p-5 md:p-6">
+          <h2 class="font-display text-2xl">Community-only races</h2>
+          <div class="mt-4 space-y-3">
+            {canSeeCommunityOnly ? (
+              communityOnlyRaces.length ? communityOnlyRaces.map((race) => {
+                const { event, filled } = RaceCard(race);
+                return <a href={`/race-slots/${event.id}`} class="block rounded-2xl border border-violet-300/20 bg-violet-500/[0.06] p-4 transition hover:border-violet-200/45">
+                  <div class="flex items-start justify-between gap-3"><div><p class="text-xs uppercase tracking-[0.16em] text-violet-100/70">{event.league.name} · {event.game} · {event.platform ?? 'Cross-platform'}</p><h3 class="mt-1 font-semibold text-white">{event.title}</h3></div><span class="rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-violet-100">Members</span></div>
+                  <p class="mt-2 text-sm text-slate-300">{event.track ?? 'Track TBA'} · {new Date(event.scheduledAt).toLocaleString()}</p>
+                  <div class="mt-3 h-2 rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-violet-300 to-fuchsia-200" style={`width:${filled}%`}></div></div>
+                  <p class="mt-2 text-xs text-slate-400">{event._count.registrations}/{event.maxPlayers} registered · View details</p>
+                </a>;
+              }) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No member-only upcoming races are listed yet.</p>
+            ) : (
+              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
+                <p class="font-semibold text-white">Join this RaceHub community to see member-only races.</p>
+                <p class="mt-1 text-slate-400">Public visitors only see public race slots.</p>
+              </div>
+            )}
+          </div>
+        </article>
+      </div>
+
+      <article class="panel mt-8 rounded-3xl p-5 md:p-6">
+        <h2 class="font-display text-2xl">Recent events</h2>
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+          {recentRaces.length ? recentRaces.map((event) => (
+            <a href={`/race-slots/${event.id}`} class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
+              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.status} · {event.track ?? 'Track TBA'}</p>
+              <h3 class="mt-1 font-semibold text-white">{event.title}</h3>
               <p class="mt-1 text-sm text-slate-300">{new Date(event.scheduledAt).toLocaleDateString()} · {event._count.registrations} entrants</p>
             </a>
-          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No completed events yet.</p>}
+          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No recent public events yet.</p>}
         </div>
       </article>
-    </div>
-  </section>
+    </section>
+  ) : (
+    <section class="section-shell">
+      <div class="panel rounded-3xl p-8">
+        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">404</p>
+        <h1 class="section-title mt-2">Community not found</h1>
+        <p class="mt-3 text-slate-300">This community is not public or does not exist.</p>
+        <a href="/communities" class="mt-5 inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black">Back to communities</a>
+      </div>
+    </section>
+  )}
+
+  <script>
+    const button = document.querySelector<HTMLButtonElement>('[data-community-join]');
+    const setButton = (label: string, disabled = false) => {
+      if (!button) return;
+      button.textContent = label;
+      button.disabled = disabled;
+      button.classList.toggle('opacity-60', disabled);
+    };
+
+    if (button) {
+      const slug = button.dataset.communityJoin;
+      fetch(`/api/communities/${slug}/membership`, { credentials: 'include' })
+        .then(async (response) => {
+          if (response.status === 401) return null;
+          if (!response.ok) throw new Error('Unable to check membership');
+          return response.json();
+        })
+        .then((state) => {
+          if (!state) return;
+          if (state.isOwner) setButton('Manage Community');
+          else if (state.member?.status === 'ACTIVE') setButton('Joined', true);
+          else if (state.member?.status === 'BANNED') setButton('Unable to join', true);
+        })
+        .catch(() => undefined);
+
+      button.addEventListener('click', async () => {
+        if (button.textContent === 'Manage Community') {
+          window.location.href = '/dashboard/community';
+          return;
+        }
+        if (button.disabled) return;
+        setButton('Joining...', true);
+        try {
+          const response = await fetch(`/api/communities/${slug}/join`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' } });
+          if (response.status === 401) {
+            window.location.href = `/login?redirect=/communities/${slug}`;
+            return;
+          }
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error ?? 'Unable to join community');
+          setButton('Joined', true);
+        } catch (error) {
+          setButton(error instanceof Error ? error.message : 'Unable to join', false);
+        }
+      });
+    }
+  </script>
 </BaseLayout>
