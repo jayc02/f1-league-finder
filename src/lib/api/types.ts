@@ -55,7 +55,7 @@ export interface RaceSlotSummary {
   title: string;
   track?: string | null;
   eventNotes?: string | null;
-  visibility: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+  visibility: 'PUBLIC' | 'COMMUNITY_ONLY' | 'UNLISTED' | 'PRIVATE';
   scheduledAt: string;
   status: string;
   maxPlayers: number;

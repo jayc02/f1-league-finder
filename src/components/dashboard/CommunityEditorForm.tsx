@@ -17,7 +17,7 @@ interface CommunityState {
   region: 'EU' | 'NA' | 'SA' | 'APAC' | 'MENA' | 'GLOBAL';
   tags: string;
   displayedMemberCount: number;
-  memberCountSource: 'manual' | 'discord-sync' | 'reddit-sync';
+  memberCountSource: 'manual' | 'discord-sync' | 'reddit-sync' | 'racehub';
   isPublic: boolean;
   featured: boolean;
   credibilityNotes: string;
@@ -115,6 +115,7 @@ export default function CommunityEditorForm({ initialState, mode = 'create' }: P
         method: 'PATCH',
         body: payload,
       });
+      window.sessionStorage.removeItem('racehub.navUser.v1');
       setSavedCommunity(response.community);
       setForm((state) => ({ ...state, slug: response.community.slug }));
       setMessage(mode === 'edit' ? 'Community profile updated.' : 'Community profile created.');

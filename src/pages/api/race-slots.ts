@@ -1,12 +1,13 @@
 export const prerender = false;
 import type { APIRoute } from 'astro';
 import { assertAllowedOrigin } from '@/lib/server/origin-guard';
-import { publicApiShort } from '@/lib/server/cache-control';
+import { privateApiNoStore, publicApiShort } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { createRaceSlotSchema } from '@/lib/validation/race-slot';
 import { getNumericLimit, parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
-import { requireOrganiserOrAdmin, requireUser } from '@/server/permissions/authz';
+import { requireUser } from '@/server/permissions/authz';
+import { canManageCommunityRaces } from '@/lib/server/community-permissions';
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
@@ -41,20 +42,20 @@ export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
     assertAllowedOrigin(context.request);
     const user = await requireUser(context);
-    requireOrganiserOrAdmin(user);
-
     const body = await parseBody(context.request, createRaceSlotSchema);
 
-    const league = await prisma.league.findUnique({ where: { id: body.leagueId } });
+    const league = await prisma.league.findUnique({ where: { id: body.leagueId }, include: { organiserProfile: true } });
     if (!league) throw new HttpError(404, 'League not found.');
-    if (user.role !== 'ADMIN' && league.ownerId !== user.id) {
-      throw new HttpError(403, 'Only league owner or admin can create race slots in this league.');
-    }
+
     if (body.registrationCutoffAt >= body.scheduledAt) {
       throw new HttpError(400, 'Registration cutoff must be before scheduled start time.');
     }
 
-    const organiserProfile = await prisma.organiserProfile.findUnique({ where: { userId: user.id } });
+    const ownedOrganiserProfile = await prisma.organiserProfile.findUnique({ where: { userId: user.id } });
+    const organiserProfile = league.organiserProfile ?? ownedOrganiserProfile;
+    if (!organiserProfile) throw new HttpError(403, 'Create or join a managed community before creating races.');
+    const canCreate = user.role === 'ADMIN' || league.ownerId === user.id || (await canManageCommunityRaces(user, organiserProfile));
+    if (!canCreate) throw new HttpError(403, 'Insufficient community race permissions.');
 
     const status = body.status ?? 'DRAFT';
     const visibility = body.visibility ?? (status === 'DRAFT' ? 'PRIVATE' : 'PUBLIC');
@@ -63,12 +64,14 @@ export const POST: APIRoute = (context) =>
       data: {
         ...body,
         organiserId: user.id,
-        organiserProfileId: organiserProfile?.id,
+        organiserProfileId: organiserProfile.id,
         status,
         visibility,
       },
       include: { _count: { select: { registrations: true } } },
     });
 
-    return jsonResponse(201, { raceSlot: slot });
+    const response = jsonResponse(201, { raceSlot: slot });
+    response.headers.set('Cache-Control', privateApiNoStore);
+    return response;
   });

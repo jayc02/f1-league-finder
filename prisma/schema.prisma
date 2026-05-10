@@ -40,6 +40,7 @@ enum RaceSlotStatus {
 
 enum EventVisibility {
   PUBLIC
+  COMMUNITY_ONLY
   UNLISTED
   PRIVATE
 }
@@ -57,6 +58,19 @@ enum HonourEventType {
   ORGANISER_PENALTY
   ADMIN_ADJUSTMENT
   WARNING
+}
+
+enum OrganiserProfileMemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum OrganiserProfileMemberStatus {
+  ACTIVE
+  INVITED
+  BANNED
 }
 
 enum ModerationActionType {
@@ -89,6 +103,7 @@ model User {
 
   sessions            Session[]
   organiserProfile    OrganiserProfile?
+  organiserProfileMemberships OrganiserProfileMember[]
   leaguesOwned        League[]               @relation("LeagueOwner")
   raceSlotsOrganised  RaceSlot[]             @relation("SlotOrganiser")
   raceRegistrations   RaceRegistration[]
@@ -157,9 +172,28 @@ model OrganiserProfile {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   leagues   League[]
   raceSlots RaceSlot[]
+  members   OrganiserProfileMember[]
 
   @@index([isPublic, featured])
   @@index([region])
+}
+
+model OrganiserProfileMember {
+  id                 String                         @id @default(cuid())
+  organiserProfileId String
+  userId             String
+  role               OrganiserProfileMemberRole     @default(MEMBER)
+  status             OrganiserProfileMemberStatus   @default(ACTIVE)
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
+
+  organiserProfile OrganiserProfile @relation(fields: [organiserProfileId], references: [id], onDelete: Cascade)
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organiserProfileId, userId])
+  @@index([userId])
+  @@index([organiserProfileId])
+  @@index([role])
 }
 
 model League {
@@ -220,6 +254,8 @@ model RaceSlot {
   @@index([leagueId, scheduledAt])
   @@index([status, scheduledAt])
   @@index([visibility, scheduledAt])
+  @@index([organiserProfileId, scheduledAt])
+  @@index([organiserProfileId, visibility, status, scheduledAt])
   @@index([scheduledAt])
   @@index([status])
 }

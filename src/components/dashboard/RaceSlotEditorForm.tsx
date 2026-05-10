@@ -13,7 +13,7 @@ interface Props {
 }
 
 const statuses = ['DRAFT', 'OPEN', 'FULL', 'LOCKED', 'COMPLETED', 'CANCELLED'] as const;
-const visibilities = ['PUBLIC', 'UNLISTED', 'PRIVATE'] as const;
+const visibilities = ['PUBLIC', 'COMMUNITY_ONLY', 'UNLISTED', 'PRIVATE'] as const;
 
 export default function RaceSlotEditorForm({ leagues, slotId, defaults }: Props) {
   const [pending, setPending] = useState(false);
@@ -68,7 +68,7 @@ export default function RaceSlotEditorForm({ leagues, slotId, defaults }: Props)
         <input name="maxPlayers" type="number" min={2} max={30} defaultValue={String(defaults?.maxPlayers ?? 20)} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
         <select name="region" defaultValue={String(defaults?.region ?? 'GLOBAL')} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm">{['EU', 'NA', 'SA', 'APAC', 'MENA', 'GLOBAL'].map((region) => <option key={region}>{region}</option>)}</select>
         <select name="platform" defaultValue={String(defaults?.platform ?? '')} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm"><option value="">Platform</option>{['PC', 'PLAYSTATION', 'XBOX'].map((platform) => <option key={platform}>{platform}</option>)}</select>
-        <select name="visibility" defaultValue={String(defaults?.visibility ?? (slotId ? 'PUBLIC' : 'PRIVATE'))} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm">{visibilities.map((visibility) => <option key={visibility}>{visibility}</option>)}</select>
+        <select name="visibility" defaultValue={String(defaults?.visibility ?? (slotId ? 'PUBLIC' : 'COMMUNITY_ONLY'))} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm">{visibilities.map((visibility) => <option key={visibility}>{visibility}</option>)}</select>
         <select name="status" defaultValue={String(defaults?.status ?? 'DRAFT')} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm">{statuses.map((status) => <option key={status}>{status}</option>)}</select>
         <input name="stakeTierMetadata" defaultValue={String(defaults?.stakeTierMetadata ?? '')} placeholder="Tier metadata" className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm md:col-span-2" />
       </div>
