@@ -11,7 +11,7 @@ export const adminUpdateUserSchema = z.object({
 
 export const adminRaceSlotSchema = z.object({
   status: z.enum(['DRAFT', 'OPEN', 'FULL', 'LOCKED', 'COMPLETED', 'CANCELLED']).optional(),
-  visibility: z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']).optional(),
+  visibility: z.enum(['PUBLIC', 'COMMUNITY_ONLY', 'UNLISTED', 'PRIVATE']).optional(),
   cancellationReason: z.string().max(400).optional(),
 }).refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field is required.',

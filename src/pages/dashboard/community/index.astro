@@ -1,9 +1,12 @@
 ---
+import { OrganiserProfileMemberRole } from '@prisma/client';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import CommunityEditorForm from '@/components/dashboard/CommunityEditorForm';
+import CommunityMemberManager from '@/components/dashboard/CommunityMemberManager';
+import { userCommunityRole } from '@/lib/server/community-permissions';
 
 export const prerender = false;
 
@@ -13,32 +16,34 @@ setAstroCache(Astro, privateNoStore);
 const user = await getSessionUser(Astro as never);
 if (!user) return Astro.redirect('/login');
 
-const community = await prisma.organiserProfile.findUnique({
+const ownedCommunity = await prisma.organiserProfile.findUnique({
   where: { userId: user.id },
-  select: {
-    displayName: true,
-    slug: true,
-    shortDescription: true,
-    description: true,
-    brandingColor: true,
-    logoUrl: true,
-    bannerUrl: true,
-    websiteUrl: true,
-    discordUrl: true,
-    redditUrl: true,
-    gameFocus: true,
-    platformFocus: true,
-    region: true,
-    tags: true,
-    displayedMemberCount: true,
-    memberCountSource: true,
-    isPublic: true,
-    featured: true,
-    credibilityNotes: true,
+  include: {
+    raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 20 },
+    members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }] },
   },
 });
 
+const staffMembership = !ownedCommunity
+  ? await prisma.organiserProfileMember.findFirst({
+      where: { userId: user.id, status: 'ACTIVE', role: { in: ['ADMIN', 'MODERATOR'] } },
+      include: {
+        organiserProfile: {
+          include: {
+            raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 20 },
+            members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }] },
+          },
+        },
+      },
+    })
+  : null;
+
+const community = ownedCommunity ?? staffMembership?.organiserProfile ?? null;
+const actorRole = community ? await userCommunityRole(user, community) : null;
 const isEditMode = Boolean(community);
+const canEditProfile = actorRole === OrganiserProfileMemberRole.OWNER;
+const canManageMembers = Boolean(actorRole && ['OWNER', 'ADMIN', 'MODERATOR'].includes(actorRole));
+const canManageRaces = actorRole === OrganiserProfileMemberRole.OWNER || actorRole === OrganiserProfileMemberRole.ADMIN || user.role === 'ADMIN';
 const formTitle = isEditMode ? 'Manage Community' : 'Create Community';
 ---
 
@@ -46,33 +51,132 @@ const formTitle = isEditMode ? 'Manage Community' : 'Create Community';
   <section class="section-shell">
     <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Community control center</p>
     <h1 class="section-title mt-2">{formTitle}</h1>
-    <p class="mt-3 max-w-3xl text-sm text-slate-300">{isEditMode ? 'Update your public RaceHub community hub without creating a duplicate organiser profile.' : 'Create your public RaceHub community hub, member-growth surface, and trust signals for incoming drivers.'}</p>
-    <div class="mt-8">
-      <CommunityEditorForm
-        client:load
-        mode={isEditMode ? 'edit' : 'create'}
-        initialState={{
-          displayName: community?.displayName ?? user.username,
-          slug: community?.slug ?? user.username.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          shortDescription: community?.shortDescription ?? '',
-          description: community?.description ?? '',
-          brandingColor: community?.brandingColor ?? '#E10600',
-          logoUrl: community?.logoUrl ?? '',
-          bannerUrl: community?.bannerUrl ?? '',
-          websiteUrl: community?.websiteUrl ?? '',
-          discordUrl: community?.discordUrl ?? '',
-          redditUrl: community?.redditUrl ?? '',
-          gameFocus: community?.gameFocus ?? '',
-          platformFocus: community?.platformFocus ?? '',
-          region: community?.region ?? user.region ?? 'GLOBAL',
-          tags: (community?.tags ?? []).join(', '),
-          displayedMemberCount: community?.displayedMemberCount ?? 0,
-          memberCountSource: (community?.memberCountSource as 'manual' | 'discord-sync' | 'reddit-sync') ?? 'manual',
-          isPublic: community?.isPublic ?? true,
-          featured: community?.featured ?? false,
-          credibilityNotes: community?.credibilityNotes ?? '',
-        }}
-      />
-    </div>
+    <p class="mt-3 max-w-3xl text-sm text-slate-300">{isEditMode ? 'Manage profile, races, membership, and integrations for your scoped RaceHub community.' : 'Create your public RaceHub community hub, member-growth surface, and trust signals for incoming drivers.'}</p>
+
+    {!community ? (
+      <div class="mt-8">
+        <CommunityEditorForm
+          client:load
+          mode="create"
+          initialState={{
+            displayName: user.username,
+            slug: user.username.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            shortDescription: '',
+            description: '',
+            brandingColor: '#E10600',
+            logoUrl: '',
+            bannerUrl: '',
+            websiteUrl: '',
+            discordUrl: '',
+            redditUrl: '',
+            gameFocus: '',
+            platformFocus: '',
+            region: user.region ?? 'GLOBAL',
+            tags: '',
+            displayedMemberCount: 0,
+            memberCountSource: 'manual',
+            isPublic: true,
+            featured: false,
+            credibilityNotes: '',
+          }}
+        />
+      </div>
+    ) : (
+      <div class="mt-8 space-y-6">
+        <div class="grid gap-4 md:grid-cols-5">
+          {['Profile', 'Races', 'Members', 'Links/Integrations', 'Settings'].map((tab) => <a href={`#${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`} class="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 transition hover:border-white/35 hover:bg-white/[0.08]">{tab}</a>)}
+        </div>
+
+        <article id="profile" class="panel rounded-3xl p-5 md:p-7">
+          <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Profile</p>
+              <h2 class="mt-2 font-display text-2xl">{community.displayName}</h2>
+              <p class="mt-1 text-sm text-slate-400">Your role: {actorRole}</p>
+            </div>
+            {community.isPublic && <a href={`/communities/${community.slug}`} class="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200">View public page</a>}
+          </div>
+          {canEditProfile ? (
+            <CommunityEditorForm
+              client:load
+              mode="edit"
+              initialState={{
+                displayName: community.displayName,
+                slug: community.slug,
+                shortDescription: community.shortDescription ?? '',
+                description: community.description ?? '',
+                brandingColor: community.brandingColor ?? '#E10600',
+                logoUrl: community.logoUrl ?? '',
+                bannerUrl: community.bannerUrl ?? '',
+                websiteUrl: community.websiteUrl ?? '',
+                discordUrl: community.discordUrl ?? '',
+                redditUrl: community.redditUrl ?? '',
+                gameFocus: community.gameFocus ?? '',
+                platformFocus: community.platformFocus ?? '',
+                region: community.region ?? user.region ?? 'GLOBAL',
+                tags: (community.tags ?? []).join(', '),
+                displayedMemberCount: community.displayedMemberCount ?? 0,
+                memberCountSource: community.memberCountSource as 'manual' | 'discord-sync' | 'reddit-sync' | 'racehub',
+                isPublic: community.isPublic ?? true,
+                featured: community.featured ?? false,
+                credibilityNotes: community.credibilityNotes ?? '',
+              }}
+            />
+          ) : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">Moderators can manage members but cannot edit core community profile settings.</p>}
+        </article>
+
+        <article id="races" class="panel rounded-3xl p-5 md:p-7">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Races</p>
+              <h2 class="mt-2 font-display text-2xl">Manage races</h2>
+            </div>
+            {canManageRaces && <a href="/dashboard/community/races/new" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">Create race</a>}
+          </div>
+          <div class="mt-5 space-y-3">
+            {community.raceSlots.length ? community.raceSlots.map((slot) => (
+              <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{slot.league.name} · {slot.visibility} · {slot.status}</p>
+                    <h3 class="mt-1 font-semibold text-white">{slot.title}</h3>
+                    <p class="mt-1 text-sm text-slate-300">{new Date(slot.scheduledAt).toLocaleString()} · {slot._count.registrations}/{slot.maxPlayers} entrants</p>
+                  </div>
+                  {canManageRaces && <a href={`/dashboard/community/races/${slot.id}/edit`} class="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200">Edit</a>}
+                </div>
+              </div>
+            )) : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">No races created yet.</p>}
+          </div>
+        </article>
+
+        <article id="members" class="panel rounded-3xl p-5 md:p-7">
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Members</p>
+          <h2 class="mt-2 font-display text-2xl">Community staff and members</h2>
+          <p class="mt-2 text-sm text-slate-400">Owners can promote admins and moderators. Community admins and moderators are scoped to this community and never receive platform admin tools.</p>
+          <div class="mt-5">
+            {canManageMembers ? <CommunityMemberManager client:load organiserProfileId={community.id} actorRole={actorRole as never} members={community.members} /> : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">You do not have member management permissions.</p>}
+          </div>
+        </article>
+
+        <article id="links-integrations" class="panel rounded-3xl p-5 md:p-7">
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Links / Integrations</p>
+          <h2 class="mt-2 font-display text-2xl">External community surfaces</h2>
+          <div class="mt-4 grid gap-3 md:grid-cols-3">
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Cached members</p><p class="mt-2 font-display text-3xl">{community.displayedMemberCount.toLocaleString()}</p><p class="text-[11px] text-slate-500">{community.memberCountSource} · {community.memberCountLastSyncedAt ? new Date(community.memberCountLastSyncedAt).toLocaleString() : 'not synced'}</p></div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Discord</p>{community.discordUrl ? <a href={community.discordUrl} target="_blank" rel="noreferrer noopener" class="mt-3 inline-flex rounded-full border border-indigo-300/35 bg-indigo-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-indigo-100">Join Discord</a> : <p class="mt-2 text-sm text-slate-400">No Discord link set.</p>}</div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Reddit</p>{community.redditUrl ? <a href={community.redditUrl} target="_blank" rel="noreferrer noopener" class="mt-3 inline-flex rounded-full border border-orange-300/35 bg-orange-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-orange-100">Join Reddit</a> : <p class="mt-2 text-sm text-slate-400">No Reddit link set.</p>}</div>
+          </div>
+        </article>
+
+        <article id="settings" class="panel rounded-3xl p-5 md:p-7">
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Settings</p>
+          <h2 class="mt-2 font-display text-2xl">Visibility and defaults</h2>
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Community page</span>{community.isPublic ? 'Public discovery enabled' : 'Private community profile'}</p>
+            <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300"><span class="block text-xs uppercase tracking-[0.16em] text-slate-500">Race default</span>New dashboard races default to community-only until published public.</p>
+          </div>
+        </article>
+      </div>
+    )}
   </section>
 </BaseLayout>

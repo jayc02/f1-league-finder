@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const slotStatusEnum = z.enum(['DRAFT', 'OPEN', 'FULL', 'LOCKED', 'COMPLETED', 'CANCELLED']);
-const visibilityEnum = z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']);
+const visibilityEnum = z.enum(['PUBLIC', 'COMMUNITY_ONLY', 'UNLISTED', 'PRIVATE']);
 
 export const createRaceSlotSchema = z.object({
   title: z.string().min(4).max(120),

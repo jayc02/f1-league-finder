@@ -3,9 +3,11 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { prisma } from '@/lib/db/prisma';
+import { privateApiNoStore } from '@/lib/server/cache-control';
 import { withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
+import { getCommunityMembership } from '@/lib/server/community-permissions';
 
 export const POST: APIRoute = (context) =>
   withErrorHandling(async () => {
@@ -26,6 +28,14 @@ export const POST: APIRoute = (context) =>
       throw new HttpError(400, 'Registration cutoff has passed.');
     }
 
+    if (slot.visibility === 'COMMUNITY_ONLY') {
+      if (!slot.organiserProfileId) throw new HttpError(403, 'This race is restricted to community members.');
+      const membership = await getCommunityMembership(user.id, slot.organiserProfileId);
+      if (!membership || membership.status !== 'ACTIVE') {
+        throw new HttpError(403, 'Join this RaceHub community before registering for community-only races.');
+      }
+    }
+
     if (slot._count.registrations >= slot.maxPlayers) {
       await prisma.raceSlot.update({ where: { id }, data: { status: 'FULL' } });
       throw new HttpError(400, 'Race slot is full.');
@@ -44,5 +54,7 @@ export const POST: APIRoute = (context) =>
       await prisma.raceSlot.update({ where: { id }, data: { status: 'FULL' } });
     }
 
-    return jsonResponse(201, { ok: true });
+    const response = jsonResponse(201, { ok: true });
+    response.headers.set('Cache-Control', privateApiNoStore);
+    return response;
   });
