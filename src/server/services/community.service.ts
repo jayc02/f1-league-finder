@@ -1,12 +1,38 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 
-const getPublicUpcomingRaceSlotWhere = () =>
+const publicListableRaceStatuses = ['OPEN', 'FULL', 'LOCKED'] as const;
+
+export const getPublicUpcomingRaceSlotWhere = () =>
   ({
     visibility: 'PUBLIC',
-    status: { in: ['OPEN', 'FULL', 'LOCKED'] },
+    status: { in: [...publicListableRaceStatuses] },
     scheduledAt: { gte: new Date() },
   }) satisfies Prisma.RaceSlotWhereInput;
+
+export const getCommunityMemberCountDisplay = (community: {
+  displayedMemberCount: number;
+  memberCountSource: string | null;
+  _count?: { members?: number };
+}) => {
+  const source = (community.memberCountSource ?? 'manual').toLowerCase();
+  const cachedExternalCount = community.displayedMemberCount;
+  const raceHubMembers = community._count?.members ?? 0;
+
+  if ((source === 'discord' || source === 'reddit') && cachedExternalCount > 0) {
+    return { count: cachedExternalCount, source };
+  }
+
+  if (raceHubMembers > 0) {
+    return { count: raceHubMembers, source: 'racehub' };
+  }
+
+  if (cachedExternalCount > 0) {
+    return { count: cachedExternalCount, source: source || 'manual' };
+  }
+
+  return { count: 0, source: 'racehub' };
+};
 
 export interface PublicCommunityDiscoveryOptions {
   limit?: number;
@@ -92,15 +118,21 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
     },
   });
 
-  return communities.map((community) => ({
-    ...community,
-    displayedMemberCount: community.memberCountSource === 'manual' && community.displayedMemberCount > 0
-      ? community.displayedMemberCount
-      : community._count.members || community.displayedMemberCount,
-    memberCountSource: community.memberCountSource === 'manual' && community.displayedMemberCount > 0
-      ? community.memberCountSource
-      : community._count.members ? 'racehub' : community.memberCountSource,
-  }));
+  return communities.map((community) => {
+    const memberDisplay = getCommunityMemberCountDisplay(community);
+
+    return {
+      ...community,
+      raceHubMemberCount: community._count.members,
+      externalMemberCount:
+        ['discord', 'reddit'].includes(community.memberCountSource.toLowerCase()) && community.displayedMemberCount > 0
+          ? community.displayedMemberCount
+          : null,
+      externalMemberSource: ['discord', 'reddit'].includes(community.memberCountSource.toLowerCase()) ? community.memberCountSource.toLowerCase() : null,
+      displayedMemberCount: memberDisplay.count,
+      memberCountSource: memberDisplay.source,
+    };
+  });
 };
 
 export type PublicCommunitySummary = Awaited<ReturnType<typeof getPublicCommunitySummaries>>[number];
