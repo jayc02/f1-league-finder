@@ -5,7 +5,7 @@ interface RaceRow {
   id: string;
   title: string;
   status: 'DRAFT' | 'OPEN' | 'FULL' | 'LOCKED' | 'COMPLETED' | 'CANCELLED';
-  visibility: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+  visibility: 'PUBLIC' | 'COMMUNITY_ONLY' | 'UNLISTED' | 'PRIVATE';
   scheduledAt: string;
   registrationCutoffAt: string;
   maxPlayers: number;

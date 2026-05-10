@@ -9,6 +9,7 @@ import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { privateApiNoStore } from '@/lib/server/cache-control';
 import { removeManagedUploadIfPresent, saveUploadedImage } from '@/lib/server/upload-storage';
 import { requireUser } from '@/server/permissions/authz';
+import { canManageCommunityProfile, OrganiserProfileMemberRole, OrganiserProfileMemberStatus } from '@/lib/server/community-permissions';
 
 const normalizeSlug = (value: string) =>
   value
@@ -59,8 +60,11 @@ export const PATCH: APIRoute = (context) =>
 
     const existingProfile = await prisma.organiserProfile.findUnique({
       where: { userId: user.id },
-      select: { logoUrl: true, bannerUrl: true },
+      select: { id: true, userId: true, logoUrl: true, bannerUrl: true },
     });
+    if (existingProfile && !(await canManageCommunityProfile(user, existingProfile))) {
+      throw new HttpError(403, 'Insufficient community permissions.');
+    }
 
     const contentType = context.request.headers.get('content-type') ?? '';
     let body: ReturnType<typeof updateCommunitySchema.parse>;
@@ -122,7 +126,7 @@ export const PATCH: APIRoute = (context) =>
             ? String(formData.get('memberCountSource'))
             : 'manual',
         isPublic: String(formData.get('isPublic')) === 'true',
-        featured: String(formData.get('featured')) === 'true',
+        featured: false,
         credibilityNotes: typeof formData.get('credibilityNotes') === 'string' ? String(formData.get('credibilityNotes')) || null : null,
       });
     } else {
@@ -139,32 +143,59 @@ export const PATCH: APIRoute = (context) =>
 
     const createSlug = existingProfile ? normalizedSlug : await ensureCreateSlug(normalizedSlug, body.displayName);
 
-    const community = await prisma.organiserProfile.upsert({
-      where: { userId: user.id },
-      update: { ...body, slug: normalizedSlug },
-      create: {
-        userId: user.id,
-        displayName: body.displayName,
-        slug: createSlug,
-        shortDescription: body.shortDescription,
-        description: body.description,
-        brandingColor: body.brandingColor,
-        logoUrl: body.logoUrl,
-        bannerUrl: body.bannerUrl,
-        websiteUrl: body.websiteUrl,
-        discordUrl: body.discordUrl,
-        redditUrl: body.redditUrl,
-        socials: body.socials,
-        gameFocus: body.gameFocus,
-        platformFocus: body.platformFocus,
-        region: body.region ?? user.region,
-        tags: body.tags ?? [],
-        isPublic: body.isPublic ?? true,
-        featured: body.featured ?? false,
-        displayedMemberCount: body.displayedMemberCount ?? 0,
-        memberCountSource: body.memberCountSource ?? 'manual',
-        credibilityNotes: body.credibilityNotes,
-      },
+    const community = await prisma.$transaction(async (tx) => {
+      const saved = await tx.organiserProfile.upsert({
+        where: { userId: user.id },
+        update: { ...body, slug: normalizedSlug, featured: undefined, verified: undefined },
+        create: {
+          userId: user.id,
+          displayName: body.displayName,
+          slug: createSlug,
+          shortDescription: body.shortDescription,
+          description: body.description,
+          brandingColor: body.brandingColor,
+          logoUrl: body.logoUrl,
+          bannerUrl: body.bannerUrl,
+          websiteUrl: body.websiteUrl,
+          discordUrl: body.discordUrl,
+          redditUrl: body.redditUrl,
+          socials: body.socials,
+          gameFocus: body.gameFocus,
+          platformFocus: body.platformFocus,
+          region: body.region ?? user.region,
+          tags: body.tags ?? [],
+          isPublic: body.isPublic ?? true,
+          displayedMemberCount: body.displayedMemberCount ?? 0,
+          memberCountSource: body.memberCountSource ?? 'manual',
+          credibilityNotes: body.credibilityNotes,
+        },
+      });
+
+      if (user.role === 'PLAYER') {
+        await tx.user.update({ where: { id: user.id }, data: { role: 'ORGANISER' } });
+      }
+
+      await tx.organiserProfileMember.upsert({
+        where: { organiserProfileId_userId: { organiserProfileId: saved.id, userId: user.id } },
+        update: { role: OrganiserProfileMemberRole.OWNER, status: OrganiserProfileMemberStatus.ACTIVE },
+        create: { organiserProfileId: saved.id, userId: user.id, role: OrganiserProfileMemberRole.OWNER, status: OrganiserProfileMemberStatus.ACTIVE },
+      });
+
+      const leagueCount = await tx.league.count({ where: { organiserProfileId: saved.id } });
+      if (leagueCount === 0) {
+        await tx.league.create({
+          data: {
+            name: `${saved.displayName} Community Events`,
+            slug: `${saved.slug}-community-events`,
+            description: `Default RaceHub event calendar for ${saved.displayName}.`,
+            ownerId: user.id,
+            organiserProfileId: saved.id,
+            region: saved.region,
+          },
+        });
+      }
+
+      return saved;
     });
 
     if (body.logoUrl && body.logoUrl !== existingProfile?.logoUrl) {

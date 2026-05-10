@@ -2,7 +2,7 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
-import { fetchFromApi } from '@/lib/server-api';
+import { prisma } from '@/lib/db/prisma';
 import RaceSlotEditorForm from '@/components/dashboard/RaceSlotEditorForm';
 
 export const prerender = false;
@@ -10,10 +10,23 @@ export const prerender = false;
 // Private personalised route: dashboard/profile/admin HTML must never be public cached.
 setAstroCache(Astro, privateNoStore);
 const user = await getSessionUser(Astro as never);
-if (!user || !['ORGANISER', 'ADMIN'].includes(user.role)) return Astro.redirect('/login');
+if (!user) return Astro.redirect('/login');
 
-const leaguesResponse = await fetchFromApi<{ leagues: Array<{ id: string; name: string; ownerId: string }> }>(Astro, '/api/leagues').catch(() => ({ leagues: [] }));
-const leagues = user.role === 'ADMIN' ? leaguesResponse.leagues : leaguesResponse.leagues.filter((league) => league.ownerId === user.id);
+const community = await prisma.organiserProfile.findFirst({
+  where: {
+    OR: [
+      { userId: user.id },
+      { members: { some: { userId: user.id, status: 'ACTIVE', role: { in: ['OWNER', 'ADMIN'] } } } },
+    ],
+  },
+  select: { id: true },
+});
+if (!community && user.role !== 'ADMIN') return Astro.redirect('/dashboard/community');
+
+const leagues = await prisma.league.findMany({
+  where: user.role === 'ADMIN' ? {} : { OR: [{ ownerId: user.id }, { organiserProfileId: community?.id }] },
+  select: { id: true, name: true },
+});
 ---
 <BaseLayout noindex={true} sessionUser={user} title="Create organiser event | RaceHub">
   <section class="section-shell">

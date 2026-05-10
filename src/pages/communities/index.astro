@@ -59,7 +59,7 @@ try {
     ) : (
     <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {communities.length ? communities.map((community) => (
-        <a href={`/communities/${community.slug}`} class="group panel relative overflow-hidden rounded-3xl border-white/15 transition hover:-translate-y-1 hover:border-white/40">
+        <article class="group panel relative overflow-hidden rounded-3xl border-white/15 transition hover:-translate-y-1 hover:border-white/40">
           <div class="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/15 via-white/5 to-transparent opacity-60"></div>
           <div class="h-28 bg-cover bg-center sm:h-32" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.82)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
           <div class="p-4 sm:p-5">
@@ -95,11 +95,16 @@ try {
             )}
 
             <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()}</p>
+              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()} <span class="text-[10px] text-slate-500">{community.memberCountSource}</span></p>
               <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Active events</span>{community._count.raceSlots}</p>
             </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <a href={`/communities/${community.slug}`} class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">View Community</a>
+              {community.discordUrl && <a href={community.discordUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-indigo-300/35 bg-indigo-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-indigo-100">Join Discord</a>}
+              {community.redditUrl && <a href={community.redditUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-orange-300/35 bg-orange-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-orange-100">Join Reddit</a>}
+            </div>
           </div>
-        </a>
+        </article>
       )) : <p class="panel rounded-2xl p-6 text-slate-300">No communities are public yet.</p>}
     </div>
     )}

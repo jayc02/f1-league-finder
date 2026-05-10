@@ -20,7 +20,7 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
   const q = options.q?.trim();
   const publicUpcomingRaceSlotWhere = getPublicUpcomingRaceSlotWhere();
 
-  return prisma.organiserProfile.findMany({
+  const communities = await prisma.organiserProfile.findMany({
     where: {
       isPublic: true,
       ...(options.region ? { region: options.region as never } : {}),
@@ -83,6 +83,7 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
       },
       _count: {
         select: {
+          members: { where: { status: 'ACTIVE' } },
           raceSlots: {
             where: publicUpcomingRaceSlotWhere,
           },
@@ -90,6 +91,16 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
       },
     },
   });
+
+  return communities.map((community) => ({
+    ...community,
+    displayedMemberCount: community.memberCountSource === 'manual' && community.displayedMemberCount > 0
+      ? community.displayedMemberCount
+      : community._count.members || community.displayedMemberCount,
+    memberCountSource: community.memberCountSource === 'manual' && community.displayedMemberCount > 0
+      ? community.memberCountSource
+      : community._count.members ? 'racehub' : community.memberCountSource,
+  }));
 };
 
 export type PublicCommunitySummary = Awaited<ReturnType<typeof getPublicCommunitySummaries>>[number];
