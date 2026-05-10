@@ -8,6 +8,7 @@ import { getNumericLimit, parseBody, withErrorHandling } from '@/lib/utils/handl
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
 import { canManageCommunityRaces } from '@/lib/server/community-permissions';
+import { getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
@@ -15,14 +16,15 @@ export const GET: APIRoute = (context) =>
     const leagueId = context.url.searchParams.get('leagueId');
     const organiserSlug = context.url.searchParams.get('organiser');
 
+    const publicWhere = {
+      ...getPublicUpcomingRaceSlotWhere(),
+      ...(status ? { status: status as never } : {}),
+      ...(leagueId ? { leagueId } : {}),
+      ...(organiserSlug ? { organiserProfile: { slug: organiserSlug } } : {}),
+    };
+
     const slots = await prisma.raceSlot.findMany({
-      where: {
-        ...(status ? { status: status as never } : {}),
-        ...(leagueId ? { leagueId } : {}),
-        ...(organiserSlug ? { organiserProfile: { slug: organiserSlug } } : {}),
-        visibility: 'PUBLIC',
-        NOT: { status: 'DRAFT' },
-      },
+      where: publicWhere,
       include: {
         league: { select: { id: true, name: true, slug: true } },
         organiser: { select: { id: true, username: true } },
@@ -32,6 +34,13 @@ export const GET: APIRoute = (context) =>
       orderBy: { scheduledAt: 'asc' },
       take: getNumericLimit(context, 30, 200),
     });
+
+    if (import.meta.env.DEV) {
+      console.log('[race-slots public query]', {
+        count: slots.length,
+        races: slots.map((slot) => ({ id: slot.id, title: slot.title, status: slot.status, visibility: slot.visibility })),
+      });
+    }
 
     const response = jsonResponse(200, { raceSlots: slots });
     response.headers.set('Cache-Control', publicApiShort);
@@ -57,8 +66,8 @@ export const POST: APIRoute = (context) =>
     const canCreate = user.role === 'ADMIN' || league.ownerId === user.id || (await canManageCommunityRaces(user, organiserProfile));
     if (!canCreate) throw new HttpError(403, 'Insufficient community race permissions.');
 
-    const status = body.status ?? 'DRAFT';
-    const visibility = body.visibility ?? (status === 'DRAFT' ? 'PRIVATE' : 'PUBLIC');
+    const visibility = body.visibility ?? 'COMMUNITY_ONLY';
+    const status = body.status ?? (visibility === 'PRIVATE' || visibility === 'UNLISTED' ? 'DRAFT' : 'OPEN');
 
     const slot = await prisma.raceSlot.create({
       data: {

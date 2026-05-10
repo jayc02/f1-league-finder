@@ -13,7 +13,12 @@ interface Props {
 }
 
 const statuses = ['DRAFT', 'OPEN', 'FULL', 'LOCKED', 'COMPLETED', 'CANCELLED'] as const;
-const visibilities = ['PUBLIC', 'COMMUNITY_ONLY', 'UNLISTED', 'PRIVATE'] as const;
+const visibilityOptions = [
+  { value: 'COMMUNITY_ONLY', label: 'Community only', help: 'Visible to members of your community.' },
+  { value: 'PUBLIC', label: 'Public race slot', help: 'Listed on Race Slots for everyone to discover.' },
+  { value: 'UNLISTED', label: 'Unlisted', help: 'Hidden from discovery, available by direct link.' },
+  { value: 'PRIVATE', label: 'Private draft', help: 'Only community staff can manage this event.' },
+] as const;
 
 export default function RaceSlotEditorForm({ leagues, slotId, defaults }: Props) {
   const [pending, setPending] = useState(false);
@@ -68,8 +73,18 @@ export default function RaceSlotEditorForm({ leagues, slotId, defaults }: Props)
         <input name="maxPlayers" type="number" min={2} max={30} defaultValue={String(defaults?.maxPlayers ?? 20)} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
         <select name="region" defaultValue={String(defaults?.region ?? 'GLOBAL')} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm">{['EU', 'NA', 'SA', 'APAC', 'MENA', 'GLOBAL'].map((region) => <option key={region}>{region}</option>)}</select>
         <select name="platform" defaultValue={String(defaults?.platform ?? '')} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm"><option value="">Platform</option>{['PC', 'PLAYSTATION', 'XBOX'].map((platform) => <option key={platform}>{platform}</option>)}</select>
-        <select name="visibility" defaultValue={String(defaults?.visibility ?? (slotId ? 'PUBLIC' : 'COMMUNITY_ONLY'))} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm">{visibilities.map((visibility) => <option key={visibility}>{visibility}</option>)}</select>
-        <select name="status" defaultValue={String(defaults?.status ?? 'DRAFT')} className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm">{statuses.map((status) => <option key={status}>{status}</option>)}</select>
+        <label className="rounded-xl border border-white/20 bg-black/30 p-3 text-sm">
+          <span className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-slate-400">Discovery</span>
+          <select name="visibility" defaultValue={String(defaults?.visibility ?? 'COMMUNITY_ONLY')} className="w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2">
+            {visibilityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+          <span className="mt-2 block text-xs text-slate-400">Community only: visible to members of your community. Public: listed on Race Slots for everyone to discover.</span>
+        </label>
+        <label className="rounded-xl border border-white/20 bg-black/30 p-3 text-sm">
+          <span className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-slate-400">Publishing status</span>
+          <select name="status" defaultValue={String(defaults?.status ?? 'OPEN')} className="w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2">{statuses.map((status) => <option key={status}>{status}</option>)}</select>
+          <span className="mt-2 block text-xs text-slate-400">Use OPEN for listable upcoming races; DRAFT stays hidden from public discovery.</span>
+        </label>
         <input name="stakeTierMetadata" defaultValue={String(defaults?.stakeTierMetadata ?? '')} placeholder="Tier metadata" className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm md:col-span-2" />
       </div>
       <textarea name="formatDetails" defaultValue={String(defaults?.formatDetails ?? '')} placeholder="Race format details" required rows={3} className="mt-4 w-full rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
