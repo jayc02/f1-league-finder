@@ -35,8 +35,8 @@ const { community, upcomingEvents, recentEvents } = response;
             </div>
           </div>
           <div class="flex flex-wrap gap-2 sm:justify-end">
-            {community.discordUrl && <a href={community.discordUrl} target="_blank" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Join Discord</a>}
-            {community.redditUrl && <a href={community.redditUrl} target="_blank" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Visit Reddit</a>}
+            {community.discordUrl && <a href={community.discordUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Join Discord</a>}
+            {community.redditUrl && <a href={community.redditUrl} target="_blank" rel="noreferrer noopener" class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.16em]">Visit Reddit</a>}
             <a href="/race-slots" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">View all events</a>
           </div>
         </div>

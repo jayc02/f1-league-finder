@@ -1,0 +1,4 @@
+---
+const id = Astro.params.id;
+return Astro.redirect(id ? `/dashboard/race-slots/${id}/edit` : '/dashboard/community');
+---

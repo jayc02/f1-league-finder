@@ -20,6 +20,6 @@ export const updateCommunitySchema = z.object({
   isPublic: z.boolean().optional(),
   featured: z.boolean().optional(),
   displayedMemberCount: z.number().int().min(0).max(5_000_000).optional(),
-  memberCountSource: z.enum(['manual', 'discord-sync', 'reddit-sync']).optional(),
+  memberCountSource: z.enum(['manual', 'discord-sync', 'reddit-sync', 'racehub']).optional(),
   credibilityNotes: z.string().max(500).nullable().optional(),
 });

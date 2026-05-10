@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 type EventStatus = 'DRAFT' | 'OPEN' | 'FULL' | 'LOCKED' | 'COMPLETED' | 'CANCELLED';
-type EventVisibility = 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+type EventVisibility = 'PUBLIC' | 'COMMUNITY_ONLY' | 'UNLISTED' | 'PRIVATE';
 
 interface EventItem {
   id: string;
