@@ -1,9 +1,8 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { fetchFromApi } from '@/lib/server-api';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
-import type { RaceSlotDetail } from '@/lib/api/types';
+import { getRaceSlotDetailForViewer } from '@/server/services/race-slot.service';
 import SlotActionPanel from '@/components/race-slots/SlotActionPanel';
 import DisputeForm from '@/components/race-slots/DisputeForm';
 
@@ -16,26 +15,34 @@ const id = Astro.params.id;
 if (!id) return Astro.redirect('/race-slots');
 
 const currentUser = await getSessionUser(Astro as never);
-const response = await fetchFromApi<{ raceSlot?: RaceSlotDetail }>(Astro, `/api/race-slots/${id}`).catch(() => null);
+let detailResult: Awaited<ReturnType<typeof getRaceSlotDetailForViewer>> | null = null;
+let detailLoadError: string | null = null;
 
-if (!response?.raceSlot) {
-  throw new Error('Race slot response is missing raceSlot payload.');
+try {
+  detailResult = await getRaceSlotDetailForViewer({ raceSlotId: id, viewerUserId: currentUser?.id });
+} catch (error) {
+  if (import.meta.env.DEV) {
+    console.error('[race-slot detail page] Failed to load race slot detail', error);
+  }
+  Astro.response.status = 503;
+  detailLoadError = 'We could not load this race slot right now. Please refresh in a moment.';
 }
 
-const slot = response.raceSlot;
-if (!Array.isArray(slot.registrations)) {
-  throw new Error('Race slot payload is missing registrations.');
-}
-if (typeof slot._count?.registrations !== 'number') {
-  throw new Error('Race slot payload is missing registration count.');
+if (detailResult?.status === 'not_found') {
+  Astro.response.status = 404;
+} else if (detailResult?.status === 'access_denied') {
+  Astro.response.status = 403;
 }
 
-const userRegistered = Boolean(currentUser && slot.registrations.some((registration) => registration.user.id === currentUser.id));
-const cutoffPassed = new Date(slot.registrationCutoffAt).getTime() <= Date.now();
-const isClosed = cutoffPassed || ['LOCKED', 'COMPLETED', 'CANCELLED'].includes(slot.status);
-const isFull = slot._count.registrations >= slot.maxPlayers;
-const slotFillPercent = Math.min(100, Math.round((slot._count.registrations / slot.maxPlayers) * 100));
-const topResult = slot.result?.entries[0] ?? null;
+const slot = detailResult?.status === 'ok' ? detailResult.raceSlot : null;
+const accessMessage = detailResult?.status === 'access_denied' ? detailResult.message : null;
+
+const userRegistered = Boolean(currentUser && slot?.registrations.some((registration) => registration.user.id === currentUser.id));
+const cutoffPassed = slot ? new Date(slot.registrationCutoffAt).getTime() <= Date.now() : false;
+const isClosed = Boolean(slot && (cutoffPassed || ['LOCKED', 'COMPLETED', 'CANCELLED'].includes(slot.status)));
+const isFull = Boolean(slot && slot._count.registrations >= slot.maxPlayers);
+const slotFillPercent = slot ? Math.min(100, Math.round((slot._count.registrations / slot.maxPlayers) * 100)) : 0;
+const topResult = slot?.result?.entries[0] ?? null;
 
 const statusTone: Record<string, string> = {
   OPEN: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100',
@@ -52,8 +59,10 @@ const rankTone = (position: number) => {
   return 'border-white/10 bg-white/[0.03]';
 };
 ---
-<BaseLayout title={`${slot.title} | RaceHub`}>
+<BaseLayout title={slot ? `${slot.title} | RaceHub` : 'Race slot unavailable | RaceHub'}>
   <section class="section-shell">
+    {slot ? (
+      <>
     <article class="panel rounded-3xl p-4 sm:p-6 md:p-8">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -186,5 +195,14 @@ const rankTone = (position: number) => {
         />
       </aside>
     </div>
+      </>
+    ) : (
+      <article class="panel rounded-3xl border border-white/15 bg-black/55 p-6 text-slate-100 shadow-[0_24px_70px_rgba(0,0,0,0.58)] md:p-8">
+        <p class="text-xs uppercase tracking-[0.22em] text-rose-100/80">{detailLoadError ? 'Race unavailable' : accessMessage ? 'Access denied' : 'Race not found'}</p>
+        <h1 class="section-title mt-3 text-3xl md:text-5xl">{detailLoadError ? 'Race slot unavailable' : accessMessage ? 'This race slot is locked' : 'Race slot not found'}</h1>
+        <p class="mt-3 max-w-2xl text-sm text-slate-300">{detailLoadError ?? accessMessage ?? 'This race slot does not exist or may have been removed.'}</p>
+        <a class="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-2 text-xs uppercase tracking-[0.18em] text-white transition hover:border-white/40 hover:bg-white/15" href="/race-slots">Back to race slots</a>
+      </article>
+    )}
   </section>
 </BaseLayout>
