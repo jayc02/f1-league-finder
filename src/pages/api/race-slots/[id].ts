@@ -8,8 +8,9 @@ import { updateRaceSlotSchema } from '@/lib/validation/race-slot';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
-import { canManageCommunityRaces, getCommunityMembership } from '@/lib/server/community-permissions';
+import { canManageCommunityRaces } from '@/lib/server/community-permissions';
 import { getSessionUser } from '@/lib/auth/session';
+import { getRaceSlotDetailForViewer, toRaceSlotDetailPayload } from '@/server/services/race-slot.service';
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
@@ -17,49 +18,14 @@ export const GET: APIRoute = (context) =>
     if (!id) throw new HttpError(400, 'Race slot ID is required.');
 
     const sessionUser = await getSessionUser(context);
+    const result = await getRaceSlotDetailForViewer({ raceSlotId: id, viewerUserId: sessionUser?.id });
 
-    const slot = await prisma.raceSlot.findUnique({
-      where: { id },
-      include: {
-        league: { select: { id: true, name: true, slug: true } },
-        organiser: { select: { id: true, username: true } },
-        organiserProfile: { select: { id: true, slug: true, displayName: true, logoUrl: true } },
-        registrations: {
-          select: {
-            id: true,
-            user: { select: { id: true, username: true, avatarUrl: true, skillRating: true, honourScore: true } },
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-        _count: { select: { registrations: true } },
-        result: {
-          include: {
-            entries: {
-              orderBy: { finishingPosition: 'asc' },
-              include: { user: { select: { id: true, username: true } } },
-            },
-          },
-        },
-      },
-    });
-    if (!slot) throw new HttpError(404, 'Race slot not found.');
+    if (result.status === 'not_found') throw new HttpError(404, 'Race slot not found.');
+    if (result.status === 'access_denied') throw new HttpError(403, result.message);
 
-    const membership = sessionUser && slot.organiserProfileId ? await getCommunityMembership(sessionUser.id, slot.organiserProfileId) : null;
-    const canViewPrivate = Boolean(sessionUser && (sessionUser.role === 'ADMIN' || sessionUser.id === slot.organiserId || membership?.status === 'ACTIVE'));
-    if (slot.visibility === 'COMMUNITY_ONLY' && !canViewPrivate) {
-      throw new HttpError(403, 'This event is only visible to community members.');
-    }
-
-    if (slot.visibility === 'PRIVATE' && !canViewPrivate) {
-      throw new HttpError(403, 'This event is private.');
-    }
-
-    if (slot.visibility === 'UNLISTED' && !canViewPrivate && slot.status === 'DRAFT') {
-      throw new HttpError(403, 'This event is not published yet.');
-    }
-
-    return jsonResponse(200, { raceSlot: slot });
+    const response = jsonResponse(200, { raceSlot: toRaceSlotDetailPayload(result.raceSlot) });
+    response.headers.set('Cache-Control', privateApiNoStore);
+    return response;
   });
 
 export const PATCH: APIRoute = (context) =>
