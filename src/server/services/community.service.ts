@@ -1,14 +1,6 @@
-import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
-
-const publicListableRaceStatuses = ['OPEN', 'FULL', 'LOCKED'] as const;
-
-export const getPublicUpcomingRaceSlotWhere = () =>
-  ({
-    visibility: 'PUBLIC',
-    status: { in: [...publicListableRaceStatuses] },
-    scheduledAt: { gte: new Date() },
-  }) satisfies Prisma.RaceSlotWhereInput;
+import { getPublicUpcomingRaceSlotWhere } from '@/server/services/race-slot.service';
+export { getPublicUpcomingRaceSlotWhere } from '@/server/services/race-slot.service';
 
 export const getCommunityMemberCountDisplay = (community: {
   displayedMemberCount: number;

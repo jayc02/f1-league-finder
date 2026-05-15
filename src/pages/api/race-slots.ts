@@ -8,7 +8,7 @@ import { getNumericLimit, parseBody, withErrorHandling } from '@/lib/utils/handl
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
 import { canManageCommunityRaces } from '@/lib/server/community-permissions';
-import { getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
+import { getPublicRaceSlotSummaries } from '@/server/services/race-slot.service';
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
@@ -16,23 +16,11 @@ export const GET: APIRoute = (context) =>
     const leagueId = context.url.searchParams.get('leagueId');
     const organiserSlug = context.url.searchParams.get('organiser');
 
-    const publicWhere = {
-      ...getPublicUpcomingRaceSlotWhere(),
-      ...(status ? { status: status as never } : {}),
-      ...(leagueId ? { leagueId } : {}),
-      ...(organiserSlug ? { organiserProfile: { slug: organiserSlug } } : {}),
-    };
-
-    const slots = await prisma.raceSlot.findMany({
-      where: publicWhere,
-      include: {
-        league: { select: { id: true, name: true, slug: true } },
-        organiser: { select: { id: true, username: true } },
-        organiserProfile: { select: { id: true, slug: true, displayName: true, logoUrl: true } },
-        _count: { select: { registrations: true } },
-      },
-      orderBy: { scheduledAt: 'asc' },
-      take: getNumericLimit(context, 30, 200),
+    const slots = await getPublicRaceSlotSummaries({
+      limit: getNumericLimit(context, 30, 200),
+      status,
+      leagueId,
+      organiserSlug,
     });
 
     if (import.meta.env.DEV) {
