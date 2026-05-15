@@ -1,4 +1,5 @@
-import { HonourEventType, Prisma } from '@prisma/client';
+import { HonourEventType } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 export const applyHonourEvent = async (
   tx: Prisma.TransactionClient,

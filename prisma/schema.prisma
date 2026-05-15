@@ -299,13 +299,14 @@ model RaceResult {
 }
 
 model RaceResultEntry {
-  id                String @id @default(cuid())
+  id                String   @id @default(cuid())
   raceResultId      String
   userId            String
   finishingPosition Int
   pointsAwarded     Int
-  ratingDelta       Int    @default(0)
-  honourDelta       Int    @default(0)
+  ratingDelta       Int      @default(0)
+  honourDelta       Int      @default(0)
+  createdAt         DateTime @default(now())
 
   raceResult RaceResult @relation(fields: [raceResultId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -378,15 +379,17 @@ model DisputeEmailLog {
 }
 
 model HonourEvent {
-  id           String          @id @default(cuid())
-  userId       String
-  raceSlotId   String?
-  raceResultId String?
-  type         HonourEventType
-  delta        Int
-  reason       String
-  appliedById  String?
-  createdAt    DateTime        @default(now())
+  id            String          @id @default(cuid())
+  userId        String
+  raceSlotId    String?
+  raceResultId  String?
+  type          HonourEventType
+  delta         Int
+  reason        String
+  warningIssued Boolean         @default(false)
+  metadata      Json?
+  appliedById   String?
+  createdAt     DateTime        @default(now())
 
   user       User        @relation("HonourSubject", fields: [userId], references: [id], onDelete: Cascade)
   raceSlot   RaceSlot?   @relation(fields: [raceSlotId], references: [id], onDelete: SetNull)
