@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { fetchFromApi } from '@/lib/server-api';
-import type { RaceSlotSummary } from '@/lib/api/types';
+import { getPublicRaceSlotSummaries } from '@/server/services/race-slot.service';
 import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
 
 export const prerender = false;
@@ -9,7 +8,17 @@ export const prerender = false;
 // Public cached route: race slots index renders public listing data only.
 setAstroCache(Astro, publicPageShort);
 
-const { raceSlots } = await fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?limit=40').catch(() => ({ raceSlots: [] }));
+let raceSlots: Awaited<ReturnType<typeof getPublicRaceSlotSummaries>> = [];
+let raceSlotsError: string | null = null;
+
+try {
+  raceSlots = await getPublicRaceSlotSummaries({ limit: 40 });
+} catch (error) {
+  if (import.meta.env.DEV) {
+    console.error('[race-slots page] Failed to load public race slots', error);
+  }
+  raceSlotsError = 'We could not load race slots right now. Please refresh in a moment.';
+}
 
 const statusTone: Record<string, string> = {
   OPEN: 'border-emerald-300/55 bg-emerald-500/18 text-emerald-100 shadow-[0_0_28px_rgba(16,185,129,0.18)]',
@@ -46,7 +55,12 @@ const progressTone = (status: string) => {
       </div>
 
       <div class="mt-7 grid gap-5 lg:grid-cols-2">
-        {raceSlots.length ? raceSlots.map((slot) => {
+        {raceSlotsError ? (
+          <div class="panel rounded-2xl border border-rose-300/25 bg-rose-500/10 p-6 text-slate-100">
+            <p class="text-xs uppercase tracking-[0.2em] text-rose-100/80">Race slots unavailable</p>
+            <p class="mt-2 text-sm text-slate-200">{raceSlotsError}</p>
+          </div>
+        ) : raceSlots.length ? raceSlots.map((slot) => {
           const filled = Math.min(100, Math.round((slot._count.registrations / slot.maxPlayers) * 100));
           return (
             <a href={`/race-slots/${slot.id}`} class="group relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-b from-white/[0.09] via-black/60 to-black/85 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.58)] transition hover:-translate-y-1.5 hover:border-white/45 hover:shadow-[0_34px_80px_rgba(0,0,0,0.68)]">
