@@ -58,6 +58,7 @@ const formTitle = isEditMode ? 'Manage Community' : 'Create Community';
         <CommunityEditorForm
           client:load
           mode="create"
+          canManagePlatformBadges={user.role === 'ADMIN'}
           initialState={{
             displayName: user.username,
             slug: user.username.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -100,6 +101,7 @@ const formTitle = isEditMode ? 'Manage Community' : 'Create Community';
             <CommunityEditorForm
               client:load
               mode="edit"
+              canManagePlatformBadges={user.role === 'ADMIN'}
               initialState={{
                 displayName: community.displayName,
                 slug: community.slug,

@@ -126,14 +126,23 @@ export const PATCH: APIRoute = (context) =>
             ? String(formData.get('memberCountSource'))
             : 'manual',
         isPublic: String(formData.get('isPublic')) === 'true',
-        featured: false,
+        featured: formData.has('featured') ? String(formData.get('featured')) === 'true' : undefined,
+        verified: formData.has('verified') ? String(formData.get('verified')) === 'true' : undefined,
         credibilityNotes: typeof formData.get('credibilityNotes') === 'string' ? String(formData.get('credibilityNotes')) || null : null,
       });
     } else {
       body = await parseBody(context.request, updateCommunitySchema);
     }
 
-    const normalizedSlug = normalizeSlug(body.slug || body.displayName);
+    const platformBadgePatch = user.role === 'ADMIN'
+      ? {
+          ...(typeof body.featured === 'boolean' ? { featured: body.featured } : {}),
+          ...(typeof body.verified === 'boolean' ? { verified: body.verified } : {}),
+        }
+      : {};
+    const { featured: _featured, verified: _verified, ...communityBody } = body;
+
+    const normalizedSlug = normalizeSlug(communityBody.slug || communityBody.displayName);
     if (!normalizedSlug) throw new HttpError(400, 'A valid community slug is required.');
 
     const existingBySlug = await prisma.organiserProfile.findUnique({ where: { slug: normalizedSlug }, select: { userId: true } });
@@ -141,33 +150,34 @@ export const PATCH: APIRoute = (context) =>
       throw new HttpError(409, 'That community slug is already in use.');
     }
 
-    const createSlug = existingProfile ? normalizedSlug : await ensureCreateSlug(normalizedSlug, body.displayName);
+    const createSlug = existingProfile ? normalizedSlug : await ensureCreateSlug(normalizedSlug, communityBody.displayName);
 
     const community = await prisma.$transaction(async (tx) => {
       const saved = await tx.organiserProfile.upsert({
         where: { userId: user.id },
-        update: { ...body, slug: normalizedSlug, featured: undefined, verified: undefined },
+        update: { ...communityBody, ...platformBadgePatch, slug: normalizedSlug },
         create: {
           userId: user.id,
-          displayName: body.displayName,
+          displayName: communityBody.displayName,
           slug: createSlug,
-          shortDescription: body.shortDescription,
-          description: body.description,
-          brandingColor: body.brandingColor,
-          logoUrl: body.logoUrl,
-          bannerUrl: body.bannerUrl,
-          websiteUrl: body.websiteUrl,
-          discordUrl: body.discordUrl,
-          redditUrl: body.redditUrl,
-          socials: body.socials,
-          gameFocus: body.gameFocus,
-          platformFocus: body.platformFocus,
-          region: body.region ?? user.region,
-          tags: body.tags ?? [],
-          isPublic: body.isPublic ?? true,
-          displayedMemberCount: body.displayedMemberCount ?? 0,
-          memberCountSource: body.memberCountSource ?? 'manual',
-          credibilityNotes: body.credibilityNotes,
+          shortDescription: communityBody.shortDescription,
+          description: communityBody.description,
+          brandingColor: communityBody.brandingColor,
+          logoUrl: communityBody.logoUrl,
+          bannerUrl: communityBody.bannerUrl,
+          websiteUrl: communityBody.websiteUrl,
+          discordUrl: communityBody.discordUrl,
+          redditUrl: communityBody.redditUrl,
+          socials: communityBody.socials,
+          gameFocus: communityBody.gameFocus,
+          platformFocus: communityBody.platformFocus,
+          region: communityBody.region ?? user.region,
+          tags: communityBody.tags ?? [],
+          isPublic: communityBody.isPublic ?? true,
+          displayedMemberCount: communityBody.displayedMemberCount ?? 0,
+          memberCountSource: communityBody.memberCountSource ?? 'manual',
+          credibilityNotes: communityBody.credibilityNotes,
+          ...platformBadgePatch,
         },
       });
 
@@ -198,11 +208,11 @@ export const PATCH: APIRoute = (context) =>
       return saved;
     });
 
-    if (body.logoUrl && body.logoUrl !== existingProfile?.logoUrl) {
+    if (communityBody.logoUrl && communityBody.logoUrl !== existingProfile?.logoUrl) {
       await removeManagedUploadIfPresent(existingProfile?.logoUrl);
     }
 
-    if (body.bannerUrl && body.bannerUrl !== existingProfile?.bannerUrl) {
+    if (communityBody.bannerUrl && communityBody.bannerUrl !== existingProfile?.bannerUrl) {
       await removeManagedUploadIfPresent(existingProfile?.bannerUrl);
     }
 

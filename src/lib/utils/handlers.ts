@@ -17,7 +17,7 @@ export const withErrorHandling = async (fn: () => Promise<Response>) => {
 
     if (error instanceof ZodError) {
       return jsonResponse(400, {
-        error: 'Validation failed.',
+        error: error.issues[0]?.message ?? 'Validation failed.',
         details: error.flatten(),
       });
     }
