@@ -21,6 +21,30 @@ body {
   color: white;
 }
 
+
+select {
+  color-scheme: dark;
+  background-color: rgba(2, 6, 23, 0.72);
+  color: #f8fafc;
+}
+
+select:focus {
+  outline: none;
+  border-color: rgba(225, 6, 0, 0.7);
+  box-shadow: 0 0 0 2px rgba(225, 6, 0, 0.24);
+}
+
+select option,
+select optgroup {
+  background: #0b0b0f;
+  color: #f8fafc;
+}
+
+select option:disabled,
+select option[value=''] {
+  color: #94a3b8;
+}
+
 body {
   overflow-x: hidden;
   background:
