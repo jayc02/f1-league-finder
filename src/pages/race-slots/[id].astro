@@ -1,12 +1,16 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { fetchFromApi } from '@/lib/server-api';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import type { RaceSlotDetail } from '@/lib/api/types';
 import SlotActionPanel from '@/components/race-slots/SlotActionPanel';
 import DisputeForm from '@/components/race-slots/DisputeForm';
 
 export const prerender = false;
+
+// Private personalised route: action state depends on the current session/registration status.
+setAstroCache(Astro, privateNoStore);
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/race-slots');
