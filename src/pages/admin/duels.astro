@@ -1,0 +1,27 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
+import AdminShell from '@/components/admin/AdminShell.astro';
+import AdminDuelManager from '@/components/admin/AdminDuelManager';
+import { getSessionUser } from '@/lib/auth/session';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
+
+export const prerender = false;
+
+// Private personalised route: dashboard/profile/admin HTML must never be public cached.
+setAstroCache(Astro, privateNoStore);
+
+const routeStart = performance.now();
+const user = await withPerf('admin.duels.session', () => getSessionUser(Astro as never));
+if (!user) return Astro.redirect('/login');
+if (user.role !== 'ADMIN') return Astro.redirect('/dashboard');
+
+if (shouldLogPerf()) console.info(`[perf] admin.duels.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
+---
+
+<BaseLayout noindex={true} sessionUser={user} lightweightApp={true} title="Admin Duels | RaceHub">
+  <section class="section-shell">
+    <AdminShell title="Duel Dispute Resolution" subtitle="Platform-admin review for 1v1 RaceHub duel confirmations, conflicts, stale waits, and audited result resolution." active="duels" />
+    <AdminDuelManager client:load initialDuels={[]} />
+  </section>
+</BaseLayout>
