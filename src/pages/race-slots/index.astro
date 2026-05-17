@@ -39,13 +39,13 @@ const progressTone = (status: string) => {
 ---
 
 <BaseLayout title="Race slots | RaceHub">
-  <section class="relative isolate overflow-hidden">
-    <div class="pointer-events-none absolute inset-0 -z-20 bg-black" aria-hidden="true"></div>
-    <video class="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-45" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+  <section class="relative isolate overflow-hidden bg-black">
+    <div class="pointer-events-none absolute inset-x-0 top-0 h-[min(560px,70vh)] -z-20 bg-black" aria-hidden="true"></div>
+    <video class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(560px,70vh)] w-full object-cover object-center opacity-45" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
       <source src="/videos/raceslot.mp4" type="video/mp4" />
     </video>
-    <div class="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/80 via-black/70 to-black"></div>
-    <div class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.16),transparent_42%),radial-gradient(circle_at_80%_10%,rgba(244,63,94,0.16),transparent_38%),radial-gradient(circle_at_50%_100%,rgba(16,185,129,0.12),transparent_38%)]"></div>
+    <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(560px,70vh)] bg-gradient-to-b from-black/80 via-black/70 to-black"></div>
+    <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(560px,70vh)] bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.16),transparent_42%),radial-gradient(circle_at_80%_10%,rgba(244,63,94,0.16),transparent_38%),radial-gradient(circle_at_50%_100%,rgba(16,185,129,0.12),transparent_38%)]"></div>
 
     <div class="section-shell">
       <div class="rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-black/55 to-black/80 p-5 shadow-[0_34px_90px_rgba(0,0,0,0.75)] backdrop-blur-xl md:p-8">
@@ -72,7 +72,7 @@ const progressTone = (status: string) => {
                   <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{slot.league.name}</p>
                   <h2 class="mt-2 font-display text-2xl text-white">{slot.title}</h2>
                 </div>
-                <span class:list={['rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]', statusTone[slot.status] ?? 'border-white/20 bg-white/10 text-white']}>
+                <span class:list={['rh-badge rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]', statusTone[slot.status] ?? 'border-white/20 bg-white/10 text-white']}>
                   {slot.status}
                 </span>
               </div>

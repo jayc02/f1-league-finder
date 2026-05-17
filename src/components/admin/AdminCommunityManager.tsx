@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 interface CommunityRow {
@@ -15,10 +15,29 @@ interface CommunityRow {
   _count: { raceSlots: number; leagues: number };
 }
 
-export default function AdminCommunityManager({ communities }: { communities: CommunityRow[] }) {
+export default function AdminCommunityManager({ communities = [] }: { communities?: CommunityRow[] }) {
   const [rows, setRows] = useState(communities);
+  const [loading, setLoading] = useState(communities.length === 0);
   const [query, setQuery] = useState('');
   const [flash, setFlash] = useState('');
+
+  useEffect(() => {
+    if (communities.length > 0) return;
+    let cancelled = false;
+    const loadRows = async () => {
+      setLoading(true);
+      try {
+        const response = await apiRequest<{ communities: CommunityRow[] }>('/api/admin/communities?limit=50');
+        if (!cancelled) setRows(response.communities);
+      } catch (error) {
+        if (!cancelled) setFlash(error instanceof Error ? error.message : 'Unable to load admin rows.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void loadRows();
+    return () => { cancelled = true; };
+  }, [communities.length]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -54,20 +73,21 @@ export default function AdminCommunityManager({ communities }: { communities: Co
     <section className="panel mt-6 rounded-3xl p-4 sm:p-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search communities, owner, region..." className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-violet-300/60 lg:max-w-md" />
-        <p className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-300">{filtered.length} Communities</p>
+        <p className="rh-badge rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-300">{loading ? 'Loading' : `${filtered.length} Communities`}</p>
       </div>
       {flash && <p className="mt-4 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-slate-200">{flash}</p>}
 
       <div className="mt-4 grid gap-3">
+        {loading && !rows.length && Array.from({ length: 5 }, (_, index) => <div key={index} className="h-32 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />)}
         {filtered.map((community) => (
           <article key={community.id} className="rounded-2xl border border-white/10 bg-black/35 p-4">
             <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-lg font-semibold text-white">{community.displayName}</h3>
-                  {community.verified && <span className="rounded-full border border-cyan-300/35 bg-cyan-500/15 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-100">Verified</span>}
-                  {community.featured && <span className="rounded-full border border-amber-300/35 bg-amber-500/15 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
-                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-100">{community.isPublic ? 'Public' : 'Private'}</span>
+                  {community.verified && <span className="rh-badge rounded-full border border-cyan-300/35 bg-cyan-500/15 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-100">Verified</span>}
+                  {community.featured && <span className="rh-badge rounded-full border border-amber-300/35 bg-amber-500/15 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
+                  <span className="rh-badge rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-100">{community.isPublic ? 'Public' : 'Private'}</span>
                 </div>
                 <p className="mt-1 text-sm text-slate-300">/{community.slug} · {community.region} · owner {community.user.username}</p>
                 <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">{community._count.raceSlots} events · {community._count.leagues} leagues · displayed members {community.displayedMemberCount.toLocaleString()}</p>
