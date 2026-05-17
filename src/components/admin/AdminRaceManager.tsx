@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 interface RaceRow {
@@ -16,10 +16,29 @@ interface RaceRow {
   _count: { registrations: number; disputes: number; moderationActions: number };
 }
 
-export default function AdminRaceManager({ raceSlots }: { raceSlots: RaceRow[] }) {
+export default function AdminRaceManager({ raceSlots = [] }: { raceSlots?: RaceRow[] }) {
   const [rows, setRows] = useState(raceSlots);
+  const [loading, setLoading] = useState(raceSlots.length === 0);
   const [query, setQuery] = useState('');
   const [flash, setFlash] = useState('');
+
+  useEffect(() => {
+    if (raceSlots.length > 0) return;
+    let cancelled = false;
+    const loadRows = async () => {
+      setLoading(true);
+      try {
+        const response = await apiRequest<{ raceSlots: RaceRow[] }>('/api/admin/race-slots?limit=50');
+        if (!cancelled) setRows(response.raceSlots);
+      } catch (error) {
+        if (!cancelled) setFlash(error instanceof Error ? error.message : 'Unable to load admin rows.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void loadRows();
+    return () => { cancelled = true; };
+  }, [raceSlots.length]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -55,19 +74,20 @@ export default function AdminRaceManager({ raceSlots }: { raceSlots: RaceRow[] }
     <section className="panel mt-6 rounded-3xl p-4 sm:p-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, organiser, status..." className="w-full rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300/60 lg:max-w-md" />
-        <p className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-300">{filtered.length} Events</p>
+        <p className="rh-badge rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-300">{loading ? 'Loading' : `${filtered.length} Events`}</p>
       </div>
       {flash && <p className="mt-4 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-slate-200">{flash}</p>}
 
       <div className="mt-4 grid gap-3">
+        {loading && !rows.length && Array.from({ length: 5 }, (_, index) => <div key={index} className="h-32 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />)}
         {filtered.map((slot) => (
           <article key={slot.id} className="rounded-2xl border border-white/10 bg-black/35 p-4">
             <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-start 2xl:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-lg font-semibold text-white">{slot.title}</h3>
-                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-100">{slot.status}</span>
-                  <span className="rounded-full border border-white/20 bg-black/40 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">{slot.visibility}</span>
+                  <span className="rh-badge rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-100">{slot.status}</span>
+                  <span className="rh-badge rounded-full border border-white/20 bg-black/40 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">{slot.visibility}</span>
                 </div>
                 <p className="mt-1 text-sm text-slate-300">{slot.league.name} · {new Date(slot.scheduledAt).toLocaleString()} · {slot.organiserProfile?.displayName ?? slot.organiser.username}</p>
                 <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-500">{slot._count.registrations}/{slot.maxPlayers} drivers · disputes {slot._count.disputes} · mod actions {slot._count.moderationActions}</p>

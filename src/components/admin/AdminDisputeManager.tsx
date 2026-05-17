@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 type DisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED';
@@ -49,13 +49,32 @@ interface DisputeDetail extends DisputeSummary {
   emailLogs: EmailLog[];
 }
 
-export default function AdminDisputeManager({ disputes }: { disputes: DisputeSummary[] }) {
+export default function AdminDisputeManager({ disputes = [] }: { disputes?: DisputeSummary[] }) {
   const [rows, setRows] = useState(disputes);
+  const [loading, setLoading] = useState(disputes.length === 0);
   const [scope, setScope] = useState<Scope>('open');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<DisputeDetail | null>(null);
   const [flash, setFlash] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (disputes.length > 0) return;
+    let cancelled = false;
+    const loadRows = async () => {
+      setLoading(true);
+      try {
+        const response = await apiRequest<{ disputes: DisputeSummary[] }>('/api/admin/disputes?limit=50');
+        if (!cancelled) setRows(response.disputes);
+      } catch (error) {
+        if (!cancelled) setFlash(error instanceof Error ? error.message : 'Unable to load admin rows.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void loadRows();
+    return () => { cancelled = true; };
+  }, [disputes.length]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -154,7 +173,7 @@ export default function AdminDisputeManager({ disputes }: { disputes: DisputeSum
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-white">#{dispute.id.slice(-8)}</p>
-                    <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-100">{dispute.status}</span>
+                    <span className="rh-badge rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-100">{dispute.status}</span>
                   </div>
                   <p className="mt-1 text-sm text-white">{dispute.reason}</p>
                   <p className="mt-1 text-xs text-slate-300">{dispute.raceSlot.title} · {dispute.raceSlot.league.name}</p>

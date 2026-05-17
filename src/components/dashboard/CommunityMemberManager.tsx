@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 type CommunityRole = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'MEMBER';
@@ -14,12 +14,32 @@ interface MemberRow {
 interface Props {
   organiserProfileId: string;
   actorRole: CommunityRole;
-  members: MemberRow[];
+  members?: MemberRow[];
 }
 
-export default function CommunityMemberManager({ organiserProfileId, actorRole, members: initialMembers }: Props) {
+export default function CommunityMemberManager({ organiserProfileId, actorRole, members: initialMembers = [] }: Props) {
   const [members, setMembers] = useState(initialMembers);
+  const [loading, setLoading] = useState(initialMembers.length === 0);
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (initialMembers.length > 0) return;
+    let cancelled = false;
+    const loadMembers = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({ organiserProfileId, take: '25' });
+        const response = await apiRequest<{ members: MemberRow[] }>(`/api/organiser/community/members?${params.toString()}`);
+        if (!cancelled) setMembers(response.members);
+      } catch (error) {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : 'Unable to load community members.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void loadMembers();
+    return () => { cancelled = true; };
+  }, [initialMembers.length, organiserProfileId]);
 
   const canPromoteAdmins = actorRole === 'OWNER';
   const canChangeRoles = actorRole === 'OWNER' || actorRole === 'ADMIN';
@@ -54,8 +74,9 @@ export default function CommunityMemberManager({ organiserProfileId, actorRole, 
 
   return (
     <div className="space-y-3">
+      {loading && <div className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/[0.04]" />}
       {message && <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-200">{message}</p>}
-      {members.length ? members.map((member) => {
+      {!loading && members.length ? members.map((member) => {
         const isOwner = member.role === 'OWNER';
         const roleLocked = isOwner || !canChangeRoles;
         return (
@@ -80,7 +101,7 @@ export default function CommunityMemberManager({ organiserProfileId, actorRole, 
             </div>
           </div>
         );
-      }) : <p className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">No RaceHub members yet.</p>}
+      }) : !loading ? <p className="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">No RaceHub members yet.</p> : null}
     </div>
   );
 }
