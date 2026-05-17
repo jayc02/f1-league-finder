@@ -1,0 +1,112 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { DUEL_GAMES, DUEL_TRACKS } from '@/data/duel-tracks';
+import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
+import { duelListQuerySchema } from '@/lib/validation/duels';
+import { getPublicDuels } from '@/server/services/duel.service';
+import { getNumericLimit } from '@/lib/utils/handlers';
+
+export const prerender = false;
+
+// Public cached route: only public, listable duel data is rendered here.
+setAstroCache(Astro, publicPageShort);
+
+const filters = duelListQuerySchema.parse(Object.fromEntries(Astro.url.searchParams));
+let duels: Awaited<ReturnType<typeof getPublicDuels>> = [];
+let duelsError: string | null = null;
+try {
+  duels = await getPublicDuels({ ...filters, limit: getNumericLimit(Astro as never, 40, 100) });
+} catch (error) {
+  if (import.meta.env.DEV) console.error('[duels page] Failed to load public duels', error);
+  duelsError = 'We could not load duels right now. Please refresh in a moment.';
+}
+
+const openDuels = duels.filter((duel) => duel.status === 'OPEN');
+const activeDuels = duels.filter((duel) => ['ACCEPTED', 'IN_PROGRESS', 'AWAITING_CONFIRMATION'].includes(duel.status));
+const completedDuels = duels.filter((duel) => duel.status === 'COMPLETED');
+const statusTone: Record<string, string> = {
+  OPEN: 'border-emerald-300/45 bg-emerald-500/15 text-emerald-100',
+  ACCEPTED: 'border-cyan-300/45 bg-cyan-500/15 text-cyan-100',
+  IN_PROGRESS: 'border-fuchsia-300/45 bg-fuchsia-500/15 text-fuchsia-100',
+  AWAITING_CONFIRMATION: 'border-amber-300/45 bg-amber-500/15 text-amber-100',
+  COMPLETED: 'border-sky-300/45 bg-sky-500/15 text-sky-100',
+  DISPUTED: 'border-rose-300/45 bg-rose-500/15 text-rose-100',
+};
+---
+
+<BaseLayout title="1v1 Duels | RaceHub">
+  <section class="relative isolate overflow-hidden bg-black">
+    <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_20%_10%,rgba(244,63,94,0.20),transparent_34%),radial-gradient(circle_at_80%_16%,rgba(34,211,238,0.18),transparent_34%),linear-gradient(180deg,rgba(0,0,0,0.25),#000)]"></div>
+    <div class="section-shell">
+      <div class="rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-black/55 to-black/85 p-6 shadow-[0_34px_90px_rgba(0,0,0,0.75)] backdrop-blur-xl md:p-8">
+        <p class="text-xs uppercase tracking-[0.24em] text-cyan-100/80">RaceHub head-to-head</p>
+        <div class="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 class="section-title">1v1 Duels</h1>
+            <p class="mt-3 max-w-3xl text-sm text-slate-200">Create or accept two-leg racing challenges with a server-side coin flip for Leg 1 advantage. Race Slots remain separate for full-grid events.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <a href="/duels/new" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-slate-200">Create 1v1 challenge</a>
+            <a href="/race-slots" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white transition hover:border-white/40">Race Slots</a>
+          </div>
+        </div>
+      </div>
+
+      <form method="get" class="mt-6 grid gap-3 rounded-3xl border border-white/15 bg-white/[0.05] p-4 md:grid-cols-5">
+        <select name="track" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white">
+          <option value="">All tracks</option>
+          {DUEL_TRACKS.map((track) => <option value={track} selected={filters.track === track}>{track}</option>)}
+        </select>
+        <select name="game" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white">
+          <option value="">All games</option>
+          {DUEL_GAMES.map((game) => <option value={game} selected={filters.game === game}>{game}</option>)}
+        </select>
+        <select name="platform" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white">
+          <option value="">Any platform</option>
+          {['PC', 'PLAYSTATION', 'XBOX'].map((platform) => <option value={platform} selected={filters.platform === platform}>{platform}</option>)}
+        </select>
+        <select name="ranked" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white">
+          <option value="">Ranked or unranked</option>
+          <option value="true" selected={filters.ranked === true}>Ranked</option>
+          <option value="false" selected={filters.ranked === false}>Unranked</option>
+        </select>
+        <button class="rounded-xl border border-cyan-300/35 bg-cyan-500/15 px-4 py-2 text-sm font-semibold text-cyan-100">Filter duels</button>
+      </form>
+
+      {duelsError ? (
+        <div class="panel mt-7 rounded-2xl border border-rose-300/25 bg-rose-500/10 p-6 text-slate-100">{duelsError}</div>
+      ) : (
+        <>
+          <div class="mt-7 grid gap-4 md:grid-cols-3">
+            <div class="rounded-3xl border border-emerald-300/20 bg-emerald-500/10 p-5"><p class="text-xs uppercase tracking-[0.18em] text-emerald-100/70">Open challenges</p><p class="mt-2 font-display text-4xl text-white">{openDuels.length}</p></div>
+            <div class="rounded-3xl border border-cyan-300/20 bg-cyan-500/10 p-5"><p class="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Accepted / active</p><p class="mt-2 font-display text-4xl text-white">{activeDuels.length}</p></div>
+            <div class="rounded-3xl border border-sky-300/20 bg-sky-500/10 p-5"><p class="text-xs uppercase tracking-[0.18em] text-sky-100/70">Recently completed</p><p class="mt-2 font-display text-4xl text-white">{completedDuels.length}</p></div>
+          </div>
+
+          <div class="mt-7 grid gap-5 lg:grid-cols-2">
+            {duels.length ? duels.map((duel) => (
+              <a href={`/duels/${duel.id}`} class="group relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.09] via-black/60 to-black/85 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.58)] transition hover:-translate-y-1 hover:border-white/45">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{duel.game} · {duel.track}</p>
+                    <h2 class="mt-2 font-display text-2xl text-white">{duel.createdBy.username} <span class="text-slate-500">vs</span> {duel.opponent?.username ?? 'Open opponent'}</h2>
+                  </div>
+                  <span class:list={['rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.18em]', statusTone[duel.status] ?? 'border-white/20 bg-white/10 text-white']}>{duel.status.replaceAll('_', ' ')}</span>
+                </div>
+                <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                  <p class="rounded-2xl border border-white/10 bg-black/25 p-3 text-sm text-slate-300"><span class="block text-[11px] uppercase tracking-[0.16em] text-slate-500">Schedule</span>{duel.scheduledAt ? new Date(duel.scheduledAt).toLocaleString() : 'Open challenge'}</p>
+                  <p class="rounded-2xl border border-white/10 bg-black/25 p-3 text-sm text-slate-300"><span class="block text-[11px] uppercase tracking-[0.16em] text-slate-500">Format</span>{duel.raceLength} · {duel.weather}</p>
+                  <p class="rounded-2xl border border-white/10 bg-black/25 p-3 text-sm text-slate-300"><span class="block text-[11px] uppercase tracking-[0.16em] text-slate-500">Mode</span>{duel.ranked ? 'Ranked' : 'Unranked'} · {duel.crossplay ? 'Crossplay' : duel.platform ?? 'Platform lock'}</p>
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-400">
+                  <span>{duel.community?.displayName ?? 'Public arena'}</span>
+                  <span class="text-white">{duel.status === 'OPEN' ? 'View / Accept' : 'View duel'} →</span>
+                </div>
+              </a>
+            )) : <p class="panel rounded-3xl p-6 text-sm text-slate-300 lg:col-span-2">No public duels match these filters yet. Create the first challenge.</p>}
+          </div>
+        </>
+      )}
+    </div>
+  </section>
+</BaseLayout>

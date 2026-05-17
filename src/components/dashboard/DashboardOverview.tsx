@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
-const DASHBOARD_OVERVIEW_CACHE_KEY = 'racehub.dashboardOverview.v1';
+const DASHBOARD_OVERVIEW_CACHE_KEY = 'racehub.dashboardOverview.v2';
 const DASHBOARD_OVERVIEW_TTL_MS = 30_000;
 
 interface RegistrationRow {
@@ -14,6 +14,17 @@ interface EventRow {
   scheduledAt: string;
   status: string;
   league: { name: string };
+}
+
+interface DuelRow {
+  id: string;
+  status: string;
+  track: string;
+  game: string;
+  scheduledAt: string | null;
+  createdBy: { username: string };
+  opponent: { username: string } | null;
+  confirmations: { id: string }[];
 }
 
 interface CommunitySummary {
@@ -29,6 +40,7 @@ interface CommunitySummary {
 interface DashboardOverviewData {
   upcomingRegistrations: RegistrationRow[];
   upcomingEvents: EventRow[];
+  myDuels: DuelRow[];
   managedCommunity: CommunitySummary | null;
   organiserCtaLabel: string;
 }
@@ -140,6 +152,25 @@ export default function DashboardOverview() {
           </div>
         </article>
       </div>
+
+      <article className="panel mt-6 rounded-3xl p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Two-leg challenges</p>
+            <h2 className="font-display text-2xl">My Duels</h2>
+          </div>
+          <a href="/duels" className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Browse duels</a>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {overview ? overview.myDuels.length ? overview.myDuels.map((duel) => (
+            <a key={duel.id} href={`/duels/${duel.id}`} className="block rounded-2xl border border-cyan-300/15 bg-cyan-500/[0.06] p-4 transition hover:border-cyan-200/45 hover:bg-cyan-500/10">
+              <p className="text-xs uppercase tracking-[0.16em] text-cyan-100/70">{duel.game} · {duel.status.replaceAll('_', ' ')}</p>
+              <h3 className="mt-1 font-semibold text-white">{duel.createdBy.username} vs {duel.opponent?.username ?? 'Open opponent'}</h3>
+              <p className="mt-2 text-xs text-slate-400">{duel.track} · {duel.scheduledAt ? new Date(duel.scheduledAt).toLocaleString() : 'Open challenge'}{duel.confirmations.length ? ' · awaiting opponent confirmation' : ''}</p>
+            </a>
+          )) : <EmptyState>No duels yet. Create or accept a 1v1 challenge.</EmptyState> : Array.from({ length: 2 }, (_, index) => <SkeletonBlock key={index} className="h-24" />)}
+        </div>
+      </article>
 
       <article className="panel mt-6 rounded-3xl p-4 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
