@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import { apiRequest } from '@/lib/api/http';
+import { clearProfileOverviewCache } from '@/lib/profile-overview-cache';
 
 interface Props {
   initialUser: {
@@ -69,6 +70,7 @@ export default function ProfileEditor({ initialUser }: Props) {
         body: payload,
       });
 
+      clearProfileOverviewCache();
       setStatus('Profile updated successfully.');
       window.setTimeout(() => {
         window.location.href = '/profile';

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
+import { clearProfileOverviewCache } from '@/lib/profile-overview-cache';
 import type { UserRole } from '@/lib/api/types';
 
 interface NavUser {
@@ -62,6 +63,7 @@ const writeStoredUser = (nextUser: NavUser | null) => {
 };
 
 const clearStoredUser = () => {
+  clearProfileOverviewCache();
   memoryAuthUser = null;
   memoryAuthCachedAt = 0;
   inFlightAuthRequest = null;
