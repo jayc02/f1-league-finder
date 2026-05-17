@@ -37,7 +37,7 @@ export const GET: APIRoute = (context) =>
         _count: { select: { registrations: true, disputes: true, moderationActions: true } },
       },
       orderBy: [{ scheduledAt: 'desc' }, { createdAt: 'desc' }],
-      take: getNumericLimit(context, 120, 400),
+      take: getNumericLimit(context, 50, 100),
     });
 
     return jsonResponse(200, { raceSlots });

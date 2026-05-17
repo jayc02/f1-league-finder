@@ -26,10 +26,29 @@ export default function SlotShowcase({ raceSlots }: Props) {
   }, [raceSlots]);
 
   useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem('racehub.navUser.v2');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { user?: SessionUser | null; cachedAt?: number };
+        if (parsed.cachedAt && Date.now() - parsed.cachedAt <= 45_000) {
+          setUser(parsed.user ?? null);
+          setAuthLoaded(true);
+          return;
+        }
+      }
+    } catch {
+      // Ignore malformed browser cache and fall back to the private auth endpoint.
+    }
+
     void fetch('/api/auth/me', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
         setUser(data.user ?? null);
+        try {
+          window.sessionStorage.setItem('racehub.navUser.v2', JSON.stringify({ user: data.user ?? null, cachedAt: Date.now() }));
+        } catch {
+          // Storage can be unavailable; this only affects nav/auth dedupe.
+        }
       })
       .catch(() => setUser(null))
       .finally(() => setAuthLoaded(true));

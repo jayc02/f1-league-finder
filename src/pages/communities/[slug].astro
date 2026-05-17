@@ -5,6 +5,7 @@ import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { getCommunityMemberCountDisplay, getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
 import { getCommunityMembership } from '@/lib/server/community-permissions';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
@@ -12,6 +13,7 @@ export const prerender = false;
 // Keep it no-store so personalised community-only data is never publicly cached.
 setAstroCache(Astro, privateNoStore);
 
+const routeStart = performance.now();
 const slug = Astro.params.slug;
 if (!slug) return Astro.redirect('/communities');
 
@@ -41,7 +43,7 @@ const raceSelect = {
   _count: { select: { registrations: true } },
 } as const;
 
-const community = await prisma.organiserProfile.findFirst({
+const community = await withPerf('community.detail', () => prisma.organiserProfile.findFirst({
   where: { slug, isPublic: true },
   include: {
     user: { select: { id: true, username: true, honourScore: true, avatarUrl: true } },
@@ -53,14 +55,14 @@ const community = await prisma.organiserProfile.findFirst({
     },
     _count: { select: { members: { where: { status: 'ACTIVE' } } } },
   },
-});
+}));
 
 if (!community) {
   Astro.response.status = 404;
 }
 
-const currentUser = community ? await getSessionUser(Astro as never) : null;
-const membership = community && currentUser ? await getCommunityMembership(currentUser.id, community.id) : null;
+const currentUser = community ? await withPerf('community.session', () => getSessionUser(Astro as never)) : null;
+const membership = community && currentUser ? await withPerf('community.membership', () => getCommunityMembership(currentUser.id, community.id)) : null;
 const canSeeCommunityOnly = Boolean(
   community &&
   currentUser &&
@@ -69,7 +71,7 @@ const canSeeCommunityOnly = Boolean(
 
 const now = new Date();
 const [publicRaces, communityOnlyRaces, recentRaces] = community
-  ? await Promise.all([
+  ? await withPerf('community.raceLists', () => Promise.all([
       prisma.raceSlot.findMany({
         where: { ...getPublicUpcomingRaceSlotWhere(), organiserProfileId: community.id },
         select: raceSelect,
@@ -100,7 +102,7 @@ const [publicRaces, communityOnlyRaces, recentRaces] = community
         orderBy: { scheduledAt: 'desc' },
         take: 4,
       }),
-    ])
+    ]))
   : [[], [], []];
 
 const memberDisplay = community ? getCommunityMemberCountDisplay(community) : { count: 0, source: 'racehub' };
@@ -111,6 +113,8 @@ const discordUrl = safeExternalUrl(community?.discordUrl);
 const redditUrl = safeExternalUrl(community?.redditUrl);
 const websiteUrl = safeExternalUrl(community?.websiteUrl);
 const accent = community?.brandingColor || '#38bdf8';
+
+if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 
 const RaceCard = (event: (typeof publicRaces)[number]) => {
   const filled = Math.min(100, Math.round((event._count.registrations / event.maxPlayers) * 100));

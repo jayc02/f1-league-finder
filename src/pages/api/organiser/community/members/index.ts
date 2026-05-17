@@ -30,13 +30,18 @@ export const GET: APIRoute = (context) =>
     if (!organiserProfileId) throw new HttpError(400, 'Community ID is required.');
     await requireCommunityRole(context, organiserProfileId, [OrganiserProfileMemberRole.OWNER, OrganiserProfileMemberRole.ADMIN, OrganiserProfileMemberRole.MODERATOR]);
 
+    const take = Math.min(Number(context.url.searchParams.get('take') ?? 25) || 25, 50);
+    const skip = Math.max(Number(context.url.searchParams.get('skip') ?? 0) || 0, 0);
+
     const members = await prisma.organiserProfileMember.findMany({
       where: { organiserProfileId },
       include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } },
       orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+      skip,
+      take,
     });
 
-    return withNoStore(jsonResponse(200, { members, requestedBy: user.id }));
+    return withNoStore(jsonResponse(200, { members, pagination: { skip, take }, requestedBy: user.id }));
   });
 
 export const PATCH: APIRoute = (context) =>

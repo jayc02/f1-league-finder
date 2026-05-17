@@ -20,7 +20,14 @@ const views = [
 const selectedView = views.find((view) => view.key === Astro.url.searchParams.get('view')) ?? views[0];
 const type = selectedView.key as CompetitiveLeaderboardType;
 
-const topHundred = await getRankedLeaderboard(type, { limit: 100 }).catch(() => []);
+let topHundred: LeaderboardEntry[] = [];
+let leaderboardError: string | null = null;
+try {
+  topHundred = await getRankedLeaderboard(type, { limit: 100 });
+} catch (error) {
+  console.error('[leaderboards page] Failed to load leaderboard', error);
+  leaderboardError = 'Leaderboards are temporarily unavailable. Please refresh in a moment.';
+}
 const topThree = topHundred.slice(0, 3);
 const remaining = topHundred.slice(3);
 
@@ -43,6 +50,7 @@ const metricLabel = (entry: LeaderboardEntry) => {
         <div>
           <h1 class="section-title">Top 100 Leaderboard</h1>
           <p class="mt-3 max-w-3xl text-sm text-slate-200">{selectedView.description} Full top-100 standings update from confirmed race outcomes and clean-racing events.</p>
+          {leaderboardError && <p class="mt-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 p-3 text-sm text-amber-100">{leaderboardError}</p>}
         </div>
         <p class="rounded-full border border-white/15 bg-black/40 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-100">Metric · {selectedView.metric}</p>
       </div>

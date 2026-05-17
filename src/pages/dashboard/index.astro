@@ -2,7 +2,7 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/prisma';
+import { getDashboardPageData } from '@/server/services/dashboard.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -11,45 +11,10 @@ export const prerender = false;
 setAstroCache(Astro, privateNoStore);
 
 const routeStart = performance.now();
-const user = await withPerf('dashboard.sessionLookup', () => getSessionUser(Astro as never));
+const user = await withPerf('dashboard.session', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
-const now = new Date();
-
-const [upcomingRegistrations, upcomingEvents, organiserProfile, staffMembership] = await withPerf('dashboard.dataFetch', () =>
-  Promise.all([
-    prisma.raceRegistration.findMany({
-      where: { userId: user.id, raceSlot: { scheduledAt: { gte: now } } },
-      select: {
-        raceSlot: { select: { id: true, title: true, scheduledAt: true, league: { select: { name: true } } } },
-      },
-      orderBy: { raceSlot: { scheduledAt: 'asc' } },
-      take: 6,
-    }),
-    prisma.raceSlot.findMany({
-      where: { scheduledAt: { gte: now }, status: { in: ['OPEN', 'FULL'] }, visibility: 'PUBLIC' },
-      select: { id: true, title: true, scheduledAt: true, status: true, league: { select: { name: true } } },
-      orderBy: { scheduledAt: 'asc' },
-      take: 6,
-    }),
-    prisma.organiserProfile.findUnique({
-      where: { userId: user.id },
-      select: {
-        slug: true,
-        displayName: true,
-        shortDescription: true,
-        logoUrl: true,
-        isPublic: true,
-        featured: true,
-        verified: true,
-      },
-    }),
-    prisma.organiserProfileMember.findFirst({
-      where: { userId: user.id, status: 'ACTIVE', role: { in: ['ADMIN', 'MODERATOR'] } },
-      select: { role: true, organiserProfile: { select: { slug: true, displayName: true, shortDescription: true, logoUrl: true, isPublic: true, featured: true, verified: true } } },
-    }),
-  ]),
-);
+const { upcomingRegistrations, upcomingEvents, organiserProfile, staffMembership } = await withPerf('dashboard.firstRender', () => getDashboardPageData(user.id));
 
 const managedCommunity = organiserProfile ?? staffMembership?.organiserProfile ?? null;
 const organiserCtaLabel = organiserProfile ? 'Manage Community' : staffMembership ? 'Staff Community' : 'Create Community';
