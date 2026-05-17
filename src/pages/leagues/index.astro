@@ -7,20 +7,25 @@ export const prerender = false;
 
 // Public cached route: leagues index renders public league summaries only.
 setAstroCache(Astro, publicPageMedium);
-const leagues = await getPublicLeagueSummaries();
+let leagues: Awaited<ReturnType<typeof getPublicLeagueSummaries>> = [];
+try {
+  leagues = await getPublicLeagueSummaries();
+} catch (error) {
+  console.warn('[leagues] public league summaries unavailable', error);
+}
 ---
 <BaseLayout title="Leagues | RaceHub">
   <section class="section-shell">
     <h1 class="section-title">Leagues</h1>
     <div class="mt-8 grid gap-4 md:grid-cols-2">
-      {leagues.map((league) => (
+      {leagues.length ? leagues.map((league) => (
         <a href={`/leagues/${league.slug}`} class="panel rounded-2xl p-6 transition hover:-translate-y-1">
           <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{league.region}</p>
           <h2 class="mt-2 font-display text-2xl">{league.name}</h2>
           <p class="mt-2 text-sm text-slate-300">{league.description}</p>
-          <p class="mt-3 text-xs text-slate-400">Owner: {league.owner.username} · {league._count.raceSlots} slots</p>
+          <p class="mt-3 text-xs text-slate-400">Owner: {league.owner.username} · {league._count.raceSlots} challenges</p>
         </a>
-      ))}
+      )) : <p class="panel rounded-2xl p-6 text-slate-300">Leagues are temporarily unavailable. Please check back soon.</p>}
     </div>
   </section>
 </BaseLayout>

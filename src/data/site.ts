@@ -53,11 +53,11 @@ export const leaderboardData = {
 };
 
 export const features = [
-  'Scheduled race slots',
-  'Lobby standardisation',
-  'Stewarding records',
+  '1v1 challenges',
+  'Same car rules',
+  'Ranked duels',
   'Honour rating',
-  'Global leaderboards',
-  'Organiser toolset',
-  'Crossplay-ready flow'
+  'Global rankings',
+  'Dispute tools',
+  'Organiser controls'
 ];
