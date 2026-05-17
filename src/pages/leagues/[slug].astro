@@ -1,13 +1,21 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { fetchFromApi } from '@/lib/server-api';
+import { publicPageMedium, setAstroCache } from '@/lib/server/cache-control';
+import { getPublicLeagueDetail } from '@/server/services/league.service';
+import { getLeagueStandings } from '@/server/services/leaderboard.service';
 
 export const prerender = false;
+
+setAstroCache(Astro, publicPageMedium);
 const slug = Astro.params.slug;
 if (!slug) return Astro.redirect('/leagues');
 
-const leagueData = await fetchFromApi<{ league: { id: string; name: string; description: string; region: string; owner: { username: string }; raceSlots: Array<{ id: string; title: string; status: string; scheduledAt: string; _count: { registrations: number } }> } }>(Astro, `/api/leagues/${slug}`).catch(() => null);
-const standingsData = await fetchFromApi<{ standings: Array<{ id: string; username: string; points: number; skillRating: number }> }>(Astro, `/api/leagues/${slug}/standings`).catch(() => ({ standings: [] }));
+const [league, standingsData] = await Promise.all([
+  getPublicLeagueDetail(slug),
+  getLeagueStandings(slug, 50),
+]);
+const leagueData = league ? { league } : null;
+const standings = standingsData?.standings ?? [];
 ---
 <BaseLayout title={`${leagueData?.league.name ?? 'League'} | RaceHub`}>
   <section class="section-shell">
@@ -32,7 +40,7 @@ const standingsData = await fetchFromApi<{ standings: Array<{ id: string; userna
           </div>
           <div class="panel rounded-2xl p-5">
             <h2 class="font-display text-2xl">League Standings</h2>
-            {standingsData.standings.length ? standingsData.standings.map((entry, idx) => (
+            {standings.length ? standings.map((entry, idx) => (
               <div class="mt-2 flex justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
                 <p>#{idx + 1} {entry.username}</p>
                 <p>{entry.points} pts</p>

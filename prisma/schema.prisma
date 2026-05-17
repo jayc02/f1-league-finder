@@ -120,6 +120,7 @@ model User {
   submittedResults    RaceResult[]
 
   @@index([role])
+  @@index([createdAt])
   @@index([skillRating])
   @@index([honourScore])
   @@index([region])
@@ -175,7 +176,9 @@ model OrganiserProfile {
   members   OrganiserProfileMember[]
 
   @@index([isPublic, featured])
+  @@index([isPublic, featured, updatedAt])
   @@index([region])
+  @@index([updatedAt])
 }
 
 model OrganiserProfileMember {
@@ -193,7 +196,10 @@ model OrganiserProfileMember {
   @@unique([organiserProfileId, userId])
   @@index([userId])
   @@index([organiserProfileId])
+  @@index([status])
   @@index([role])
+  @@index([organiserProfileId, status])
+  @@index([organiserProfileId, role])
 }
 
 model League {
@@ -253,8 +259,10 @@ model RaceSlot {
 
   @@index([leagueId, scheduledAt])
   @@index([status, scheduledAt])
+  @@index([visibility, status, scheduledAt])
   @@index([visibility, scheduledAt])
   @@index([organiserProfileId, scheduledAt])
+  @@index([organiserId, scheduledAt])
   @@index([organiserProfileId, visibility, status, scheduledAt])
   @@index([scheduledAt])
   @@index([status])
@@ -296,6 +304,7 @@ model RaceResult {
   honourEvents HonourEvent[]
 
   @@index([submittedAt])
+  @@index([submittedById])
 }
 
 model RaceResultEntry {
@@ -313,6 +322,9 @@ model RaceResultEntry {
 
   @@unique([raceResultId, userId])
   @@index([userId])
+  @@index([raceResultId])
+  @@index([pointsAwarded])
+  @@index([finishingPosition])
   @@index([userId, finishingPosition])
   @@index([userId, pointsAwarded])
 }
@@ -342,6 +354,7 @@ model Dispute {
   emailLogs          DisputeEmailLog[]
 
   @@index([status, createdAt])
+  @@index([openedById, createdAt])
   @@index([resolvedById, resolvedAt])
 }
 

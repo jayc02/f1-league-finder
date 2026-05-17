@@ -59,7 +59,7 @@ export const GET: APIRoute = (context) =>
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: getNumericLimit(context, 80, 300),
+      take: getNumericLimit(context, 50, 100),
     });
 
     return jsonResponse(200, { users });

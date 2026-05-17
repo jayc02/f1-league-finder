@@ -7,6 +7,7 @@ import CursorGlow from '@/components/ui/CursorGlow';
 import { getSessionUser } from '@/lib/auth/session';
 import { absoluteUrl, siteConfig } from '@/lib/config';
 import SpeedInsights from '@vercel/speed-insights/astro';
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
   title?: string;
@@ -54,6 +55,11 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
       body {
         overflow-x: hidden;
       }
+
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        background: #000;
+      }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
@@ -74,6 +80,7 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
     <meta name="apple-mobile-web-app-title" content="RaceHub" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/site.webmanifest" />
+    <ClientRouter />
   </head>
   <body>
     <div id="app-shell">
