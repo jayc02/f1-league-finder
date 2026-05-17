@@ -19,18 +19,26 @@ export const prerender = false;
 // Public cached route: homepage renders only public listings and leaderboard previews.
 setAstroCache(Astro, publicPageMedium);
 
+const safeHomeData = async <T,>(label: string, loader: () => Promise<T>, fallback: T) => {
+  try {
+    return await withPerf(label, loader);
+  } catch (error) {
+    console.warn(`[home] ${label} unavailable`, error);
+    return fallback;
+  }
+};
+
 const [raceSlots, featuredCommunities, globalLeaderboard, honourLeaderboard] = await Promise.all([
-  withPerf('home.raceSlots', () => getPublicRaceSlotSummaries({ status: 'OPEN', limit: 6 })),
-  withPerf('home.communities.featured', () => getPublicCommunitySummaries({ featuredOnly: true, limit: 3 })),
-  withPerf('home.leaderboard.global', () => getGlobalSkillLeaderboard(8)),
-  withPerf('home.leaderboard.honour', () => getHonourLeaderboard(8)),
+  safeHomeData('home.raceSlots', () => getPublicRaceSlotSummaries({ status: 'OPEN', limit: 6 }), []),
+  safeHomeData('home.communities.featured', () => getPublicCommunitySummaries({ featuredOnly: true, limit: 3 }), []),
+  safeHomeData('home.leaderboard.global', () => getGlobalSkillLeaderboard(8), []),
+  safeHomeData('home.leaderboard.honour', () => getHonourLeaderboard(8), []),
 ]);
 
 const fallbackCommunities = featuredCommunities.length
   ? []
-  : await withPerf('home.communities.fallback', () => getPublicCommunitySummaries({ limit: 3 }));
+  : await safeHomeData('home.communities.fallback', () => getPublicCommunitySummaries({ limit: 3 }), []);
 const showcaseCommunities = featuredCommunities.length ? featuredCommunities : fallbackCommunities;
-const showingFeaturedCommunities = featuredCommunities.length > 0;
 if (shouldLogPerf()) console.info('[perf] home.selfFetchRemoved: true');
 
 const structuredData = {
@@ -47,8 +55,8 @@ const structuredData = {
 ---
 
 <BaseLayout
-  title="RaceHub | Competitive Sim Racing Platform"
-  description="Discover competitive race slots, verified communities, and transparent global rankings on RaceHub.gg."
+  title="RaceHub | Ranked 1v1 Racing Challenges"
+  description="Create and accept 1v1 racing challenges, confirm results, build your rating, and climb the RaceHub leaderboard."
   canonicalPath="/"
 >
   <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
@@ -59,10 +67,10 @@ const structuredData = {
     <div class="panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{showingFeaturedCommunities ? 'Featured communities' : 'Latest public communities'}</p>
-          <h2 class="mt-2 font-display text-3xl md:text-4xl">{showingFeaturedCommunities ? 'Join featured organiser programs with active race pipelines.' : 'Discover public organiser programs while featured spotlights are being curated.'}</h2>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Community ladders</p>
+          <h2 class="mt-2 font-display text-3xl md:text-4xl">Clubs host 1v1 nights, ranked challenges, and private ladders.</h2>
         </div>
-        <a href="/communities" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.18em] transition hover:border-white/40 hover:bg-white/10">Browse all communities</a>
+        <a href="/communities" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.18em] transition hover:border-white/40 hover:bg-white/10">Browse communities</a>
       </div>
       <div class="mt-6 grid gap-4 md:grid-cols-3">
         {showcaseCommunities.length ? showcaseCommunities.map((community) => (
@@ -74,10 +82,10 @@ const structuredData = {
                 <p class="text-xs text-slate-400">{community.region} · {community.platformFocus ?? 'Crossplay'}</p>
               </div>
             </div>
-            <p class="mt-3 text-sm text-slate-300">{community.shortDescription ?? community.description ?? 'Organiser-led race community.'}</p>
-            <p class="mt-3 text-xs uppercase tracking-[0.14em] text-slate-500">{community.displayedMemberCount.toLocaleString()} members · {community._count.raceSlots} active events</p>
+            <p class="mt-3 text-sm text-slate-300">{community.shortDescription ?? 'Organiser-led 1v1 racing community.'}</p>
+            <p class="mt-3 text-xs uppercase tracking-[0.14em] text-slate-500">{community.displayedMemberCount.toLocaleString()} members · {community._count.raceSlots} active challenges</p>
           </a>
-        )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No featured communities are available yet. Browse all public communities to discover new organiser profiles.</p>}
+        )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No community ladders are available yet. Browse public communities to find organisers.</p>}
       </div>
     </div>
   </section>
