@@ -124,6 +124,8 @@ model User {
   @@index([skillRating])
   @@index([honourScore])
   @@index([region])
+  @@index([skillRating, honourScore])
+  @@index([region, skillRating, honourScore])
 }
 
 model Session {
@@ -280,6 +282,7 @@ model RaceRegistration {
 
   @@unique([raceSlotId, userId])
   @@index([userId, createdAt])
+  @@index([userId, raceSlotId])
   @@index([userId])
   @@index([raceSlotId])
 }
@@ -327,6 +330,7 @@ model RaceResultEntry {
   @@index([finishingPosition])
   @@index([userId, finishingPosition])
   @@index([userId, pointsAwarded])
+  @@index([userId, raceResultId])
 }
 
 model Dispute {

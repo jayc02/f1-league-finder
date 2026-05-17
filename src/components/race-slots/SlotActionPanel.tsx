@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
+import { clearProfileOverviewCache } from '@/lib/profile-overview-cache';
 
 interface Props {
   raceSlotId: string;
@@ -47,6 +48,7 @@ export default function SlotActionPanel({
     setMessage('');
     try {
       await apiRequest(`/api/race-slots/${raceSlotId}/${mode}`, { method: 'POST' });
+      clearProfileOverviewCache();
       setRegistered(mode === 'register');
       setMessage(mode === 'register' ? 'Grid slot secured. You are race confirmed.' : 'Registration removed. Grid slot released.');
     } catch (error) {

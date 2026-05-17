@@ -1,9 +1,8 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
-// import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
+import ProfileOverview from '@/components/profile/ProfileOverview';
 import { getSessionUser } from '@/lib/auth/session';
-import { getProfilePageData } from '@/server/services/profile.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -15,21 +14,19 @@ const routeStart = performance.now();
 const user = await withPerf('profile.session', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
-const { recentResults, upcomingRegistrations, starts, completedRaces, wins, podiums, cleanRaces, ranks, ownedCommunity } = await withPerf('profile.firstRender', () => getProfilePageData(user.id));
+const shellReadyAt = performance.now();
 
-const winRate = starts ? Math.round((wins / starts) * 100) : 0;
-const podiumRate = starts ? Math.round((podiums / starts) * 100) : 0;
-const cleanRatio = starts ? Math.round((cleanRaces / starts) * 100) : 0;
-const bestFinish = recentResults.reduce((best, row) => (best ? Math.min(best, row.finishingPosition) : row.finishingPosition), null as number | null);
-
-if (shouldLogPerf()) console.info(`[perf] profile.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
+if (shouldLogPerf()) {
+  console.info(`[perf] profile.shell: ${(shellReadyAt - routeStart).toFixed(1)}ms`);
+  console.info(`[perf] profile.total: ${(performance.now() - routeStart).toFixed(1)}ms`);
+}
 ---
 <BaseLayout title="Profile | RaceHub" noindex={true} sessionUser={user} lightweightApp={true}>
   <section class="section-shell">
     <div class="panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div class="flex items-start gap-4">
-          <img src={user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`} alt={`${user.username} avatar`} class="h-24 w-24 rounded-2xl border border-white/20 object-cover" />
+          <img src={user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`} alt={`${user.username} avatar`} width="96" height="96" loading="eager" decoding="async" class="h-24 w-24 rounded-2xl border border-white/20 bg-black/30 object-cover" />
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Driver Identity</p>
             <h1 class="mt-1 font-display text-4xl">{user.username}</h1>
@@ -40,43 +37,15 @@ if (shouldLogPerf()) console.info(`[perf] profile.routeTotal: ${(performance.now
         <a href="/profile/edit" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Edit profile</a>
       </div>
       <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Global Rank</p><p class="mt-2 font-display text-3xl">{ranks.global ? `#${ranks.global}` : '—'}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Regional Rank</p><p class="mt-2 font-display text-3xl">{ranks.regional ? `#${ranks.regional}` : '—'}</p></div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Global Rank</p><p class="mt-2 font-display text-3xl">—</p></div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Regional Rank</p><p class="mt-2 font-display text-3xl">—</p></div>
         <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Skill Rating</p><p class="mt-2 font-display text-3xl">{user.skillRating}</p></div>
         <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Honour</p><p class="mt-2 font-display text-3xl">{user.honourScore}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Starts</p><p class="mt-2 font-display text-3xl">{starts}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Completed Races</p><p class="mt-2 font-display text-3xl">{completedRaces}</p></div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Starts</p><p class="mt-2 font-display text-3xl">—</p></div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Completed Races</p><p class="mt-2 font-display text-3xl">—</p></div>
       </div>
     </div>
 
-    <!-- Accolades section temporarily disabled for MVP cleanup. -->
-
-    <div class="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-      <article class="panel rounded-3xl p-6">
-        <div class="flex items-center justify-between"><h2 class="font-display text-2xl">Profile Status</h2><p class="text-xs uppercase tracking-[0.16em] text-slate-400">stable</p></div>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Win Rate</p><p class="mt-2 font-display text-3xl">{winRate}%</p></div>
-          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Podium Rate</p><p class="mt-2 font-display text-3xl">{podiumRate}%</p></div>
-          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Clean Ratio</p><p class="mt-2 font-display text-3xl">{cleanRatio}%</p></div>
-          <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><p class="text-xs text-slate-400">Best Finish</p><p class="mt-2 font-display text-3xl">{bestFinish ? `P${bestFinish}` : '—'}</p></div>
-        </div>
-      </article>
-
-      <article class="panel rounded-3xl p-6">
-        <h2 class="font-display text-2xl">Community</h2>
-        {ownedCommunity ? <div class="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"><p class="font-medium text-white">{ownedCommunity.displayName}</p><a class="mt-2 inline-block text-xs uppercase tracking-[0.15em] text-slate-300 hover:text-white" href={`/communities/${ownedCommunity.slug}`}>View public page</a></div> : <p class="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No community created yet.</p>}
-      </article>
-    </div>
-
-    <div class="mt-6 grid gap-6 xl:grid-cols-2">
-      <article class="panel rounded-3xl p-6">
-        <h2 class="font-display text-2xl">Upcoming Races</h2>
-        <div class="mt-4 space-y-2">{upcomingRegistrations.length ? upcomingRegistrations.map((registration) => <a href={`/race-slots/${registration.raceSlot.id}`} class="block rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/35"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">{registration.raceSlot.league.name}</p><p class="mt-1 font-medium text-white">{registration.raceSlot.title}</p><p class="mt-1 text-xs text-slate-400">{new Date(registration.raceSlot.scheduledAt).toLocaleString()}</p></a>) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No upcoming races.</p>}</div>
-      </article>
-      <article class="panel rounded-3xl p-6">
-        <h2 class="font-display text-2xl">Recent Results</h2>
-        <div class="mt-4 space-y-2">{recentResults.length ? recentResults.map((entry) => <a href={`/race-slots/${entry.raceResult.raceSlot.id}`} class="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/35"><div><p class="font-medium text-white">{entry.raceResult.raceSlot.title}</p><p class="text-xs text-slate-500">{new Date(entry.raceResult.submittedAt).toLocaleDateString()}</p></div><p class="text-sm font-semibold text-white">P{entry.finishingPosition}</p></a>) : <p class="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300">No race results yet.</p>}</div>
-      </article>
-    </div>
+    <ProfileOverview client:load />
   </section>
 </BaseLayout>
