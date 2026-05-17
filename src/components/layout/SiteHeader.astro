@@ -9,9 +9,9 @@ interface Props {
 
 const { user, authStateKnown = false } = Astro.props;
 const appNav = [
-  { label: 'Race Slots', href: '/race-slots' },
+  { label: '1v1 Races', href: '/race-slots' },
   { label: 'Communities', href: '/communities' },
-  { label: 'Leaderboards', href: '/leaderboards' },
+  { label: 'Rankings', href: '/leaderboards' },
   { label: 'Leagues', href: '/leagues' },
   ...(user ? [{ label: 'Dashboard', href: '/dashboard' }, ...(user.role === 'ADMIN' ? [{ label: 'Admin', href: '/admin' }] : []), { label: 'Profile', href: '/profile' }] : []),
 ];

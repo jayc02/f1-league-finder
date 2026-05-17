@@ -169,8 +169,8 @@ export default function SlotShowcase({ raceSlots }: Props) {
         <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 z-0 opacity-65" aria-hidden="true" />
         <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-black/45 via-black/20 to-black/50" aria-hidden="true" />
         <div className="panel relative z-10 rounded-3xl p-8 text-center">
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Upcoming race slots</p>
-          <h2 className="mt-3 font-display text-3xl text-white">No upcoming races yet — check back soon or create one.</h2>
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Open challenges</p>
+          <h2 className="mt-3 font-display text-3xl text-white">No open 1v1 races yet — check back soon or create one.</h2>
         </div>
       </section>
     );
@@ -183,16 +183,16 @@ export default function SlotShowcase({ raceSlots }: Props) {
       <div className="relative z-10 space-y-6">
         {nearestSlot && startsInMinutes !== null && startsInMinutes >= 0 && (
           <div className="rounded-2xl border border-white/20 bg-white/[0.04] px-4 py-3 text-sm text-slate-200 backdrop-blur-sm">
-            Next race starts in <span className="font-semibold text-white">{startsInMinutes} minutes</span> — {nearestSlot._count.registrations} / {nearestSlot.maxPlayers} drivers joined
+            Next challenge starts in <span className="font-semibold text-white">{startsInMinutes} minutes</span> — {nearestSlot._count.registrations} / {nearestSlot.maxPlayers} drivers ready
           </div>
         )}
 
         <div className="mb-2 flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Upcoming race slots</p>
-            <h2 className="section-title mt-2">Join active grids before lights out.</h2>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Open challenges</p>
+            <h2 className="section-title mt-2">Pick a race, accept the rules, and meet them on track.</h2>
           </div>
-          <a href="/race-slots" className="text-sm text-slate-300 hover:text-white">View all slots →</a>
+          <a href="/race-slots" className="text-sm text-slate-300 hover:text-white">View all 1v1 races →</a>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -200,7 +200,7 @@ export default function SlotShowcase({ raceSlots }: Props) {
             const scheduledMs = new Date(slot.scheduledAt).getTime();
             const time = formatTimeLeft(scheduledMs - now);
             const fillRatio = slot.maxPlayers ? slot._count.registrations / slot.maxPlayers : 0;
-            const isAlmostFull = fillRatio > 0.7 && fillRatio < 1;
+            const challengerNeeded = slot.maxPlayers - slot._count.registrations === 1 || (fillRatio > 0.7 && fillRatio < 1);
             const isStartingSoon = scheduledMs - now > 0 && scheduledMs - now < 15 * 60 * 1000;
             const cutoffPassed = new Date(slot.registrationCutoffAt).getTime() <= now;
             const isClosed = cutoffPassed || ['LOCKED', 'COMPLETED', 'CANCELLED'].includes(slot.status);
@@ -218,23 +218,23 @@ export default function SlotShowcase({ raceSlots }: Props) {
                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{slot.league.name}</p>
                   <div className="flex flex-wrap justify-end gap-2">
                     {isStartingSoon && <span className="rounded-full border border-amber-300/40 bg-amber-400/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100">Starting Soon</span>}
-                    {isAlmostFull && <span className="rounded-full border border-rose-300/40 bg-rose-400/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-rose-100">Almost Full</span>}
+                    {challengerNeeded && <span className="rounded-full border border-rose-300/40 bg-rose-400/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-rose-100">Challenger needed</span>}
                   </div>
                 </div>
                 <h3 className="mt-2 font-display text-2xl text-white">{slot.title}</h3>
                 <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-slate-300">
-                  <p><span className="block text-[11px] text-slate-500">Region</span>{slot.region}</p>
-                  <p><span className="block text-[11px] text-slate-500">Grid</span>{slot._count.registrations}/{slot.maxPlayers}</p>
-                  <p><span className="block text-[11px] text-slate-500">Platform</span>{slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
+                  <p><span className="block text-[11px] text-slate-500">Track</span>{slot.track ?? slot.region}</p>
+                  <p><span className="block text-[11px] text-slate-500">Spots</span>{slot._count.registrations}/{slot.maxPlayers}</p>
+                  <p><span className="block text-[11px] text-slate-500">Rules</span>{slot.rulesSummary || 'Clean ranked duel'}</p>
                   <p><span className="block text-[11px] text-slate-500">Starts in</span>{`${time.hours}h ${time.minutes}m`}</p>
                 </div>
-                <p className="mt-3 line-clamp-2 text-sm text-slate-300">{slot.formatDetails}</p>
+                <p className="mt-3 line-clamp-2 text-sm text-slate-300">Ranked challenge · {slot.formatDetails}</p>
                 <button
                   onClick={() => void handleJoin(slot)}
                   disabled={!authLoaded || loadingId === slot.id || !canJoin}
                   className="mt-5 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loadingId === slot.id ? 'Joining…' : isRegistered ? 'Registered' : isClosed ? 'Closed' : isFull ? 'Full' : 'Join Race'}
+                  {loadingId === slot.id ? 'Joining…' : isRegistered ? 'Registered' : isClosed ? 'Closed' : isFull ? 'Full' : 'Accept challenge'}
                 </button>
               </article>
             );
