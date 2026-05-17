@@ -26,9 +26,10 @@ const isCreator = Boolean(currentUser && duel?.createdById === currentUser.id);
 const isOpponent = Boolean(currentUser && duel?.opponentId === currentUser.id);
 const canAccept = Boolean(currentUser && duel?.status === 'OPEN' && duel.createdById !== currentUser.id && (!duel.opponentId || duel.opponentId === currentUser.id));
 const canCancel = Boolean(currentUser && duel?.status === 'OPEN' && (duel.createdById === currentUser.id || currentUser.role === 'ADMIN'));
-const canSubmitResult = Boolean(currentUser && duel && ['ACCEPTED', 'IN_PROGRESS', 'AWAITING_CONFIRMATION', 'DISPUTED'].includes(duel.status) && (isCreator || isOpponent));
+const canSubmitResult = Boolean(currentUser && duel && ['ACCEPTED', 'IN_PROGRESS', 'AWAITING_CONFIRMATION'].includes(duel.status) && (isCreator || isOpponent));
 const myConfirmation = currentUser && duel ? duel.confirmations.find((confirmation) => confirmation.userId === currentUser.id) : null;
 const conflict = duel?.status === 'DISPUTED';
+const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.username : duel?.winnerUserId === duel?.opponentId ? playerB?.username : null;
 ---
 
 <BaseLayout noindex={duel?.visibility !== 'PUBLIC'} sessionUser={currentUser} title={duel ? `${duel.createdBy.username} vs ${duel.opponent?.username ?? 'Open'} | RaceHub Duels` : 'Duel | RaceHub'}>
@@ -100,8 +101,9 @@ const conflict = duel?.status === 'DISPUTED';
                 {!currentUser && <a href="/login" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Sign in to act</a>}
                 {canAccept && <button data-duel-action="accept" class="rounded-full bg-emerald-300 px-5 py-2 text-sm font-semibold text-black">Accept challenge</button>}
                 {canCancel && <button data-duel-action="cancel" class="rounded-full border border-rose-300/35 bg-rose-500/15 px-5 py-2 text-sm font-semibold text-rose-100">Cancel duel</button>}
-                {myConfirmation && <p class="w-full rounded-2xl border border-amber-300/25 bg-amber-500/10 p-3 text-sm text-amber-100">Awaiting opponent confirmation. You submitted {myConfirmation.confirmedWinnerId === duel.createdById ? playerA?.username : playerB?.username} as winner.</p>}
-                {conflict && <p class="w-full rounded-2xl border border-rose-300/25 bg-rose-500/10 p-3 text-sm text-rose-100">Result confirmations conflict. This duel is disputed.</p>}
+                {duel.status === 'COMPLETED' && <p class="w-full rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">Final result confirmed. Winner: {completedWinnerName ?? 'Recorded winner'}.</p>}
+                {myConfirmation && duel.status !== 'COMPLETED' && !conflict && <p class="w-full rounded-2xl border border-amber-300/25 bg-amber-500/10 p-3 text-sm text-amber-100">Waiting for the other driver to confirm. You submitted {myConfirmation.confirmedWinnerId === duel.createdById ? playerA?.username : playerB?.username} as winner.</p>}
+                {conflict && <p class="w-full rounded-2xl border border-rose-300/25 bg-rose-500/10 p-3 text-sm text-rose-100">Result confirmations conflict. This duel is disputed and requires platform admin review.</p>}
               </div>
             </article>
 
@@ -174,7 +176,7 @@ const conflict = duel?.status === 'DISPUTED';
       const response = await fetch(`/api/duels/${duelId}/result`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
       const json = await response.json();
       if (!response.ok) throw new Error(json.error || 'Result failed.');
-      setMessage('Result submitted. Awaiting matching confirmation or dispute resolution.');
+      setMessage(json.message || (json.confirmationState === 'completed' ? 'Both drivers confirmed. Duel completed.' : json.confirmationState === 'disputed' ? 'Confirmations conflict. Platform admin review required.' : 'Waiting for the other driver to confirm.'));
       window.location.reload();
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Result failed.', false); }
   });

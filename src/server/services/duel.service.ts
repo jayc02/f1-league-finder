@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { DuelStatus, DuelVisibility, HonourEventType, OrganiserProfileMemberStatus, Role, type Prisma, type User } from '@prisma/client';
+import { DuelStatus, DuelVisibility, HonourEventType, ModerationActionType, OrganiserProfileMemberStatus, Role, type Prisma, type User } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { HttpError } from '@/lib/utils/http';
 import { withPerf } from '@/lib/utils/perf';
@@ -17,6 +17,8 @@ const duelUserSelect = {
 export const duelListSelect = {
   id: true,
   status: true,
+  winnerUserId: true,
+  resultAppliedAt: true,
   visibility: true,
   ranked: true,
   game: true,
@@ -29,12 +31,14 @@ export const duelListSelect = {
   createdAt: true,
   createdBy: { select: duelUserSelect },
   opponent: { select: duelUserSelect },
+  winner: { select: duelUserSelect },
   community: { select: { id: true, slug: true, displayName: true, logoUrl: true } },
 } satisfies Prisma.DuelSelect;
 
 export const duelDetailInclude = {
   createdBy: { select: duelUserSelect },
   opponent: { select: duelUserSelect },
+  winner: { select: duelUserSelect },
   community: { select: { id: true, userId: true, slug: true, displayName: true, logoUrl: true } },
   legs: { orderBy: { legNumber: 'asc' as const } },
   confirmations: { include: { user: { select: duelUserSelect } }, orderBy: { confirmedAt: 'asc' as const } },
@@ -147,8 +151,8 @@ export const acceptDuel = async (duelId: string, user: Pick<User, 'id'>) => {
   });
 };
 
-const applyRankedDuelOutcome = async (tx: Prisma.TransactionClient, duel: { id: string; ranked: boolean; createdById: string; opponentId: string | null }, winnerUserId: string) => {
-  if (!duel.ranked || !duel.opponentId) return;
+export const applyRankedDuelOutcome = async (tx: Prisma.TransactionClient, duel: { id: string; ranked: boolean; createdById: string; opponentId: string | null; resultAppliedAt?: Date | null }, winnerUserId: string) => {
+  if (!duel.ranked || !duel.opponentId || duel.resultAppliedAt) return;
   const loserUserId = winnerUserId === duel.createdById ? duel.opponentId : duel.createdById;
   const ratingDelta = 16;
   await tx.user.update({ where: { id: winnerUserId }, data: { skillRating: { increment: ratingDelta } } });
@@ -169,37 +173,230 @@ const applyRankedDuelOutcome = async (tx: Prisma.TransactionClient, duel: { id: 
   });
 };
 
-export const submitDuelConfirmation = async (duelId: string, user: Pick<User, 'id'>, input: { winnerUserId: string; leg1WinnerUserId?: string; leg2WinnerUserId?: string; playerATotalTimeMs?: number; playerBTotalTimeMs?: number; evidenceUrl?: string; notes?: string }) => {
+type DuelConfirmationInput = {
+  winnerUserId?: string;
+  confirmedWinnerId?: string;
+  leg1WinnerUserId?: string;
+  leg2WinnerUserId?: string;
+  playerATotalTimeMs?: number;
+  playerBTotalTimeMs?: number;
+  evidenceUrl?: string;
+  notes?: string;
+};
+
+type ConfirmationState = 'waiting' | 'completed' | 'disputed';
+
+const duelResponseSelect = {
+  id: true,
+  status: true,
+  winnerUserId: true,
+  resultAppliedAt: true,
+} satisfies Prisma.DuelSelect;
+
+const buildConfirmationResponse = async (tx: Prisma.TransactionClient, duelId: string, confirmationState: ConfirmationState, message: string) => {
+  const duel = await tx.duel.findUnique({ where: { id: duelId }, select: duelResponseSelect });
+  if (!duel) throw new HttpError(404, 'Duel not found.');
+  return { duel, confirmationState, message };
+};
+
+export const confirmDuelResult = async ({ duelId, userId, confirmedWinnerId, notes, evidenceUrl, leg1WinnerUserId, leg2WinnerUserId, playerATotalTimeMs, playerBTotalTimeMs }: {
+  duelId: string;
+  userId: string;
+  confirmedWinnerId: string;
+  notes?: string;
+  evidenceUrl?: string;
+  leg1WinnerUserId?: string;
+  leg2WinnerUserId?: string;
+  playerATotalTimeMs?: number;
+  playerBTotalTimeMs?: number;
+}) => {
   return prisma.$transaction(async (tx) => {
-    const duel = await tx.duel.findUnique({ where: { id: duelId }, include: { confirmations: true, legs: true } });
+    const duel = await tx.duel.findUnique({
+      where: { id: duelId },
+      select: {
+        id: true,
+        createdById: true,
+        opponentId: true,
+        status: true,
+        ranked: true,
+        resultAppliedAt: true,
+        winnerUserId: true,
+      },
+    });
     if (!duel) throw new HttpError(404, 'Duel not found.');
-    if (!duel.opponentId || ![duel.createdById, duel.opponentId].includes(user.id)) throw new HttpError(403, 'Only duel drivers can submit results.');
-    if (![DuelStatus.ACCEPTED, DuelStatus.IN_PROGRESS, DuelStatus.AWAITING_CONFIRMATION, DuelStatus.DISPUTED].includes(duel.status)) {
+    if (!duel.opponentId) throw new HttpError(409, 'This duel does not have an opponent yet.');
+    const participantIds = [duel.createdById, duel.opponentId];
+    if (!participantIds.includes(userId)) throw new HttpError(403, 'Only duel drivers can submit results.');
+    if (!participantIds.includes(confirmedWinnerId)) throw new HttpError(400, 'Winner must be one of the two duel drivers.');
+    if (leg1WinnerUserId && !participantIds.includes(leg1WinnerUserId)) throw new HttpError(400, 'Leg 1 winner must be one of the two duel drivers.');
+    if (leg2WinnerUserId && !participantIds.includes(leg2WinnerUserId)) throw new HttpError(400, 'Leg 2 winner must be one of the two duel drivers.');
+
+    if ([DuelStatus.CANCELLED, DuelStatus.EXPIRED].includes(duel.status)) {
+      throw new HttpError(409, 'This duel is closed and cannot accept result confirmations.');
+    }
+    if (duel.status === DuelStatus.COMPLETED) {
+      return buildConfirmationResponse(tx, duelId, 'completed', 'This duel is already completed.');
+    }
+    if (duel.status === DuelStatus.DISPUTED) {
+      throw new HttpError(409, 'This duel is disputed and must be resolved by a platform admin.');
+    }
+    if (![DuelStatus.ACCEPTED, DuelStatus.IN_PROGRESS, DuelStatus.AWAITING_CONFIRMATION].includes(duel.status)) {
       throw new HttpError(409, 'This duel is not accepting result confirmations.');
     }
-    const validDriverIds = [duel.createdById, duel.opponentId];
-    if (!validDriverIds.includes(input.winnerUserId)) throw new HttpError(400, 'Winner must be one of the two duel drivers.');
 
     await tx.duelConfirmation.upsert({
-      where: { duelId_userId: { duelId, userId: user.id } },
-      create: { duelId, userId: user.id, confirmedWinnerId: input.winnerUserId, leg1WinnerId: input.leg1WinnerUserId, leg2WinnerId: input.leg2WinnerUserId, playerATotalTimeMs: input.playerATotalTimeMs, playerBTotalTimeMs: input.playerBTotalTimeMs, evidenceUrl: input.evidenceUrl, notes: input.notes },
-      update: { confirmedWinnerId: input.winnerUserId, leg1WinnerId: input.leg1WinnerUserId, leg2WinnerId: input.leg2WinnerUserId, playerATotalTimeMs: input.playerATotalTimeMs, playerBTotalTimeMs: input.playerBTotalTimeMs, evidenceUrl: input.evidenceUrl, notes: input.notes, confirmedAt: new Date() },
+      where: { duelId_userId: { duelId, userId } },
+      create: {
+        duelId,
+        userId,
+        confirmedWinnerId,
+        leg1WinnerId: leg1WinnerUserId,
+        leg2WinnerId: leg2WinnerUserId,
+        playerATotalTimeMs,
+        playerBTotalTimeMs,
+        evidenceUrl,
+        notes,
+      },
+      update: {
+        confirmedWinnerId,
+        leg1WinnerId: leg1WinnerUserId,
+        leg2WinnerId: leg2WinnerUserId,
+        playerATotalTimeMs,
+        playerBTotalTimeMs,
+        evidenceUrl,
+        notes,
+        confirmedAt: new Date(),
+      },
     });
 
-    const confirmations = await tx.duelConfirmation.findMany({ where: { duelId } });
-    let nextStatus: DuelStatus = DuelStatus.AWAITING_CONFIRMATION;
-    if (confirmations.length >= 2) {
-      const winners = new Set(confirmations.map((confirmation) => confirmation.confirmedWinnerId));
-      nextStatus = winners.size === 1 ? DuelStatus.COMPLETED : DuelStatus.DISPUTED;
-      if (nextStatus === DuelStatus.COMPLETED && confirmations[0]?.confirmedWinnerId) {
-        const confirmedWinnerId = confirmations[0].confirmedWinnerId;
-        const leg1WinnerId = confirmations[0].leg1WinnerId ?? confirmedWinnerId;
-        const leg2WinnerId = confirmations[0].leg2WinnerId ?? confirmedWinnerId;
-        await tx.duelLeg.updateMany({ where: { duelId, legNumber: 1 }, data: { winnerUserId: leg1WinnerId, completedAt: new Date(), evidenceUrl: confirmations[0].evidenceUrl } });
-        await tx.duelLeg.updateMany({ where: { duelId, legNumber: 2 }, data: { winnerUserId: leg2WinnerId, completedAt: new Date(), evidenceUrl: confirmations[0].evidenceUrl } });
-        await applyRankedDuelOutcome(tx, duel, confirmedWinnerId);
-      }
+    const confirmations = await tx.duelConfirmation.findMany({
+      where: { duelId, userId: { in: participantIds } },
+      orderBy: { confirmedAt: 'asc' },
+    });
+
+    if (confirmations.length < 2) {
+      await tx.duel.update({ where: { id: duelId }, data: { status: DuelStatus.AWAITING_CONFIRMATION } });
+      return buildConfirmationResponse(tx, duelId, 'waiting', 'Waiting for the other driver to confirm.');
     }
-    return tx.duel.update({ where: { id: duelId }, data: { status: nextStatus }, include: duelDetailInclude });
+
+    const [first, second] = confirmations;
+    if (!first.confirmedWinnerId || !second.confirmedWinnerId || first.confirmedWinnerId !== second.confirmedWinnerId) {
+      await tx.duel.update({ where: { id: duelId }, data: { status: DuelStatus.DISPUTED } });
+      return buildConfirmationResponse(tx, duelId, 'disputed', 'Confirmations conflict. A platform admin must review this duel.');
+    }
+
+    const winningConfirmation = confirmations.find((confirmation) => confirmation.confirmedWinnerId === first.confirmedWinnerId) ?? first;
+    const completedAt = new Date();
+    await tx.duelLeg.updateMany({
+      where: { duelId, legNumber: 1 },
+      data: { winnerUserId: winningConfirmation.leg1WinnerId ?? first.confirmedWinnerId, completedAt, evidenceUrl: winningConfirmation.evidenceUrl },
+    });
+    await tx.duelLeg.updateMany({
+      where: { duelId, legNumber: 2 },
+      data: { winnerUserId: winningConfirmation.leg2WinnerId ?? first.confirmedWinnerId, completedAt, evidenceUrl: winningConfirmation.evidenceUrl },
+    });
+    if (duel.ranked && !duel.resultAppliedAt) {
+      await applyRankedDuelOutcome(tx, duel, first.confirmedWinnerId);
+    }
+    await tx.duel.update({
+      where: { id: duelId },
+      data: {
+        status: DuelStatus.COMPLETED,
+        winnerUserId: first.confirmedWinnerId,
+        ...(duel.ranked && !duel.resultAppliedAt ? { resultAppliedAt: completedAt } : {}),
+      },
+    });
+    return buildConfirmationResponse(tx, duelId, 'completed', 'Both drivers confirmed the result. Duel completed.');
+  });
+};
+
+export const submitDuelConfirmation = async (duelId: string, user: Pick<User, 'id'>, input: DuelConfirmationInput) => {
+  const confirmedWinnerId = input.confirmedWinnerId ?? input.winnerUserId;
+  if (!confirmedWinnerId) throw new HttpError(400, 'Winner is required.');
+  return confirmDuelResult({
+    duelId,
+    userId: user.id,
+    confirmedWinnerId,
+    notes: input.notes,
+    evidenceUrl: input.evidenceUrl,
+    leg1WinnerUserId: input.leg1WinnerUserId,
+    leg2WinnerUserId: input.leg2WinnerUserId,
+    playerATotalTimeMs: input.playerATotalTimeMs,
+    playerBTotalTimeMs: input.playerBTotalTimeMs,
+  });
+};
+
+export const getAdminDuelQueue = async (limit = 50) => prisma.duel.findMany({
+  where: {
+    OR: [
+      { status: DuelStatus.DISPUTED },
+      { status: DuelStatus.AWAITING_CONFIRMATION, updatedAt: { lt: new Date(Date.now() - 1000 * 60 * 60 * 24) } },
+    ],
+  },
+  include: {
+    createdBy: { select: duelUserSelect },
+    opponent: { select: duelUserSelect },
+    winner: { select: duelUserSelect },
+    community: { select: { id: true, slug: true, displayName: true } },
+    confirmations: { include: { user: { select: duelUserSelect } }, orderBy: { confirmedAt: 'asc' } },
+    legs: { orderBy: { legNumber: 'asc' } },
+  },
+  orderBy: [{ status: 'desc' }, { updatedAt: 'asc' }],
+  take: limit,
+});
+
+export const resolveDuelAsAdmin = async (duelId: string, admin: Pick<User, 'id'>, input: { action: 'COMPLETED' | 'CANCELLED' | 'DISPUTED'; winnerUserId?: string; reason: string }) => {
+  return prisma.$transaction(async (tx) => {
+    const duel = await tx.duel.findUnique({
+      where: { id: duelId },
+      include: { confirmations: true },
+    });
+    if (!duel) throw new HttpError(404, 'Duel not found.');
+    if (duel.resultAppliedAt && (input.action !== 'COMPLETED' || input.winnerUserId !== duel.winnerUserId)) {
+      throw new HttpError(409, 'This ranked duel result has already been applied and cannot be changed without reversal support.');
+    }
+
+    const participantIds = [duel.createdById, duel.opponentId].filter(Boolean) as string[];
+    if (input.action === 'COMPLETED') {
+      if (!duel.opponentId) throw new HttpError(409, 'Cannot complete a duel without an opponent.');
+      if (!input.winnerUserId || !participantIds.includes(input.winnerUserId)) throw new HttpError(400, 'Winner must be one of the two duel drivers.');
+    }
+
+    const oldStatus = duel.status;
+    const completedAt = new Date();
+    const nextStatus = input.action === 'COMPLETED' ? DuelStatus.COMPLETED : input.action === 'CANCELLED' ? DuelStatus.CANCELLED : DuelStatus.DISPUTED;
+
+    if (input.action === 'COMPLETED' && input.winnerUserId && duel.ranked && !duel.resultAppliedAt) {
+      await applyRankedDuelOutcome(tx, duel, input.winnerUserId);
+    }
+
+    const updated = await tx.duel.update({
+      where: { id: duelId },
+      data: {
+        status: nextStatus,
+        winnerUserId: input.action === 'COMPLETED' ? input.winnerUserId : duel.winnerUserId,
+        ...(input.action === 'COMPLETED' && duel.ranked && !duel.resultAppliedAt ? { resultAppliedAt: completedAt } : {}),
+      },
+      include: duelDetailInclude,
+    });
+
+    await tx.moderationAction.create({
+      data: {
+        actionType: ModerationActionType.DISPUTE_RESOLUTION,
+        targetUserId: duel.createdById,
+        adminId: admin.id,
+        notes: input.reason,
+        metadata: {
+          duelId,
+          oldStatus,
+          newStatus: nextStatus,
+          winnerUserId: input.winnerUserId ?? null,
+          reason: input.reason,
+          adminId: admin.id,
+        },
+      },
+    });
+
+    return updated;
   });
 };
