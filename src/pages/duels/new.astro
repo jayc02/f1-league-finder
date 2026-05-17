@@ -1,0 +1,107 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { DUEL_ASSISTS, DUEL_DAMAGE_LEVELS, DUEL_GAMES, DUEL_RACE_LENGTHS, DUEL_TRACKS, DUEL_WEATHER } from '@/data/duel-tracks';
+import { getSessionUser } from '@/lib/auth/session';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
+import { getManagedDuelCommunities } from '@/server/services/duel.service';
+
+export const prerender = false;
+setAstroCache(Astro, privateNoStore);
+
+const user = await getSessionUser(Astro as never);
+if (!user) return Astro.redirect('/login');
+const communities = await getManagedDuelCommunities(user);
+---
+
+<BaseLayout noindex={true} sessionUser={user} title="Create 1v1 Duel | RaceHub">
+  <section class="section-shell">
+    <div class="rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-black/55 to-black/85 p-6 shadow-[0_34px_90px_rgba(0,0,0,0.75)] md:p-8">
+      <p class="text-xs uppercase tracking-[0.24em] text-cyan-100/80">New head-to-head challenge</p>
+      <h1 class="section-title mt-3">Create a 1v1 Duel</h1>
+      <p class="mt-3 max-w-3xl text-sm text-slate-300">Pick preset track/rules now. The coin flip is generated server-side only when another driver accepts, then Leg 2 reverses the starting advantage.</p>
+    </div>
+
+    <form id="duel-create-form" class="panel mt-7 grid gap-5 rounded-3xl p-5 md:p-7">
+      <div class="grid gap-4 md:grid-cols-2">
+        <label class="grid gap-2 text-sm text-slate-200">Game
+          <select name="game" required class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">
+            {DUEL_GAMES.map((game) => <option value={game}>{game}</option>)}
+          </select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Track
+          <select name="track" required class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">
+            {DUEL_TRACKS.map((track) => <option value={track}>{track}</option>)}
+          </select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Car / class
+          <input name="carClass" placeholder="F1 World Car, GT3, Super Formula..." class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white" />
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Platform
+          <select name="platform" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">
+            <option value="">Any platform</option><option value="PC">PC</option><option value="PLAYSTATION">PlayStation</option><option value="XBOX">Xbox</option>
+          </select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Race length
+          <select name="raceLength" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">{DUEL_RACE_LENGTHS.map((value) => <option value={value}>{value}</option>)}</select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Weather
+          <select name="weather" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">{DUEL_WEATHER.map((value) => <option value={value}>{value}</option>)}</select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Assists
+          <select name="assists" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">{DUEL_ASSISTS.map((value) => <option value={value}>{value.replaceAll('_', ' ')}</option>)}</select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Damage
+          <select name="damageLevel" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">{DUEL_DAMAGE_LEVELS.map((value) => <option value={value}>{value}</option>)}</select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Scheduled time optional
+          <input type="datetime-local" name="scheduledAt" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white" />
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Visibility
+          <select name="visibility" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">
+            <option value="PUBLIC">Public</option>
+            <option value="PRIVATE">Private</option>
+            {communities.length > 0 && <option value="COMMUNITY_ONLY">Community only</option>}
+          </select>
+        </label>
+        <label class="grid gap-2 text-sm text-slate-200">Community optional
+          <select name="communityId" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">
+            <option value="">No community</option>
+            {communities.map((community) => <option value={community.id}>{community.displayName}</option>)}
+          </select>
+        </label>
+        <div class="grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-200">
+          <label class="flex items-center gap-3"><input type="checkbox" name="ranked" checked value="true" class="h-4 w-4" /> Ranked duel</label>
+          <label class="flex items-center gap-3"><input type="checkbox" name="crossplay" checked value="true" class="h-4 w-4" /> Crossplay allowed</label>
+        </div>
+      </div>
+      <label class="grid gap-2 text-sm text-slate-200">Rules summary
+        <textarea name="rulesSummary" rows="4" placeholder="Lobby settings, qualifying, restart policy, tiebreaker..." class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"></textarea>
+      </label>
+      <div id="duel-create-message" class="hidden rounded-2xl border px-4 py-3 text-sm"></div>
+      <button class="w-fit rounded-full bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-slate-200">Create challenge</button>
+    </form>
+  </section>
+</BaseLayout>
+
+<script>
+  const form = document.querySelector('#duel-create-form');
+  const message = document.querySelector('#duel-create-message');
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = new FormData(form);
+    const payload = Object.fromEntries(data.entries());
+    payload.ranked = data.has('ranked');
+    payload.crossplay = data.has('crossplay');
+    try {
+      const response = await fetch('/api/duels', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Could not create duel.');
+      window.location.assign(`/duels/${json.duel.id}`);
+    } catch (error) {
+      if (message) {
+        message.className = 'rounded-2xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100';
+        message.textContent = error instanceof Error ? error.message : 'Could not create duel.';
+      }
+    }
+  });
+</script>

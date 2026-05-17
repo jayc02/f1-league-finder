@@ -1,0 +1,181 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import CoinFlipBar from '@/components/duels/CoinFlipBar';
+import { getSessionUser } from '@/lib/auth/session';
+import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
+import { getDuelForViewer } from '@/server/services/duel.service';
+
+export const prerender = false;
+
+// Private/no-store because action buttons and eligibility are viewer-specific.
+setAstroCache(Astro, privateNoStore);
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/duels');
+const currentUser = await getSessionUser(Astro as never);
+const detail = await getDuelForViewer(id, currentUser?.id);
+if (detail.status === 'not_found') Astro.response.status = 404;
+if (detail.status === 'access_denied') Astro.response.status = 403;
+const duel = detail.status === 'ok' ? detail.duel : null;
+const playerA = duel?.createdBy;
+const playerB = duel?.opponent;
+const winnerSide = duel?.coinFlipWinnerUserId ? (duel.coinFlipWinnerUserId === duel.createdById ? 'HEADS' : 'TAILS') : null;
+const leg1AdvantageName = duel?.leg1AdvantageUserId === duel?.createdById ? playerA?.username : duel?.leg1AdvantageUserId === duel?.opponentId ? playerB?.username : 'Pending';
+const leg2AdvantageName = duel?.leg2AdvantageUserId === duel?.createdById ? playerA?.username : duel?.leg2AdvantageUserId === duel?.opponentId ? playerB?.username : 'Pending';
+const isCreator = Boolean(currentUser && duel?.createdById === currentUser.id);
+const isOpponent = Boolean(currentUser && duel?.opponentId === currentUser.id);
+const canAccept = Boolean(currentUser && duel?.status === 'OPEN' && duel.createdById !== currentUser.id && (!duel.opponentId || duel.opponentId === currentUser.id));
+const canCancel = Boolean(currentUser && duel?.status === 'OPEN' && (duel.createdById === currentUser.id || currentUser.role === 'ADMIN'));
+const canSubmitResult = Boolean(currentUser && duel && ['ACCEPTED', 'IN_PROGRESS', 'AWAITING_CONFIRMATION', 'DISPUTED'].includes(duel.status) && (isCreator || isOpponent));
+const myConfirmation = currentUser && duel ? duel.confirmations.find((confirmation) => confirmation.userId === currentUser.id) : null;
+const conflict = duel?.status === 'DISPUTED';
+---
+
+<BaseLayout noindex={duel?.visibility !== 'PUBLIC'} sessionUser={currentUser} title={duel ? `${duel.createdBy.username} vs ${duel.opponent?.username ?? 'Open'} | RaceHub Duels` : 'Duel | RaceHub'}>
+  <section class="section-shell">
+    {duel ? (
+      <>
+        <div class="rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-black/55 to-black/85 p-5 shadow-[0_34px_90px_rgba(0,0,0,0.75)] md:p-8">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-[0.24em] text-cyan-100/80">Two-leg 1v1 duel</p>
+              <h1 class="section-title mt-3">{duel.track} Showdown</h1>
+              <p class="mt-3 max-w-3xl text-sm text-slate-300">{duel.game} · {duel.raceLength} · {duel.weather} · {duel.ranked ? 'Ranked' : 'Unranked'} · {duel.visibility.replaceAll('_', ' ')}</p>
+            </div>
+            <span class="w-fit rounded-full border border-cyan-300/35 bg-cyan-500/15 px-4 py-2 text-xs uppercase tracking-[0.18em] text-cyan-100">{duel.status.replaceAll('_', ' ')}</span>
+          </div>
+        </div>
+
+        <div class="mt-7 grid gap-5 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+          <article class="rounded-3xl border border-amber-300/25 bg-gradient-to-br from-amber-500/15 via-white/[0.05] to-black/70 p-5">
+            <p class="text-xs uppercase tracking-[0.18em] text-amber-100/70">Heads · Player A</p>
+            <div class="mt-4 flex items-center gap-4">
+              <img src={playerA?.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${playerA?.username}`} alt={`${playerA?.username} avatar`} class="h-16 w-16 rounded-2xl border border-white/10 object-cover" />
+              <div><h2 class="font-display text-3xl text-white">{playerA?.username}</h2><p class="text-sm text-slate-300">SR {playerA?.skillRating} · Honour {playerA?.honourScore}</p></div>
+            </div>
+          </article>
+          <div class="grid place-items-center rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-5 font-display text-4xl text-white shadow-[0_0_50px_rgba(255,255,255,0.08)]">VS</div>
+          <article class="rounded-3xl border border-cyan-300/25 bg-gradient-to-br from-cyan-500/15 via-white/[0.05] to-black/70 p-5 lg:text-right">
+            <p class="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Tails · Player B</p>
+            {playerB ? (
+              <div class="mt-4 flex items-center gap-4 lg:flex-row-reverse">
+                <img src={playerB.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${playerB.username}`} alt={`${playerB.username} avatar`} class="h-16 w-16 rounded-2xl border border-white/10 object-cover" />
+                <div><h2 class="font-display text-3xl text-white">{playerB.username}</h2><p class="text-sm text-slate-300">SR {playerB.skillRating} · Honour {playerB.honourScore}</p></div>
+              </div>
+            ) : <p class="mt-6 rounded-2xl border border-dashed border-white/20 bg-black/30 p-5 text-sm text-slate-300">Waiting for an opponent to accept this challenge.</p>}
+          </article>
+        </div>
+
+        <div class="mt-6">
+          <CoinFlipBar client:load value={duel.coinFlipValue} headsLabel={playerA?.username ?? 'Player A'} tailsLabel={playerB?.username ?? 'Player B'} winnerSide={winnerSide} animated={true} />
+          {duel.coinFlipValue !== null && (
+            <p class="mt-3 rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+              {winnerSide === 'HEADS' ? playerA?.username : playerB?.username} wins the flip and starts ahead in Leg 1. Leg 2 reverses advantage to {leg2AdvantageName}.
+            </p>
+          )}
+        </div>
+
+        <div class="mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <div class="grid gap-5 md:grid-cols-2">
+            {[1, 2].map((legNumber) => {
+              const leg = duel.legs.find((item) => item.legNumber === legNumber);
+              const advantage = legNumber === 1 ? leg1AdvantageName : leg2AdvantageName;
+              const winner = leg?.winnerUserId === duel.createdById ? playerA?.username : leg?.winnerUserId === duel.opponentId ? playerB?.username : 'Not submitted';
+              return (
+                <article class="rounded-3xl border border-white/15 bg-white/[0.05] p-5">
+                  <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Leg {legNumber}</p>
+                  <h3 class="mt-2 font-display text-2xl text-white">{legNumber === 1 ? 'Coin-flip advantage' : 'Reverse advantage'}</h3>
+                  <p class="mt-3 text-sm text-slate-300">Starting advantage: <span class="text-white">{advantage}</span></p>
+                  <p class="mt-2 text-sm text-slate-300">Winner: <span class="text-white">{winner}</span></p>
+                </article>
+              );
+            })}
+          </div>
+
+          <aside class="space-y-5">
+            <article class="panel rounded-3xl p-5">
+              <h2 class="font-display text-2xl">Duel Actions</h2>
+              <div id="duel-action-message" class="mt-4 hidden rounded-2xl border px-4 py-3 text-sm"></div>
+              <div class="mt-4 flex flex-wrap gap-2">
+                {!currentUser && <a href="/login" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Sign in to act</a>}
+                {canAccept && <button data-duel-action="accept" class="rounded-full bg-emerald-300 px-5 py-2 text-sm font-semibold text-black">Accept challenge</button>}
+                {canCancel && <button data-duel-action="cancel" class="rounded-full border border-rose-300/35 bg-rose-500/15 px-5 py-2 text-sm font-semibold text-rose-100">Cancel duel</button>}
+                {myConfirmation && <p class="w-full rounded-2xl border border-amber-300/25 bg-amber-500/10 p-3 text-sm text-amber-100">Awaiting opponent confirmation. You submitted {myConfirmation.confirmedWinnerId === duel.createdById ? playerA?.username : playerB?.username} as winner.</p>}
+                {conflict && <p class="w-full rounded-2xl border border-rose-300/25 bg-rose-500/10 p-3 text-sm text-rose-100">Result confirmations conflict. This duel is disputed.</p>}
+              </div>
+            </article>
+
+            {canSubmitResult && (
+              <form id="duel-result-form" class="panel rounded-3xl p-5">
+                <h2 class="font-display text-2xl">Submit result</h2>
+                <label class="mt-4 grid gap-2 text-sm text-slate-200">Overall winner
+                  <select name="winnerUserId" required class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">
+                    <option value={duel.createdById}>{playerA?.username}</option>
+                    {duel.opponentId && <option value={duel.opponentId}>{playerB?.username}</option>}
+                  </select>
+                </label>
+                <label class="mt-3 grid gap-2 text-sm text-slate-200">Leg 1 winner
+                  <select name="leg1WinnerUserId" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"><option value="">Same / unresolved</option><option value={duel.createdById}>{playerA?.username}</option>{duel.opponentId && <option value={duel.opponentId}>{playerB?.username}</option>}</select>
+                </label>
+                <label class="mt-3 grid gap-2 text-sm text-slate-200">Leg 2 winner
+                  <select name="leg2WinnerUserId" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"><option value="">Same / unresolved</option><option value={duel.createdById}>{playerA?.username}</option>{duel.opponentId && <option value={duel.opponentId}>{playerB?.username}</option>}</select>
+                </label>
+                <label class="mt-3 grid gap-2 text-sm text-slate-200">Evidence URL optional<input name="evidenceUrl" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white" /></label>
+                <label class="mt-3 grid gap-2 text-sm text-slate-200">Notes<textarea name="notes" rows="3" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white"></textarea></label>
+                <button class="mt-4 rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Submit / confirm result</button>
+              </form>
+            )}
+
+            <article class="panel rounded-3xl p-5">
+              <h2 class="font-display text-2xl">Rules Strip</h2>
+              <div class="mt-4 grid gap-2 text-sm text-slate-300">
+                <p>Platform: {duel.crossplay ? 'Crossplay' : duel.platform ?? 'Any'}</p><p>Assists: {duel.assists.replaceAll('_', ' ')}</p><p>Damage: {duel.damageLevel}</p><p>Community: {duel.community?.displayName ?? 'Public arena'}</p>
+              </div>
+              {duel.rulesSummary && <p class="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">{duel.rulesSummary}</p>}
+            </article>
+          </aside>
+        </div>
+      </>
+    ) : (
+      <article class="panel rounded-3xl p-6">
+        <p class="text-xs uppercase tracking-[0.2em] text-rose-100/80">{detail.status === 'access_denied' ? 'Access denied' : 'Duel not found'}</p>
+        <h1 class="section-title mt-3">This duel is unavailable</h1>
+        <p class="mt-3 text-sm text-slate-300">{detail.status === 'access_denied' ? detail.message : 'This duel does not exist or may have been removed.'}</p>
+        <a href="/duels" class="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white">Back to duels</a>
+      </article>
+    )}
+  </section>
+</BaseLayout>
+
+<script define:vars={{ duelId: id }}>
+  const message = document.querySelector('#duel-action-message');
+  const setMessage = (text, ok = true) => {
+    if (!message) return;
+    message.className = ok ? 'mt-4 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100' : 'mt-4 rounded-2xl border border-rose-300/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100';
+    message.textContent = text;
+  };
+  document.querySelectorAll('[data-duel-action]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const action = button.getAttribute('data-duel-action');
+      try {
+        const response = await fetch(`/api/duels/${duelId}/${action}`, { method: 'POST', credentials: 'same-origin' });
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error || 'Action failed.');
+        setMessage(action === 'accept' ? 'Challenge accepted. Coin flip locked in.' : 'Duel cancelled.');
+        window.location.reload();
+      } catch (error) { setMessage(error instanceof Error ? error.message : 'Action failed.', false); }
+    });
+  });
+  document.querySelector('#duel-result-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(data.entries());
+    try {
+      const response = await fetch(`/api/duels/${duelId}/result`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Result failed.');
+      setMessage('Result submitted. Awaiting matching confirmation or dispute resolution.');
+      window.location.reload();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Result failed.', false); }
+  });
+</script>
