@@ -7,44 +7,50 @@ import { prisma } from '@/lib/db/prisma';
 import CommunityEditorForm from '@/components/dashboard/CommunityEditorForm';
 import CommunityMemberManager from '@/components/dashboard/CommunityMemberManager';
 import { userCommunityRole } from '@/lib/server/community-permissions';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
 // Private personalised route: dashboard/profile/admin HTML must never be public cached.
 setAstroCache(Astro, privateNoStore);
 
-const user = await getSessionUser(Astro as never);
+const routeStart = performance.now();
+const user = await withPerf('dashboard.community.session', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
-const ownedCommunity = await prisma.organiserProfile.findUnique({
+const ownedCommunity = await withPerf('dashboard.community.owned', () => prisma.organiserProfile.findUnique({
   where: { userId: user.id },
   include: {
-    raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 20 },
-    members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }] },
+    raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 5 },
+    members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }], take: 25 },
+    _count: { select: { raceSlots: true, members: true } },
   },
-});
+}));
 
 const staffMembership = !ownedCommunity
-  ? await prisma.organiserProfileMember.findFirst({
+  ? await withPerf('dashboard.community.staff', () => prisma.organiserProfileMember.findFirst({
       where: { userId: user.id, status: 'ACTIVE', role: { in: ['ADMIN', 'MODERATOR'] } },
       include: {
         organiserProfile: {
           include: {
-            raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 20 },
-            members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }] },
+            raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 5 },
+            members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }], take: 25 },
+            _count: { select: { raceSlots: true, members: true } },
           },
         },
       },
-    })
+    }))
   : null;
 
 const community = ownedCommunity ?? staffMembership?.organiserProfile ?? null;
-const actorRole = community ? await userCommunityRole(user, community) : null;
+const actorRole = community ? await withPerf('dashboard.community.permissions', () => userCommunityRole(user, community)) : null;
 const isEditMode = Boolean(community);
 const canEditProfile = actorRole === OrganiserProfileMemberRole.OWNER;
 const canManageMembers = Boolean(actorRole && ['OWNER', 'ADMIN', 'MODERATOR'].includes(actorRole));
 const canManageRaces = actorRole === OrganiserProfileMemberRole.OWNER || actorRole === OrganiserProfileMemberRole.ADMIN || user.role === 'ADMIN';
 const formTitle = isEditMode ? 'Manage Community' : 'Create Community';
+
+if (shouldLogPerf()) console.info(`[perf] dashboard.community.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
 
 <BaseLayout noindex={true} sessionUser={user} title="Community settings | RaceHub">
@@ -156,7 +162,7 @@ const formTitle = isEditMode ? 'Manage Community' : 'Create Community';
           <h2 class="mt-2 font-display text-2xl">Community staff and members</h2>
           <p class="mt-2 text-sm text-slate-400">Owners can promote admins and moderators. Community admins and moderators are scoped to this community and never receive platform admin tools.</p>
           <div class="mt-5">
-            {canManageMembers ? <CommunityMemberManager client:load organiserProfileId={community.id} actorRole={actorRole as never} members={community.members} /> : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">You do not have member management permissions.</p>}
+            {canManageMembers ? <CommunityMemberManager client:idle organiserProfileId={community.id} actorRole={actorRole as never} members={community.members} /> : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">You do not have member management permissions.</p>}
           </div>
         </article>
 

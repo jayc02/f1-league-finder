@@ -4,38 +4,24 @@ import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import AdminShell from '@/components/admin/AdminShell.astro';
 import AdminUserManager from '@/components/admin/AdminUserManager';
 import { getSessionUser } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/prisma';
+import { getAdminUsers } from '@/server/services/admin.service';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
 // Private personalised route: dashboard/profile/admin HTML must never be public cached.
 setAstroCache(Astro, privateNoStore);
 
-const user = await getSessionUser(Astro as never);
+const routeStart = performance.now();
+const user = await withPerf('admin.users.session', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 if (user.role !== 'ADMIN') return Astro.redirect('/dashboard');
 
-const users = await prisma.user.findMany({
-  select: {
-    id: true,
-    username: true,
-    email: true,
-    role: true,
-    region: true,
-    honourScore: true,
-    skillRating: true,
-    suspensionNote: true,
-    createdAt: true,
-    preferredPlatform: true,
-    organiserProfile: { select: { displayName: true, verified: true, isPublic: true, featured: true } },
-    _count: { select: { raceRegistrations: true, raceSlotsOrganised: true, disputesOpened: true } },
-  },
-  orderBy: { createdAt: 'desc' },
-  take: 160,
-});
+const users = await getAdminUsers();
+if (shouldLogPerf()) console.info(`[perf] admin.users.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
 
-<BaseLayout noindex={true} sessionUser={user} title="Admin Users | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} lightweightApp={true} title="Admin Users | RaceHub">
   <section class="section-shell">
     <AdminShell title="User Management" subtitle="Search, role governance, trust controls, and account moderation across the entire platform." active="users" />
     <AdminUserManager client:load users={users.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }))} />

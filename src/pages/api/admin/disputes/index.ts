@@ -57,7 +57,7 @@ export const GET: APIRoute = (context) =>
         _count: { select: { moderationActions: true, emailLogs: true } },
       },
       orderBy: [{ createdAt: 'desc' }],
-      take: getNumericLimit(context, 80, 300),
+      take: getNumericLimit(context, 50, 100),
     });
 
     return jsonResponse(200, { disputes });

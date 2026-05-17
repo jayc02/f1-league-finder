@@ -16,19 +16,32 @@ interface Props {
 
 type AuthState = 'checking' | 'authenticated' | 'anonymous';
 
-const AUTH_CACHE_KEY = 'racehub.navUser.v1';
+const AUTH_CACHE_KEY = 'racehub.navUser.v2';
+const AUTH_CACHE_TTL_MS = 45_000;
 let memoryAuthUser: NavUser | null | undefined;
+let memoryAuthCachedAt = 0;
 let inFlightAuthRequest: Promise<NavUser | null> | null = null;
 
 const readStoredUser = (): NavUser | null | undefined => {
-  if (memoryAuthUser !== undefined) return memoryAuthUser;
+  if (memoryAuthUser !== undefined) {
+    if (Date.now() - memoryAuthCachedAt <= AUTH_CACHE_TTL_MS) return memoryAuthUser;
+    memoryAuthUser = undefined;
+    memoryAuthCachedAt = 0;
+  }
   if (typeof window === 'undefined') return undefined;
 
   try {
     const raw = window.sessionStorage.getItem(AUTH_CACHE_KEY);
     if (!raw) return undefined;
-    const parsed = JSON.parse(raw) as { user?: NavUser | null };
+    const parsed = JSON.parse(raw) as { user?: NavUser | null; cachedAt?: number };
+    if (!parsed.cachedAt || Date.now() - parsed.cachedAt > AUTH_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(AUTH_CACHE_KEY);
+      memoryAuthUser = undefined;
+      memoryAuthCachedAt = 0;
+      return undefined;
+    }
     memoryAuthUser = parsed.user ?? null;
+    memoryAuthCachedAt = parsed.cachedAt;
     return memoryAuthUser;
   } catch {
     window.sessionStorage.removeItem(AUTH_CACHE_KEY);
@@ -38,10 +51,11 @@ const readStoredUser = (): NavUser | null | undefined => {
 
 const writeStoredUser = (nextUser: NavUser | null) => {
   memoryAuthUser = nextUser;
+  memoryAuthCachedAt = Date.now();
   if (typeof window === 'undefined') return;
 
   try {
-    window.sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ user: nextUser }));
+    window.sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ user: nextUser, cachedAt: Date.now() }));
   } catch {
     // Storage can be unavailable in restricted browser contexts; memory cache still helps this page.
   }
@@ -49,6 +63,7 @@ const writeStoredUser = (nextUser: NavUser | null) => {
 
 const clearStoredUser = () => {
   memoryAuthUser = null;
+  memoryAuthCachedAt = 0;
   inFlightAuthRequest = null;
   if (typeof window !== 'undefined') {
     window.sessionStorage.removeItem(AUTH_CACHE_KEY);
@@ -104,6 +119,12 @@ export default function AuthNav({ user, authStateKnown = false }: Props) {
       setAuthState(cachedUser ? 'authenticated' : 'anonymous');
     } else {
       setAuthState('checking');
+    }
+
+    if (cachedUser !== undefined) {
+      return () => {
+        cancelled = true;
+      };
     }
 
     fetchAuthUser()

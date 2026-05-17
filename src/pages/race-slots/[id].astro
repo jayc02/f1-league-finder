@@ -5,21 +5,23 @@ import { getSessionUser } from '@/lib/auth/session';
 import { getRaceSlotDetailForViewer } from '@/server/services/race-slot.service';
 import SlotActionPanel from '@/components/race-slots/SlotActionPanel';
 import DisputeForm from '@/components/race-slots/DisputeForm';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
 // Private personalised route: action state depends on the current session/registration status.
 setAstroCache(Astro, privateNoStore);
 
+const routeStart = performance.now();
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/race-slots');
 
-const currentUser = await getSessionUser(Astro as never);
+const currentUser = await withPerf('raceSlot.session', () => getSessionUser(Astro as never));
 let detailResult: Awaited<ReturnType<typeof getRaceSlotDetailForViewer>> | null = null;
 let detailLoadError: string | null = null;
 
 try {
-  detailResult = await getRaceSlotDetailForViewer({ raceSlotId: id, viewerUserId: currentUser?.id });
+  detailResult = await withPerf('raceSlot.detail', () => getRaceSlotDetailForViewer({ raceSlotId: id, viewerUserId: currentUser?.id }));
 } catch (error) {
   if (import.meta.env.DEV) {
     console.error('[race-slot detail page] Failed to load race slot detail', error);
@@ -43,6 +45,8 @@ const isClosed = Boolean(slot && (cutoffPassed || ['LOCKED', 'COMPLETED', 'CANCE
 const isFull = Boolean(slot && slot._count.registrations >= slot.maxPlayers);
 const slotFillPercent = slot ? Math.min(100, Math.round((slot._count.registrations / slot.maxPlayers) * 100)) : 0;
 const topResult = slot?.result?.entries[0] ?? null;
+
+if (shouldLogPerf()) console.info(`[perf] raceSlot.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 
 const statusTone: Record<string, string> = {
   OPEN: 'border-emerald-300/30 bg-emerald-500/10 text-emerald-100',
