@@ -105,3 +105,9 @@ body::before {
     scroll-behavior: auto !important;
   }
 }
+
+.rh-badge {
+  @apply inline-flex min-w-fit shrink-0 items-center justify-center whitespace-nowrap leading-none;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}

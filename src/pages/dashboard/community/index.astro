@@ -6,6 +6,7 @@ import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import CommunityEditorForm from '@/components/dashboard/CommunityEditorForm';
 import CommunityMemberManager from '@/components/dashboard/CommunityMemberManager';
+import CommunityRaceList from '@/components/dashboard/CommunityRaceList';
 import { userCommunityRole } from '@/lib/server/community-permissions';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
@@ -21,8 +22,6 @@ if (!user) return Astro.redirect('/login');
 const ownedCommunity = await withPerf('dashboard.community.owned', () => prisma.organiserProfile.findUnique({
   where: { userId: user.id },
   include: {
-    raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 5 },
-    members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }], take: 25 },
     _count: { select: { raceSlots: true, members: true } },
   },
 }));
@@ -33,8 +32,6 @@ const staffMembership = !ownedCommunity
       include: {
         organiserProfile: {
           include: {
-            raceSlots: { include: { league: { select: { name: true } }, _count: { select: { registrations: true } } }, orderBy: { scheduledAt: 'desc' }, take: 5 },
-            members: { include: { user: { select: { id: true, username: true, email: true, avatarUrl: true, role: true } } }, orderBy: [{ role: 'asc' }, { createdAt: 'asc' }], take: 25 },
             _count: { select: { raceSlots: true, members: true } },
           },
         },
@@ -141,19 +138,8 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.community.routeTotal: ${(per
             </div>
             {canManageRaces && <a href="/dashboard/community/races/new" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">Create race</a>}
           </div>
-          <div class="mt-5 space-y-3">
-            {community.raceSlots.length ? community.raceSlots.map((slot) => (
-              <div class="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{slot.league.name} · {slot.visibility} · {slot.status}</p>
-                    <h3 class="mt-1 font-semibold text-white">{slot.title}</h3>
-                    <p class="mt-1 text-sm text-slate-300">{new Date(slot.scheduledAt).toLocaleString()} · {slot._count.registrations}/{slot.maxPlayers} entrants</p>
-                  </div>
-                  {canManageRaces && <a href={`/dashboard/community/races/${slot.id}/edit`} class="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200">Edit</a>}
-                </div>
-              </div>
-            )) : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">No races created yet.</p>}
+          <div class="mt-5">
+            <CommunityRaceList client:idle organiserProfileId={community.id} canManageRaces={canManageRaces} />
           </div>
         </article>
 
@@ -162,7 +148,7 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.community.routeTotal: ${(per
           <h2 class="mt-2 font-display text-2xl">Community staff and members</h2>
           <p class="mt-2 text-sm text-slate-400">Owners can promote admins and moderators. Community admins and moderators are scoped to this community and never receive platform admin tools.</p>
           <div class="mt-5">
-            {canManageMembers ? <CommunityMemberManager client:idle organiserProfileId={community.id} actorRole={actorRole as never} members={community.members} /> : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">You do not have member management permissions.</p>}
+            {canManageMembers ? <CommunityMemberManager client:idle organiserProfileId={community.id} actorRole={actorRole as never} members={[]} /> : <p class="rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-slate-300">You do not have member management permissions.</p>}
           </div>
         </article>
 

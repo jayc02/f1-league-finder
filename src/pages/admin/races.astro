@@ -4,7 +4,6 @@ import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import AdminShell from '@/components/admin/AdminShell.astro';
 import AdminRaceManager from '@/components/admin/AdminRaceManager';
 import { getSessionUser } from '@/lib/auth/session';
-import { getAdminRaces } from '@/server/services/admin.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -17,13 +16,12 @@ const user = await withPerf('admin.races.session', () => getSessionUser(Astro as
 if (!user) return Astro.redirect('/login');
 if (user.role !== 'ADMIN') return Astro.redirect('/dashboard');
 
-const raceSlots = await getAdminRaces();
 if (shouldLogPerf()) console.info(`[perf] admin.races.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
 
 <BaseLayout noindex={true} sessionUser={user} lightweightApp={true} title="Admin Races | RaceHub">
   <section class="section-shell">
     <AdminShell title="Race & Event Oversight" subtitle="Platform-wide control of slot lifecycle, visibility states, organiser output, and event moderation." active="races" />
-    <AdminRaceManager client:load raceSlots={raceSlots.map((slot) => ({ ...slot, scheduledAt: slot.scheduledAt.toISOString(), registrationCutoffAt: slot.registrationCutoffAt.toISOString() }))} />
+    <AdminRaceManager client:load raceSlots={[]} />
   </section>
 </BaseLayout>
