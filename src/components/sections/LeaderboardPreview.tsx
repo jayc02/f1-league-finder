@@ -4,8 +4,8 @@ import type { PublicUser } from '@/server/types/api';
 type Tab = 'global' | 'honour';
 
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'global', label: 'Global Skill' },
-  { key: 'honour', label: 'Honour Rank' },
+  { key: 'global', label: '1v1 Skill' },
+  { key: 'honour', label: 'Honour' },
 ];
 
 interface Props {
@@ -22,8 +22,8 @@ export default function LeaderboardPreview({ globalLeaderboard, honourLeaderboar
 
   return (
     <section id="leaderboards" className="section-shell" data-reveal>
-      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Leaderboards</p>
-      <h2 className="section-title mt-3">Competition visibility, with conduct in plain sight.</h2>
+      <p className="text-xs uppercase tracking-[0.25em] text-slate-400">1v1 rankings</p>
+      <h2 className="section-title mt-3">Every confirmed result moves the ladder.</h2>
       <div className="mt-8 flex flex-wrap gap-2">
         {tabs.map((item) => (
           <button
