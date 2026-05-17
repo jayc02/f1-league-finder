@@ -142,6 +142,7 @@ model User {
   submittedResults            RaceResult[]
   duelsCreated                Duel[]                   @relation("DuelCreator")
   duelsAccepted               Duel[]                   @relation("DuelOpponent")
+  duelsWon                    Duel[]                   @relation("DuelWinner")
   duelConfirmations           DuelConfirmation[]
 
   @@index([role])
@@ -297,26 +298,28 @@ model RaceSlot {
 }
 
 model Duel {
-  id          String         @id @default(cuid())
-  createdById String
-  opponentId  String?
-  communityId String?
-  status      DuelStatus     @default(OPEN)
-  visibility  DuelVisibility @default(PUBLIC)
-  ranked      Boolean        @default(true)
+  id           String         @id @default(cuid())
+  createdById  String
+  opponentId   String?
+  winnerUserId String?
+  communityId  String?
+  status       DuelStatus     @default(OPEN)
+  visibility   DuelVisibility @default(PUBLIC)
+  ranked       Boolean        @default(true)
 
-  game         String
-  track        String
-  carClass     String?
-  platform     PreferredPlatform?
-  crossplay    Boolean            @default(true)
-  assists      String             @default("ASSISTS_ALLOWED")
-  damageLevel  String             @default("STANDARD")
-  raceLength   String             @default("25%")
-  weather      String             @default("Dynamic")
-  rulesSummary String?
-  scheduledAt  DateTime?
-  expiresAt    DateTime?
+  game            String
+  track           String
+  carClass        String?
+  platform        PreferredPlatform?
+  crossplay       Boolean            @default(true)
+  assists         String             @default("ASSISTS_ALLOWED")
+  damageLevel     String             @default("STANDARD")
+  raceLength      String             @default("25%")
+  weather         String             @default("Dynamic")
+  rulesSummary    String?
+  scheduledAt     DateTime?
+  expiresAt       DateTime?
+  resultAppliedAt DateTime?
 
   playerAChoice        DuelCoinSide @default(HEADS)
   playerBChoice        DuelCoinSide @default(TAILS)
@@ -330,6 +333,7 @@ model Duel {
 
   createdBy     User               @relation("DuelCreator", fields: [createdById], references: [id], onDelete: Cascade)
   opponent      User?              @relation("DuelOpponent", fields: [opponentId], references: [id], onDelete: SetNull)
+  winner        User?              @relation("DuelWinner", fields: [winnerUserId], references: [id], onDelete: SetNull)
   community     OrganiserProfile?  @relation(fields: [communityId], references: [id], onDelete: SetNull)
   legs          DuelLeg[]
   confirmations DuelConfirmation[]
@@ -338,6 +342,8 @@ model Duel {
   @@index([visibility, status, createdAt])
   @@index([createdById, status])
   @@index([opponentId, status])
+  @@index([winnerUserId])
+  @@index([resultAppliedAt])
   @@index([communityId, status])
   @@index([status, ranked])
 }

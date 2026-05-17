@@ -2,7 +2,7 @@
 interface Props {
   title: string;
   subtitle: string;
-  active: 'dashboard' | 'users' | 'races' | 'communities' | 'disputes' | 'activity';
+  active: 'dashboard' | 'users' | 'races' | 'duels' | 'communities' | 'disputes' | 'activity';
 }
 
 const { title, subtitle, active } = Astro.props;
@@ -11,6 +11,7 @@ const links = [
   { key: 'dashboard', href: '/admin', label: 'Overview' },
   { key: 'users', href: '/admin/users', label: 'Users' },
   { key: 'races', href: '/admin/races', label: 'Races' },
+  { key: 'duels', href: '/admin/duels', label: 'Duels' },
   { key: 'communities', href: '/admin/communities', label: 'Communities' },
   { key: 'disputes', href: '/admin/disputes', label: 'Disputes' },
   { key: 'activity', href: '/admin/activity', label: 'Moderation' },
@@ -26,7 +27,7 @@ const links = [
     </div>
   </div>
 
-  <nav class="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+  <nav class="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-7">
     {links.map((item) => (
       <a
         href={item.href}

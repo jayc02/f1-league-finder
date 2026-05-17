@@ -38,11 +38,15 @@ export const duelListQuerySchema = z.object({
 });
 
 export const duelResultSchema = z.object({
-  winnerUserId: z.string().cuid(),
+  winnerUserId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
+  confirmedWinnerId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   leg1WinnerUserId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   leg2WinnerUserId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   playerATotalTimeMs: z.coerce.number().int().nonnegative().optional(),
   playerBTotalTimeMs: z.coerce.number().int().nonnegative().optional(),
   evidenceUrl: z.preprocess(emptyToUndefined, z.string().url().max(500).optional()),
   notes: z.preprocess(emptyToUndefined, z.string().trim().max(1000).optional()),
+}).refine((data) => Boolean(data.winnerUserId || data.confirmedWinnerId), {
+  path: ['winnerUserId'],
+  message: 'Winner is required.',
 });

@@ -30,3 +30,12 @@ export const adminDisputeEmailSchema = z.object({
   subject: z.string().min(6).max(180),
   body: z.string().min(20).max(4000),
 });
+
+export const adminDuelResolveSchema = z.object({
+  action: z.enum(['COMPLETED', 'CANCELLED', 'DISPUTED']),
+  winnerUserId: z.preprocess((value) => (value === '' || value === null ? undefined : value), z.string().cuid().optional()),
+  reason: z.string().trim().min(8, 'Admin reason is required.').max(2000),
+}).refine((data) => data.action !== 'COMPLETED' || Boolean(data.winnerUserId), {
+  path: ['winnerUserId'],
+  message: 'Choose a winner when completing a duel.',
+});
