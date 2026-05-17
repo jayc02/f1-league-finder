@@ -23,7 +23,6 @@ export default function HeroScene() {
 
       <div className="section-shell relative z-30 grid min-h-[78vh] items-end gap-10 pb-12 lg:grid-cols-[minmax(0,1fr)_minmax(340px,480px)] lg:items-center">
         <div className="space-y-7">
-          <p className="max-w-fit border border-white/20 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">Ranked 1v1 racing</p>
           <h1 className="max-w-4xl font-display text-5xl leading-[0.94] text-white md:text-7xl lg:text-8xl">
             Race 1v1.
             <span className="block">Prove it on track.</span>
