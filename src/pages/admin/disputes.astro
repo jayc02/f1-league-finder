@@ -4,7 +4,6 @@ import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import AdminShell from '@/components/admin/AdminShell.astro';
 import AdminDisputeManager from '@/components/admin/AdminDisputeManager';
 import { getSessionUser } from '@/lib/auth/session';
-import { getAdminDisputes } from '@/server/services/admin.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -17,13 +16,12 @@ const user = await withPerf('admin.disputes.session', () => getSessionUser(Astro
 if (!user) return Astro.redirect('/login');
 if (user.role !== 'ADMIN') return Astro.redirect('/dashboard');
 
-const disputes = await getAdminDisputes();
 if (shouldLogPerf()) console.info(`[perf] admin.disputes.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
 
 <BaseLayout noindex={true} sessionUser={user} lightweightApp={true} title="Admin Disputes | RaceHub">
   <section class="section-shell">
     <AdminShell title="Dispute Command" subtitle="End-to-end dispute moderation including lifecycle control, communication, and immutable operational history." active="disputes" />
-    <AdminDisputeManager client:load disputes={disputes.map((item) => ({ ...item, createdAt: item.createdAt.toISOString(), updatedAt: item.updatedAt.toISOString(), resolvedAt: item.resolvedAt?.toISOString() ?? null }))} />
+    <AdminDisputeManager client:load disputes={[]} />
   </section>
 </BaseLayout>

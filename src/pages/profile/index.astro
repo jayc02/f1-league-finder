@@ -36,14 +36,6 @@ if (shouldLogPerf()) {
         </div>
         <a href="/profile/edit" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Edit profile</a>
       </div>
-      <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Global Rank</p><p class="mt-2 font-display text-3xl">—</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Regional Rank</p><p class="mt-2 font-display text-3xl">—</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Skill Rating</p><p class="mt-2 font-display text-3xl">{user.skillRating}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Honour</p><p class="mt-2 font-display text-3xl">{user.honourScore}</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Starts</p><p class="mt-2 font-display text-3xl">—</p></div>
-        <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-400">Completed Races</p><p class="mt-2 font-display text-3xl">—</p></div>
-      </div>
     </div>
 
     <ProfileOverview client:load />
