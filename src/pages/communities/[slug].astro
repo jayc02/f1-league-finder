@@ -70,7 +70,7 @@ const canSeeCommunityOnly = Boolean(
 );
 
 const now = new Date();
-const [publicRaces, communityOnlyRaces, recentRaces] = community
+const [publicRaces, communityOnlyRaces, recentRaces, communityDuels] = community
   ? await withPerf('community.raceLists', () => Promise.all([
       prisma.raceSlot.findMany({
         where: { ...getPublicUpcomingRaceSlotWhere(), organiserProfileId: community.id },
@@ -102,8 +102,18 @@ const [publicRaces, communityOnlyRaces, recentRaces] = community
         orderBy: { scheduledAt: 'desc' },
         take: 4,
       }),
+      prisma.duel.findMany({
+        where: {
+          communityId: community.id,
+          visibility: canSeeCommunityOnly ? { in: ['PUBLIC', 'COMMUNITY_ONLY'] } : 'PUBLIC',
+          status: { in: ['OPEN', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED'] },
+        },
+        select: { id: true, status: true, track: true, game: true, ranked: true, scheduledAt: true, createdBy: { select: { username: true } }, opponent: { select: { username: true } } },
+        orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+        take: 6,
+      }),
     ]))
-  : [[], [], []];
+  : [[], [], [], []];
 
 const memberDisplay = community ? getCommunityMemberCountDisplay(community) : { count: 0, source: 'racehub' };
 const raceHubMembers = community?._count.members ?? 0;
@@ -206,6 +216,26 @@ const RaceCard = (event: (typeof publicRaces)[number]) => {
           </div>
         </article>
       </div>
+
+
+      <article class="panel mt-8 rounded-3xl p-5 md:p-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Community 1v1 arena</p>
+            <h2 class="font-display text-2xl">Hosted Duels</h2>
+          </div>
+          <a href="/duels/new" class="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Create community duel</a>
+        </div>
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+          {communityDuels.length ? communityDuels.map((duel) => (
+            <a href={`/duels/${duel.id}`} class="rounded-2xl border border-cyan-300/15 bg-cyan-500/[0.06] p-4 transition hover:border-cyan-200/45">
+              <p class="text-xs uppercase tracking-[0.16em] text-cyan-100/70">{duel.game} · {duel.status.replaceAll('_', ' ')}</p>
+              <h3 class="mt-1 font-semibold text-white">{duel.createdBy.username} vs {duel.opponent?.username ?? 'Open opponent'}</h3>
+              <p class="mt-1 text-sm text-slate-300">{duel.track} · {duel.ranked ? 'Ranked' : 'Unranked'} · {duel.scheduledAt ? new Date(duel.scheduledAt).toLocaleString() : 'Open challenge'}</p>
+            </a>
+          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300 md:col-span-2">No community duels are listed yet.</p>}
+        </div>
+      </article>
 
       <article class="panel mt-8 rounded-3xl p-5 md:p-6">
         <h2 class="font-display text-2xl">Recent events</h2>

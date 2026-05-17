@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -81,43 +81,68 @@ enum ModerationActionType {
   DISPUTE_RESOLUTION
 }
 
+enum DuelStatus {
+  OPEN
+  ACCEPTED
+  IN_PROGRESS
+  AWAITING_CONFIRMATION
+  COMPLETED
+  DISPUTED
+  CANCELLED
+  EXPIRED
+}
+
+enum DuelVisibility {
+  PUBLIC
+  COMMUNITY_ONLY
+  PRIVATE
+}
+
+enum DuelCoinSide {
+  HEADS
+  TAILS
+}
+
 model User {
-  id                String              @id @default(cuid())
-  username          String              @unique
-  email             String              @unique
+  id                String             @id @default(cuid())
+  username          String             @unique
+  email             String             @unique
   passwordHash      String
   eaIdTag           String?
   discordTag        String?
   psnTag            String?
   xboxTag           String?
   preferredPlatform PreferredPlatform?
-  region            Region              @default(GLOBAL)
+  region            Region             @default(GLOBAL)
   bio               String?
   avatarUrl         String?
-  role              Role                @default(PLAYER)
-  honourScore       Int                 @default(100)
-  skillRating       Int                 @default(1200)
+  role              Role               @default(PLAYER)
+  honourScore       Int                @default(100)
+  skillRating       Int                @default(1200)
   suspensionNote    String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
-  sessions            Session[]
-  organiserProfile    OrganiserProfile?
+  sessions                    Session[]
+  organiserProfile            OrganiserProfile?
   organiserProfileMemberships OrganiserProfileMember[]
-  leaguesOwned        League[]               @relation("LeagueOwner")
-  raceSlotsOrganised  RaceSlot[]             @relation("SlotOrganiser")
-  raceRegistrations   RaceRegistration[]
-  disputesOpened      Dispute[]              @relation("DisputeOpenedBy")
-  honourEvents        HonourEvent[]          @relation("HonourSubject")
-  honourEventsApplied HonourEvent[]          @relation("HonourAppliedBy")
-  moderationActions   ModerationAction[]     @relation("ModerationTarget")
-  adminActionsTaken   ModerationAction[]     @relation("ModerationAdmin")
-  resolvedDisputes    Dispute[]              @relation("DisputeResolvedBy")
-  disputeStatusLogs   DisputeStatusLog[]
-  disputeEmailsSent   DisputeEmailLog[]      @relation("DisputeEmailSender")
-  disputeEmailsReceived DisputeEmailLog[]    @relation("DisputeEmailRecipient")
-  resultEntries       RaceResultEntry[]
-  submittedResults    RaceResult[]
+  leaguesOwned                League[]                 @relation("LeagueOwner")
+  raceSlotsOrganised          RaceSlot[]               @relation("SlotOrganiser")
+  raceRegistrations           RaceRegistration[]
+  disputesOpened              Dispute[]                @relation("DisputeOpenedBy")
+  honourEvents                HonourEvent[]            @relation("HonourSubject")
+  honourEventsApplied         HonourEvent[]            @relation("HonourAppliedBy")
+  moderationActions           ModerationAction[]       @relation("ModerationTarget")
+  adminActionsTaken           ModerationAction[]       @relation("ModerationAdmin")
+  resolvedDisputes            Dispute[]                @relation("DisputeResolvedBy")
+  disputeStatusLogs           DisputeStatusLog[]
+  disputeEmailsSent           DisputeEmailLog[]        @relation("DisputeEmailSender")
+  disputeEmailsReceived       DisputeEmailLog[]        @relation("DisputeEmailRecipient")
+  resultEntries               RaceResultEntry[]
+  submittedResults            RaceResult[]
+  duelsCreated                Duel[]                   @relation("DuelCreator")
+  duelsAccepted               Duel[]                   @relation("DuelOpponent")
+  duelConfirmations           DuelConfirmation[]
 
   @@index([role])
   @@index([createdAt])
@@ -129,14 +154,14 @@ model User {
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  userId       String
-  tokenHash    String   @unique
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  lastSeenAt   DateTime @default(now())
-  ipAddress    String?
-  userAgent    String?
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -145,36 +170,37 @@ model Session {
 }
 
 model OrganiserProfile {
-  id                       String   @id @default(cuid())
-  userId                   String   @unique
-  slug                     String   @unique
-  displayName              String
-  shortDescription         String?
-  description              String?
-  brandingColor            String?
-  logoUrl                  String?
-  bannerUrl                String?
-  websiteUrl               String?
-  discordUrl               String?
-  redditUrl                String?
-  socials                  Json?
-  gameFocus                String?
-  platformFocus            PreferredPlatform?
-  region                   Region   @default(GLOBAL)
-  tags                     String[] @default([])
-  isPublic                 Boolean  @default(true)
-  featured                 Boolean  @default(false)
-  verified                 Boolean  @default(false)
-  displayedMemberCount     Int      @default(0)
-  memberCountSource        String   @default("manual")
-  memberCountLastSyncedAt  DateTime?
-  credibilityNotes         String?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                      String             @id @default(cuid())
+  userId                  String             @unique
+  slug                    String             @unique
+  displayName             String
+  shortDescription        String?
+  description             String?
+  brandingColor           String?
+  logoUrl                 String?
+  bannerUrl               String?
+  websiteUrl              String?
+  discordUrl              String?
+  redditUrl               String?
+  socials                 Json?
+  gameFocus               String?
+  platformFocus           PreferredPlatform?
+  region                  Region             @default(GLOBAL)
+  tags                    String[]           @default([])
+  isPublic                Boolean            @default(true)
+  featured                Boolean            @default(false)
+  verified                Boolean            @default(false)
+  displayedMemberCount    Int                @default(0)
+  memberCountSource       String             @default("manual")
+  memberCountLastSyncedAt DateTime?
+  credibilityNotes        String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   leagues   League[]
   raceSlots RaceSlot[]
+  duels     Duel[]
   members   OrganiserProfileMember[]
 
   @@index([isPublic, featured])
@@ -184,13 +210,13 @@ model OrganiserProfile {
 }
 
 model OrganiserProfileMember {
-  id                 String                         @id @default(cuid())
+  id                 String                       @id @default(cuid())
   organiserProfileId String
   userId             String
-  role               OrganiserProfileMemberRole     @default(MEMBER)
-  status             OrganiserProfileMemberStatus   @default(ACTIVE)
-  createdAt          DateTime                       @default(now())
-  updatedAt          DateTime                       @updatedAt
+  role               OrganiserProfileMemberRole   @default(MEMBER)
+  status             OrganiserProfileMemberStatus @default(ACTIVE)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
 
   organiserProfile OrganiserProfile @relation(fields: [organiserProfileId], references: [id], onDelete: Cascade)
   user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -218,45 +244,45 @@ model League {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  owner             User              @relation("LeagueOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  organiserProfile  OrganiserProfile? @relation(fields: [organiserProfileId], references: [id], onDelete: SetNull)
-  raceSlots         RaceSlot[]
+  owner            User              @relation("LeagueOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  organiserProfile OrganiserProfile? @relation(fields: [organiserProfileId], references: [id], onDelete: SetNull)
+  raceSlots        RaceSlot[]
 
   @@index([slug])
 }
 
 model RaceSlot {
-  id                   String          @id @default(cuid())
+  id                   String             @id @default(cuid())
   title                String
   track                String?
   eventNotes           String?
-  visibility           EventVisibility @default(PUBLIC)
+  visibility           EventVisibility    @default(PUBLIC)
   leagueId             String
   organiserId          String
   organiserProfileId   String?
   scheduledAt          DateTime
-  region               Region          @default(GLOBAL)
-  game                 String          @default("F1")
+  region               Region             @default(GLOBAL)
+  game                 String             @default("F1")
   platform             PreferredPlatform?
-  crossplay            Boolean         @default(false)
+  crossplay            Boolean            @default(false)
   formatDetails        String
   lobbySettings        Json?
   maxPlayers           Int
-  status               RaceSlotStatus  @default(DRAFT)
+  status               RaceSlotStatus     @default(DRAFT)
   registrationCutoffAt DateTime
   rulesSummary         String
   stakeTierMetadata    String?
   cancellationReason   String?
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  league           League            @relation(fields: [leagueId], references: [id], onDelete: Cascade)
-  organiser        User              @relation("SlotOrganiser", fields: [organiserId], references: [id], onDelete: Restrict)
-  organiserProfile OrganiserProfile? @relation(fields: [organiserProfileId], references: [id], onDelete: SetNull)
-  registrations    RaceRegistration[]
-  result           RaceResult?
-  disputes         Dispute[]
-  honourEvents     HonourEvent[]
+  league            League             @relation(fields: [leagueId], references: [id], onDelete: Cascade)
+  organiser         User               @relation("SlotOrganiser", fields: [organiserId], references: [id], onDelete: Restrict)
+  organiserProfile  OrganiserProfile?  @relation(fields: [organiserProfileId], references: [id], onDelete: SetNull)
+  registrations     RaceRegistration[]
+  result            RaceResult?
+  disputes          Dispute[]
+  honourEvents      HonourEvent[]
   moderationActions ModerationAction[]
 
   @@index([leagueId, scheduledAt])
@@ -270,6 +296,95 @@ model RaceSlot {
   @@index([status])
 }
 
+model Duel {
+  id          String         @id @default(cuid())
+  createdById String
+  opponentId  String?
+  communityId String?
+  status      DuelStatus     @default(OPEN)
+  visibility  DuelVisibility @default(PUBLIC)
+  ranked      Boolean        @default(true)
+
+  game         String
+  track        String
+  carClass     String?
+  platform     PreferredPlatform?
+  crossplay    Boolean            @default(true)
+  assists      String             @default("ASSISTS_ALLOWED")
+  damageLevel  String             @default("STANDARD")
+  raceLength   String             @default("25%")
+  weather      String             @default("Dynamic")
+  rulesSummary String?
+  scheduledAt  DateTime?
+  expiresAt    DateTime?
+
+  playerAChoice        DuelCoinSide @default(HEADS)
+  playerBChoice        DuelCoinSide @default(TAILS)
+  coinFlipValue        Int?
+  coinFlipWinnerUserId String?
+  leg1AdvantageUserId  String?
+  leg2AdvantageUserId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy     User               @relation("DuelCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  opponent      User?              @relation("DuelOpponent", fields: [opponentId], references: [id], onDelete: SetNull)
+  community     OrganiserProfile?  @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  legs          DuelLeg[]
+  confirmations DuelConfirmation[]
+
+  @@index([status, visibility, scheduledAt])
+  @@index([visibility, status, createdAt])
+  @@index([createdById, status])
+  @@index([opponentId, status])
+  @@index([communityId, status])
+  @@index([status, ranked])
+}
+
+model DuelLeg {
+  id              String    @id @default(cuid())
+  duelId          String
+  legNumber       Int
+  advantageUserId String?
+  winnerUserId    String?
+  playerAScore    Int?
+  playerBScore    Int?
+  playerATimeMs   Int?
+  playerBTimeMs   Int?
+  notes           String?
+  evidenceUrl     String?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  duel Duel @relation(fields: [duelId], references: [id], onDelete: Cascade)
+
+  @@unique([duelId, legNumber])
+  @@index([winnerUserId])
+  @@index([advantageUserId])
+}
+
+model DuelConfirmation {
+  id                 String   @id @default(cuid())
+  duelId             String
+  userId             String
+  confirmedWinnerId  String?
+  leg1WinnerId       String?
+  leg2WinnerId       String?
+  playerATotalTimeMs Int?
+  playerBTotalTimeMs Int?
+  evidenceUrl        String?
+  confirmedAt        DateTime @default(now())
+  notes              String?
+
+  duel Duel @relation(fields: [duelId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([duelId, userId])
+  @@index([userId])
+  @@index([confirmedWinnerId])
+}
 
 model RaceRegistration {
   id         String   @id @default(cuid())
@@ -288,17 +403,17 @@ model RaceRegistration {
 }
 
 model RaceResult {
-  id                String   @id @default(cuid())
-  raceSlotId        String   @unique
+  id                String    @id @default(cuid())
+  raceSlotId        String    @unique
   submittedById     String
   notes             String?
   evidenceUrl       String?
-  confirmationState String   @default("submitted")
-  submittedAt       DateTime @default(now())
+  confirmationState String    @default("submitted")
+  submittedAt       DateTime  @default(now())
   confirmedAt       DateTime?
   amendedAt         DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   raceSlot     RaceSlot          @relation(fields: [raceSlotId], references: [id], onDelete: Cascade)
   submittedBy  User              @relation(fields: [submittedById], references: [id], onDelete: Restrict)
@@ -334,19 +449,19 @@ model RaceResultEntry {
 }
 
 model Dispute {
-  id           String       @id @default(cuid())
-  raceSlotId   String
-  raceResultId String?
-  openedById   String
-  reason       String
-  details      String?
-  status       DisputeStatus @default(OPEN)
-  adminNotes   String?
+  id              String        @id @default(cuid())
+  raceSlotId      String
+  raceResultId    String?
+  openedById      String
+  reason          String
+  details         String?
+  status          DisputeStatus @default(OPEN)
+  adminNotes      String?
   resolutionNotes String?
-  resolvedAt   DateTime?
-  resolvedById String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  resolvedAt      DateTime?
+  resolvedById    String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   raceSlot   RaceSlot    @relation(fields: [raceSlotId], references: [id], onDelete: Cascade)
   raceResult RaceResult? @relation(fields: [raceResultId], references: [id], onDelete: SetNull)
@@ -354,8 +469,8 @@ model Dispute {
   resolvedBy User?       @relation("DisputeResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   moderationActions ModerationAction[]
-  statusLogs         DisputeStatusLog[]
-  emailLogs          DisputeEmailLog[]
+  statusLogs        DisputeStatusLog[]
+  emailLogs         DisputeEmailLog[]
 
   @@index([status, createdAt])
   @@index([openedById, createdAt])
@@ -363,13 +478,13 @@ model Dispute {
 }
 
 model DisputeStatusLog {
-  id          String        @id @default(cuid())
+  id          String         @id @default(cuid())
   disputeId   String
   fromStatus  DisputeStatus?
   toStatus    DisputeStatus
   note        String?
   changedById String
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime       @default(now())
 
   dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
   changedBy User    @relation(fields: [changedById], references: [id], onDelete: Restrict)
@@ -378,14 +493,14 @@ model DisputeStatusLog {
 }
 
 model DisputeEmailLog {
-  id          String   @id @default(cuid())
-  disputeId   String
-  sentById    String
-  recipientId String
+  id             String   @id @default(cuid())
+  disputeId      String
+  sentById       String
+  recipientId    String
   recipientEmail String
-  subject     String
-  bodyPreview String
-  createdAt   DateTime @default(now())
+  subject        String
+  bodyPreview    String
+  createdAt      DateTime @default(now())
 
   dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
   sentBy    User    @relation("DisputeEmailSender", fields: [sentById], references: [id], onDelete: Restrict)
@@ -419,7 +534,7 @@ model HonourEvent {
 }
 
 model ModerationAction {
-  id           String              @id @default(cuid())
+  id           String               @id @default(cuid())
   actionType   ModerationActionType
   targetUserId String
   adminId      String
@@ -427,11 +542,11 @@ model ModerationAction {
   raceSlotId   String?
   notes        String
   metadata     Json?
-  createdAt    DateTime            @default(now())
+  createdAt    DateTime             @default(now())
 
-  targetUser User     @relation("ModerationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
-  admin      User     @relation("ModerationAdmin", fields: [adminId], references: [id], onDelete: Restrict)
-  dispute    Dispute? @relation(fields: [disputeId], references: [id], onDelete: SetNull)
+  targetUser User      @relation("ModerationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  admin      User      @relation("ModerationAdmin", fields: [adminId], references: [id], onDelete: Restrict)
+  dispute    Dispute?  @relation(fields: [disputeId], references: [id], onDelete: SetNull)
   raceSlot   RaceSlot? @relation(fields: [raceSlotId], references: [id], onDelete: SetNull)
 
   @@index([targetUserId, createdAt])
