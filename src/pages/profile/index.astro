@@ -3,8 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 // import AccoladeBadge from '@/components/ui/AccoladeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
-import { prisma } from '@/lib/db/prisma';
-import { getRegionalRanks } from '@/server/services/leaderboard.service';
+import { getProfilePageData } from '@/server/services/profile.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -13,34 +12,10 @@ export const prerender = false;
 setAstroCache(Astro, privateNoStore);
 
 const routeStart = performance.now();
-const user = await withPerf('profile.sessionLookup', () => getSessionUser(Astro as never));
+const user = await withPerf('profile.session', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 
-const now = new Date();
-
-const [recentResults, upcomingRegistrations, starts, completedRaces, wins, podiums, cleanRaces, ranks, ownedCommunity] = await withPerf('profile.dataFetch', () =>
-  Promise.all([
-    prisma.raceResultEntry.findMany({
-      where: { userId: user.id },
-      select: { finishingPosition: true, pointsAwarded: true, raceResult: { select: { submittedAt: true, raceSlot: { select: { title: true, id: true } } } } },
-      orderBy: { raceResult: { submittedAt: 'desc' } },
-      take: 8,
-    }),
-    prisma.raceRegistration.findMany({
-      where: { userId: user.id, raceSlot: { scheduledAt: { gte: now } } },
-      select: { raceSlot: { select: { id: true, title: true, scheduledAt: true, league: { select: { name: true } } } } },
-      orderBy: { raceSlot: { scheduledAt: 'asc' } },
-      take: 4,
-    }),
-    prisma.raceRegistration.count({ where: { userId: user.id } }),
-    prisma.raceResultEntry.count({ where: { userId: user.id } }),
-    prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: 1 } }),
-    prisma.raceResultEntry.count({ where: { userId: user.id, finishingPosition: { lte: 3 } } }),
-    prisma.honourEvent.count({ where: { userId: user.id, type: 'CLEAN_RACE', delta: { gt: 0 } } }),
-    getRegionalRanks(user.id),
-    prisma.organiserProfile.findUnique({ where: { userId: user.id }, select: { displayName: true, slug: true } }),
-  ]),
-);
+const { recentResults, upcomingRegistrations, starts, completedRaces, wins, podiums, cleanRaces, ranks, ownedCommunity } = await withPerf('profile.firstRender', () => getProfilePageData(user.id));
 
 const winRate = starts ? Math.round((wins / starts) * 100) : 0;
 const podiumRate = starts ? Math.round((podiums / starts) * 100) : 0;

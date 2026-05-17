@@ -8,6 +8,7 @@ import {
   type User,
 } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
+import { withPerf } from '@/lib/utils/perf';
 
 const publicListableRaceStatuses = [RaceSlotStatus.OPEN, RaceSlotStatus.FULL, RaceSlotStatus.LOCKED] as const;
 const communityStaffRoles = [OrganiserProfileMemberRole.OWNER, OrganiserProfileMemberRole.ADMIN, OrganiserProfileMemberRole.MODERATOR] as const;
@@ -107,10 +108,10 @@ const getViewerCommunityAccess = async (viewer: Viewer, organiserProfileId: stri
   const isCommunityOwner = Boolean(communityOwnerId && communityOwnerId === viewer.id);
   if (!organiserProfileId) return { isActiveMember: false, isStaffOrOwner: isCommunityOwner, isPlatformAdmin: false };
 
-  const membership = await prisma.organiserProfileMember.findUnique({
+  const membership = await withPerf('raceSlot.communityAccess', () => prisma.organiserProfileMember.findUnique({
     where: { organiserProfileId_userId: { organiserProfileId, userId: viewer.id } },
     select: { role: true, status: true },
-  });
+  }));
   const isActiveMember = membership?.status === OrganiserProfileMemberStatus.ACTIVE;
   const isStaffOrOwner = isCommunityOwner || Boolean(isActiveMember && communityStaffRoles.includes(membership.role as never));
 
@@ -136,13 +137,13 @@ export type RaceSlotDetailAccessResult =
 
 export const getRaceSlotDetailForViewer = async ({ raceSlotId, viewerUserId }: { raceSlotId: string; viewerUserId?: string | null }): Promise<RaceSlotDetailAccessResult> => {
   const viewer = viewerUserId
-    ? await prisma.user.findUnique({ where: { id: viewerUserId }, select: { id: true, role: true } })
+    ? await withPerf('raceSlot.viewer', () => prisma.user.findUnique({ where: { id: viewerUserId }, select: { id: true, role: true } }))
     : null;
 
-  const raceSlot = await prisma.raceSlot.findUnique({
+  const raceSlot = await withPerf('raceSlot.query', () => prisma.raceSlot.findUnique({
     where: { id: raceSlotId },
     include: raceSlotDetailInclude,
-  });
+  }));
 
   if (!raceSlot) return { status: 'not_found' };
 

@@ -7,9 +7,10 @@ import HonourSystem from '@/components/sections/HonourSystem';
 import OrganiserShowcase from '@/components/sections/OrganiserShowcase.astro';
 import FeatureStrip from '@/components/sections/FeatureStrip';
 import FinalCTA from '@/components/sections/FinalCTA.astro';
-import { fetchFromApi } from '@/lib/server-api';
-import type { CommunitySummary, RaceSlotSummary } from '@/lib/api/types';
-import type { PublicUser } from '@/server/types/api';
+import { getPublicCommunitySummaries } from '@/server/services/community.service';
+import { getPublicRaceSlotSummaries } from '@/server/services/race-slot.service';
+import { getGlobalSkillLeaderboard, getHonourLeaderboard } from '@/server/services/leaderboard.service';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 import { absoluteUrl } from '@/lib/config';
 import { publicPageMedium, setAstroCache } from '@/lib/server/cache-control';
 
@@ -18,18 +19,19 @@ export const prerender = false;
 // Public cached route: homepage renders only public listings and leaderboard previews.
 setAstroCache(Astro, publicPageMedium);
 
-const [slotsResponse, featuredCommunitiesResponse, globalLb, honourLb] = await Promise.all([
-  fetchFromApi<{ raceSlots: RaceSlotSummary[] }>(Astro, '/api/race-slots?status=OPEN&limit=6').catch(() => ({ raceSlots: [] })),
-  fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?featured=1&limit=3').catch(() => ({ communities: [] })),
-  fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/global?limit=8').catch(() => ({ leaderboard: [] })),
-  fetchFromApi<{ leaderboard: PublicUser[] }>(Astro, '/api/leaderboards/honour?limit=8').catch(() => ({ leaderboard: [] })),
+const [raceSlots, featuredCommunities, globalLeaderboard, honourLeaderboard] = await Promise.all([
+  withPerf('home.raceSlots', () => getPublicRaceSlotSummaries({ status: 'OPEN', limit: 6 })),
+  withPerf('home.communities.featured', () => getPublicCommunitySummaries({ featuredOnly: true, limit: 3 })),
+  withPerf('home.leaderboard.global', () => getGlobalSkillLeaderboard(8)),
+  withPerf('home.leaderboard.honour', () => getHonourLeaderboard(8)),
 ]);
 
-const fallbackCommunitiesResponse = featuredCommunitiesResponse.communities.length
-  ? { communities: [] }
-  : await fetchFromApi<{ communities: CommunitySummary[] }>(Astro, '/api/communities?limit=3').catch(() => ({ communities: [] }));
-const showcaseCommunities = featuredCommunitiesResponse.communities.length ? featuredCommunitiesResponse.communities : fallbackCommunitiesResponse.communities;
-const showingFeaturedCommunities = featuredCommunitiesResponse.communities.length > 0;
+const fallbackCommunities = featuredCommunities.length
+  ? []
+  : await withPerf('home.communities.fallback', () => getPublicCommunitySummaries({ limit: 3 }));
+const showcaseCommunities = featuredCommunities.length ? featuredCommunities : fallbackCommunities;
+const showingFeaturedCommunities = featuredCommunities.length > 0;
+if (shouldLogPerf()) console.info('[perf] home.selfFetchRemoved: true');
 
 const structuredData = {
   '@context': 'https://schema.org',
@@ -51,7 +53,7 @@ const structuredData = {
 >
   <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
   <HeroScene client:idle />
-  <SlotShowcase client:idle raceSlots={slotsResponse.raceSlots} />
+  <SlotShowcase client:idle raceSlots={raceSlots} />
 
   <section class="section-shell pt-0" data-reveal>
     <div class="panel rounded-3xl p-6 md:p-8">
@@ -80,7 +82,7 @@ const structuredData = {
     </div>
   </section>
 
-  <LeaderboardPreview client:visible globalLeaderboard={globalLb.leaderboard} honourLeaderboard={honourLb.leaderboard} />
+  <LeaderboardPreview client:visible globalLeaderboard={globalLeaderboard} honourLeaderboard={honourLeaderboard} />
   <HonourSystem client:visible />
   <OrganiserShowcase />
   <FeatureStrip client:visible />

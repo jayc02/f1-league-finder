@@ -5,17 +5,19 @@ import AdminShell from '@/components/admin/AdminShell.astro';
 import AdminModerationFeed from '@/components/admin/AdminModerationFeed';
 import { getSessionUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
+import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
 // Private personalised route: dashboard/profile/admin HTML must never be public cached.
 setAstroCache(Astro, privateNoStore);
 
-const user = await getSessionUser(Astro as never);
+const routeStart = performance.now();
+const user = await withPerf('admin.activity.session', () => getSessionUser(Astro as never));
 if (!user) return Astro.redirect('/login');
 if (user.role !== 'ADMIN') return Astro.redirect('/dashboard');
 
-const [actions, disputes] = await Promise.all([
+const [actions, disputes] = await withPerf('admin.activity', () => Promise.all([
   prisma.moderationAction.findMany({
     include: {
       admin: { select: { username: true } },
@@ -24,7 +26,7 @@ const [actions, disputes] = await Promise.all([
       dispute: { select: { id: true, status: true } },
     },
     orderBy: { createdAt: 'desc' },
-    take: 80,
+    take: 50,
   }),
   prisma.dispute.findMany({
     where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } },
@@ -33,12 +35,14 @@ const [actions, disputes] = await Promise.all([
       raceSlot: { select: { id: true, title: true } },
     },
     orderBy: { createdAt: 'desc' },
-    take: 30,
+    take: 25,
   }),
-]);
+]));
+
+if (shouldLogPerf()) console.info(`[perf] admin.activity.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
 
-<BaseLayout noindex={true} sessionUser={user} title="Admin Moderation | RaceHub">
+<BaseLayout noindex={true} sessionUser={user} lightweightApp={true} title="Admin Moderation | RaceHub">
   <section class="section-shell">
     <AdminShell title="Moderation Activity" subtitle="Recent platform actions, dispute queues, and operational traceability for admin decisions." active="activity" />
     <AdminModerationFeed client:load actions={actions.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }))} disputes={disputes.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }))} />

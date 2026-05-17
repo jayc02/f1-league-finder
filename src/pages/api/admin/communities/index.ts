@@ -33,7 +33,7 @@ export const GET: APIRoute = (context) =>
         _count: { select: { raceSlots: true, leagues: true } },
       },
       orderBy: [{ featured: 'desc' }, { verified: 'desc' }, { updatedAt: 'desc' }],
-      take: getNumericLimit(context, 100, 300),
+      take: getNumericLimit(context, 50, 100),
     });
 
     return jsonResponse(200, { communities });

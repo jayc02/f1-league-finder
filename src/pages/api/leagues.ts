@@ -3,6 +3,7 @@ import type { APIRoute } from 'astro';
 import { assertAllowedOrigin } from '@/lib/server/origin-guard';
 import { publicApiShort } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
+import { getPublicLeagueSummaries } from '@/server/services/league.service';
 import { createLeagueSchema } from '@/lib/validation/league';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
@@ -10,13 +11,7 @@ import { requireOrganiserOrAdmin, requireUser } from '@/server/permissions/authz
 
 export const GET: APIRoute = () =>
   withErrorHandling(async () => {
-    const leagues = await prisma.league.findMany({
-      include: {
-        owner: { select: { id: true, username: true } },
-        _count: { select: { raceSlots: true } },
-      },
-      orderBy: [{ active: 'desc' }, { createdAt: 'desc' }],
-    });
+    const leagues = await getPublicLeagueSummaries();
 
     const response = jsonResponse(200, { leagues });
     response.headers.set('Cache-Control', publicApiShort);

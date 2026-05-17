@@ -20,7 +20,7 @@ export const GET: APIRoute = (context) =>
           dispute: { select: { id: true, status: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: getNumericLimit(context, 40, 200),
+        take: getNumericLimit(context, 50, 100),
       }),
       prisma.dispute.findMany({
         where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } },
@@ -29,7 +29,7 @@ export const GET: APIRoute = (context) =>
           raceSlot: { select: { id: true, title: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 20,
+        take: 25,
       }),
     ]);
 
