@@ -61,7 +61,8 @@ export default function SlotActionPanel({
   const disabled = isClosed || (!registered && isFull);
 
   return (
-    <div className="panel rounded-3xl p-6">
+    <>
+    <div className="panel rounded-3xl p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-display text-2xl text-white">Registration Control</h3>
         <span className={`rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.2em] ${statusStyle[status] ?? 'border-white/20 bg-white/10 text-white'}`}>
@@ -80,7 +81,7 @@ export default function SlotActionPanel({
         <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">Cutoff · {new Date(registrationCutoffAt).toLocaleString()}</p>
       </div>
 
-      <p className="mt-4 text-sm text-slate-300">Lock your place on the starting grid before registrations close.</p>
+      <p className="mt-4 hidden text-sm text-slate-300 md:block">Lock your place on the starting grid before registrations close.</p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <button
@@ -109,5 +110,29 @@ export default function SlotActionPanel({
 
       {message && <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200">{message}</p>}
     </div>
+
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 px-4 py-3 backdrop-blur-xl mobile-safe-bottom md:hidden">
+      <div className="mx-auto flex max-w-md gap-2">
+        <button
+          type="button"
+          disabled={pending || disabled || registered}
+          onClick={() => handle('register')}
+          className="min-h-12 flex-1 rounded-2xl bg-white px-4 text-sm font-bold text-black transition disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {pending ? 'Processing…' : registered ? 'Registered' : isFull ? 'Grid full' : 'Join grid'}
+        </button>
+        {registered && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => handle('unregister')}
+            className="min-h-12 rounded-2xl border border-white/25 bg-white/5 px-4 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Leave
+          </button>
+        )}
+      </div>
+    </div>
+    </>
   );
 }

@@ -68,13 +68,13 @@ const structuredData = {
       <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Community ladders</p>
-          <h2 class="mt-2 font-display text-3xl md:text-4xl">Clubs host 1v1 nights, ranked challenges, and private ladders.</h2>
+          <h2 class="mt-2 font-display text-3xl md:text-4xl">Communities</h2><p class="mt-2 text-sm text-slate-300 md:hidden">Join active clubs and race tonight.</p><h2 class="mt-2 hidden font-display text-4xl md:block">Clubs host 1v1 nights, ranked challenges, and private ladders.</h2>
         </div>
-        <a href="/communities" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-xs uppercase tracking-[0.18em] transition hover:border-white/40 hover:bg-white/10">Browse communities</a>
+        <a href="/communities" class="flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-xs uppercase tracking-[0.14em] transition hover:border-white/40 hover:bg-white/10 md:tracking-[0.18em]">Browse communities</a>
       </div>
-      <div class="mt-6 grid gap-4 md:grid-cols-3">
+      <div class="mobile-scroll-row mt-6 md:grid md:gap-4 md:overflow-visible md:grid-cols-3">
         {showcaseCommunities.length ? showcaseCommunities.map((community) => (
-          <a href={`/communities/${community.slug}`} class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35 hover:bg-white/[0.06]">
+          <a href={`/communities/${community.slug}`} class="mobile-scroll-card rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35 hover:bg-white/[0.06] md:min-w-0">
             <div class="flex items-center gap-3">
               <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
               <div>
@@ -82,7 +82,7 @@ const structuredData = {
                 <p class="text-xs text-slate-400">{community.region} · {community.platformFocus ?? 'Crossplay'}</p>
               </div>
             </div>
-            <p class="mt-3 text-sm text-slate-300">{community.shortDescription ?? 'Organiser-led 1v1 racing community.'}</p>
+            <p class="mt-3 text-sm text-slate-300 line-clamp-1 md:line-clamp-2">{community.shortDescription ?? 'Organiser-led 1v1 racing community.'}</p>
             <p class="mt-3 text-xs uppercase tracking-[0.14em] text-slate-500">{community.displayedMemberCount.toLocaleString()} members · {community._count.raceSlots} active challenges</p>
           </a>
         )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No community ladders are available yet. Browse public communities to find organisers.</p>}

@@ -181,22 +181,22 @@ export default function ProfileOverview() {
     <div className="mt-6" aria-live="polite">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {overview ? [
-          ['Global Rank', overview.stats.rank ? `#${overview.stats.rank}` : '—'],
-          ['Regional Rank', overview.stats.regionalRank ? `#${overview.stats.regionalRank}` : '—'],
-          ['Skill Rating', overview.stats.skillRating ?? '—'],
+          ['SR', overview.stats.skillRating ?? '—'],
           ['Honour', overview.stats.honourScore ?? '—'],
+          ['Global Rank', overview.stats.rank ? `#${overview.stats.rank}` : '—'],
+          ['Completed', overview.stats.completedRaces],
+          ['Regional Rank', overview.stats.regionalRank ? `#${overview.stats.regionalRank}` : '—'],
           ['Starts', overview.stats.starts],
-          ['Completed Races', overview.stats.completedRaces],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+        ].map(([label, value], index) => (
+          <div key={label} className={`rounded-2xl border border-white/10 bg-black/25 p-4 ${index > 3 ? 'hidden md:block' : ''}`}>
             <p className="text-xs text-slate-400">{label}</p>
             <p className="mt-2 font-display text-3xl">{value}</p>
           </div>
-        )) : Array.from({ length: 6 }, (_, index) => <SkeletonCard key={index} label="summary" />)}
+        )) : Array.from({ length: 4 }, (_, index) => <SkeletonCard key={index} label="summary" />)}
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <article className="panel min-h-[220px] rounded-3xl p-6">
+        <article className="panel hidden min-h-[220px] rounded-3xl p-6 md:block">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-2xl">Profile Status</h2>
             <p className="text-xs uppercase tracking-[0.16em] text-slate-400">{isLoading ? 'syncing' : 'live'}</p>
