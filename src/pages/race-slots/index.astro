@@ -41,7 +41,7 @@ const progressTone = (status: string) => {
 <BaseLayout title="Race slots | RaceHub">
   <section class="relative isolate overflow-hidden bg-black">
     <div class="pointer-events-none absolute inset-x-0 top-0 h-[min(560px,70vh)] -z-20 bg-black" aria-hidden="true"></div>
-    <video class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(560px,70vh)] w-full object-cover object-center opacity-45" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+    <video class="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden h-[min(560px,70vh)] w-full object-cover object-center opacity-45 md:block" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
       <source src="/videos/raceslot.mp4" type="video/mp4" />
     </video>
     <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(560px,70vh)] bg-gradient-to-b from-black/80 via-black/70 to-black"></div>
@@ -51,7 +51,7 @@ const progressTone = (status: string) => {
       <div class="rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-black/55 to-black/80 p-5 shadow-[0_34px_90px_rgba(0,0,0,0.75)] backdrop-blur-xl md:p-8">
         <p class="text-xs uppercase tracking-[0.24em] text-rose-100/80">Event calendar</p>
         <h1 class="section-title mt-3">Race Slots</h1>
-        <p class="mt-3 max-w-3xl text-sm text-slate-200">Browse upcoming grids, lock your seat, and track competitive events with premium race-day clarity and high-contrast scanning.</p>
+        <p class="mt-3 max-w-3xl text-sm text-slate-200 line-clamp-1 md:line-clamp-none">Browse upcoming grids, lock your seat, and race.</p>
       </div>
 
       <div class="mt-7 grid gap-5 lg:grid-cols-2">
@@ -77,23 +77,24 @@ const progressTone = (status: string) => {
                 </span>
               </div>
 
-              <div class="mt-4 grid gap-2 text-sm text-slate-200 md:grid-cols-2">
+              <div class="mt-4 grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
                 <p class="rounded-xl border border-white/15 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-400">Scheduled</span>{new Date(slot.scheduledAt).toLocaleString()}</p>
-                <p class="rounded-xl border border-white/15 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-400">Cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
-                <p class="rounded-xl border border-cyan-300/20 bg-cyan-500/10 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-cyan-100/70">Region / Platform</span>{slot.region} · {slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
+                <p class="hidden rounded-xl border border-white/15 bg-black/35 px-3 py-2 md:block"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-400">Cutoff</span>{new Date(slot.registrationCutoffAt).toLocaleString()}</p>
+                <p class="hidden rounded-xl border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 md:block"><span class="block text-[11px] uppercase tracking-[0.14em] text-cyan-100/70">Region / Platform</span>{slot.region} · {slot.crossplay ? 'Crossplay' : slot.platform ?? 'TBD'}</p>
                 <p class="rounded-xl border border-violet-300/20 bg-violet-500/10 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-violet-100/70">Organiser</span>{slot.organiserProfile?.displayName ?? slot.organiser.username}</p>
-                <p class="rounded-xl border border-white/15 bg-black/35 px-3 py-2 md:col-span-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-400">Track / visibility</span>{slot.track ?? 'Track TBA'} · {slot.visibility}</p>
+                <p class="rounded-xl border border-white/15 bg-black/35 px-3 py-2 sm:col-span-2"><span class="block text-[11px] uppercase tracking-[0.14em] text-slate-400">Track</span>{slot.track ?? 'Track TBA'}<span class="hidden md:inline"> · {slot.visibility}</span></p>
               </div>
 
               <div class="mt-4 rounded-2xl border border-white/15 bg-black/40 p-3">
-                <div class="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-300">
-                  <p>Grid filled</p>
+                <div class="flex items-center justify-between text-xs uppercase tracking-[0.14em] text-slate-300">
+                  <p>Grid</p>
                   <p>{slot._count.registrations}/{slot.maxPlayers}</p>
                 </div>
                 <div class="mt-2 h-2.5 rounded-full bg-white/10">
                   <div class:list={['h-full rounded-full bg-gradient-to-r', progressTone(slot.status)]} style={`width:${filled}%`} />
                 </div>
               </div>
+              <span class="mt-4 flex min-h-11 items-center justify-center rounded-2xl bg-white text-sm font-bold text-black md:hidden">{slot.status === 'OPEN' ? 'Join grid' : 'View race'}</span>
             </a>
           );
         }) : <p class="panel rounded-2xl p-6 text-slate-200">No race slots found yet.</p>}
