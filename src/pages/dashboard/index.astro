@@ -22,15 +22,17 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.shell: ${(performance.now() 
       <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Command center</p>
       <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 class="section-title">Driver Hub · {user.username}</h1>
-          <p class="mt-2 text-sm text-slate-300">Track momentum and stay race-ready across every championship slot.</p>
+          <h1 class="section-title">What do you want to do?</h1>
+          <p class="mt-2 text-sm text-slate-300 line-clamp-1 md:line-clamp-none">Jump into a duel, race, community, or profile.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <a href="/profile/edit" class="rounded-full border border-white/20 bg-white/5 px-5 py-2 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit profile</a>
-          <a href="/dashboard/community" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Community hub</a>
+        <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <a href="/duels/new" class="flex min-h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black">Create duel</a>
+          <a href="/dashboard/community" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Manage community</a>
+          <a href="/race-slots" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">My races</a>
+          <a href="/profile/edit" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit profile</a>
         </div>
       </div>
-      <div class="mt-6 grid gap-3 sm:grid-cols-2">
+      <div class="mt-6 grid gap-3 sm:grid-cols-2 md:max-w-md">
         <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Skill Rating</p><p class="mt-2 font-display text-3xl">{user.skillRating}</p></div>
         <div class="rounded-2xl border border-white/10 bg-black/20 p-4"><p class="text-xs text-slate-400">Honour</p><p class="mt-2 font-display text-3xl">{user.honourScore}</p></div>
       </div>

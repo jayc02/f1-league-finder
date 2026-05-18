@@ -33,7 +33,7 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
 ---
 
 <BaseLayout noindex={duel?.visibility !== 'PUBLIC'} sessionUser={currentUser} title={duel ? `${duel.createdBy.username} vs ${duel.opponent?.username ?? 'Open'} | RaceHub Duels` : 'Duel | RaceHub'}>
-  <section class="section-shell">
+  <section class="section-shell pb-28 md:pb-24">
     {duel ? (
       <>
         <div class="rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-black/55 to-black/85 p-5 shadow-[0_34px_90px_rgba(0,0,0,0.75)] md:p-8">
@@ -47,7 +47,7 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
           </div>
         </div>
 
-        <div class="mt-7 grid gap-5 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+        <div class="mt-7 grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch lg:gap-5">
           <article class="rounded-3xl border border-amber-300/25 bg-gradient-to-br from-amber-500/15 via-white/[0.05] to-black/70 p-5">
             <p class="text-xs uppercase tracking-[0.18em] text-amber-100/70">Heads · Player A</p>
             <div class="mt-4 flex items-center gap-4">
@@ -55,7 +55,7 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
               <div><h2 class="font-display text-3xl text-white">{playerA?.username}</h2><p class="text-sm text-slate-300">SR {playerA?.skillRating} · Honour {playerA?.honourScore}</p></div>
             </div>
           </article>
-          <div class="grid place-items-center rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-5 font-display text-4xl text-white shadow-[0_0_50px_rgba(255,255,255,0.08)]">VS</div>
+          <div class="grid place-items-center rounded-3xl border border-white/15 bg-white/[0.04] px-8 py-3 font-display text-3xl text-white shadow-[0_0_50px_rgba(255,255,255,0.08)] lg:py-5 lg:text-4xl">VS</div>
           <article class="rounded-3xl border border-cyan-300/25 bg-gradient-to-br from-cyan-500/15 via-white/[0.05] to-black/70 p-5 lg:text-right">
             <p class="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Tails · Player B</p>
             {playerB ? (
@@ -70,8 +70,8 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
         <div class="mt-6">
           <CoinFlipBar client:load value={duel.coinFlipValue} headsLabel={playerA?.username ?? 'Player A'} tailsLabel={playerB?.username ?? 'Player B'} winnerSide={winnerSide} animated={true} />
           {duel.coinFlipValue !== null && (
-            <p class="mt-3 rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-              {winnerSide === 'HEADS' ? playerA?.username : playerB?.username} wins the flip and starts ahead in Leg 1. Leg 2 reverses advantage to {leg2AdvantageName}.
+            <p class="mt-3 rounded-2xl border border-emerald-300/25 bg-emerald-500/10 p-3 text-sm text-emerald-100 line-clamp-2 md:p-4 md:line-clamp-none">
+              <span class="font-semibold text-white">{winnerSide === 'HEADS' ? playerA?.username : playerB?.username}</span> wins Leg 1 advantage. Leg 2 flips to {leg2AdvantageName}.
             </p>
           )}
         </div>
@@ -129,13 +129,25 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
             )}
 
             <article class="panel rounded-3xl p-5">
-              <h2 class="font-display text-2xl">Rules Strip</h2>
+              <details class="group" open>
+                <summary class="cursor-pointer list-none font-display text-2xl text-white">Race rules <span class="float-right text-sm text-slate-400 md:hidden">Tap</span></summary>
               <div class="mt-4 grid gap-2 text-sm text-slate-300">
                 <p>Platform: {duel.crossplay ? 'Crossplay' : duel.platform ?? 'Any'}</p><p>Assists: {duel.assists.replaceAll('_', ' ')}</p><p>Damage: {duel.damageLevel}</p><p>Community: {duel.community?.displayName ?? 'Public arena'}</p>
               </div>
-              {duel.rulesSummary && <p class="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">{duel.rulesSummary}</p>}
+              {duel.rulesSummary && <p class="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300 line-clamp-3 md:line-clamp-none">{duel.rulesSummary}</p>}
+              </details>
             </article>
           </aside>
+        </div>
+        <div class="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 px-4 py-3 backdrop-blur-xl mobile-safe-bottom md:hidden">
+          <div class="mx-auto flex max-w-md gap-2">
+            {!currentUser && <a href="/login" class="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-white px-4 text-sm font-bold text-black">Sign in</a>}
+            {canAccept && <button data-duel-action="accept" class="min-h-12 flex-1 rounded-2xl bg-emerald-300 px-4 text-sm font-bold text-black">Accept challenge</button>}
+            {canSubmitResult && <a href="#duel-result-form" class="flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-white px-4 text-sm font-bold text-black">Submit result</a>}
+            {duel.status === 'COMPLETED' && <a href="#duel-result-form" class="flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-500/15 px-4 text-sm font-bold text-emerald-100">View result</a>}
+            {canCancel && <button data-duel-action="cancel" class="min-h-12 rounded-2xl border border-rose-300/35 bg-rose-500/15 px-4 text-sm font-bold text-rose-100">Cancel</button>}
+            {currentUser && !canAccept && !canSubmitResult && duel.status !== 'COMPLETED' && <a href="/duels" class="flex min-h-12 flex-1 items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-bold text-white">More duels</a>}
+          </div>
         </div>
       </>
     ) : (
