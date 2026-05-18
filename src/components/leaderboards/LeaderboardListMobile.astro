@@ -1,0 +1,11 @@
+---
+import LeaderboardRowMobile from './LeaderboardRowMobile.astro';
+interface Props { entries: any[]; }
+const { entries } = Astro.props;
+const topThree = entries.slice(0, 3);
+const remaining = entries.slice(3);
+---
+<div class="mt-6 space-y-2 md:hidden">
+  {topThree.map((entry) => <LeaderboardRowMobile entry={entry} podium />)}
+  {remaining.map((entry) => <LeaderboardRowMobile entry={entry} />)}
+</div>

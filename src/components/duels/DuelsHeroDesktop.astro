@@ -1,0 +1,24 @@
+---
+interface Props { openCount: number; activeCount: number; completedCount: number; }
+const { openCount, activeCount, completedCount } = Astro.props;
+---
+<section class="hidden md:block">
+  <div class="rounded-3xl border border-white/20 bg-gradient-to-br from-white/[0.12] via-black/70 to-black/90 p-8 shadow-[0_34px_90px_rgba(0,0,0,0.75)] backdrop-blur-xl">
+    <p class="text-xs uppercase tracking-[0.24em] text-cyan-100/80">RaceHub head-to-head</p>
+    <div class="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <h1 class="section-title">1v1 Duels</h1>
+        <p class="mt-3 max-w-3xl text-sm text-slate-200">Create or accept two-leg racing challenges with a coin flip advantage.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/duels/new" class="flex min-h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-slate-200">Create challenge</a>
+        <a href="/race-slots" class="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm text-white transition hover:border-white/40">Race Slots</a>
+      </div>
+    </div>
+  </div>
+  <div class="mt-6 grid grid-cols-3 gap-4">
+    <div class="rounded-3xl border border-emerald-300/20 bg-emerald-500/10 p-5"><p class="text-xs uppercase tracking-[0.18em] text-emerald-100/70">Open challenges</p><p class="mt-2 font-display text-4xl text-white">{openCount}</p></div>
+    <div class="rounded-3xl border border-cyan-300/20 bg-cyan-500/10 p-5"><p class="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Accepted / active</p><p class="mt-2 font-display text-4xl text-white">{activeCount}</p></div>
+    <div class="rounded-3xl border border-sky-300/20 bg-sky-500/10 p-5"><p class="text-xs uppercase tracking-[0.18em] text-sky-100/70">Recently completed</p><p class="mt-2 font-display text-4xl text-white">{completedCount}</p></div>
+  </div>
+</section>

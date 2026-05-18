@@ -1,0 +1,16 @@
+---
+import { getHonourGrade, type HonourGrade } from '@/lib/honour';
+
+interface Props {
+  score?: number | null;
+  grade?: HonourGrade;
+  showLabel?: boolean;
+  class?: string;
+}
+
+const props = Astro.props;
+const computed = props.grade ? { grade: props.grade, label: `Honour ${props.grade}`, tone: getHonourGrade({ D: 0, C: 60, B: 90, A: 115, S: 140 }[props.grade]).tone } : getHonourGrade(props.score);
+---
+<span class:list={['rh-badge rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]', computed.tone, props.class]} title={computed.label}>
+  {props.showLabel ? computed.label : computed.grade}
+</span>

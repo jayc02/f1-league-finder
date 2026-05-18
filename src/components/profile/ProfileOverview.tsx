@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 import { PROFILE_OVERVIEW_CACHE_KEY } from '@/lib/profile-overview-cache';
+import { getHonourGrade } from '@/lib/honour';
 
 const PROFILE_OVERVIEW_TTL_MS = 30_000;
 
@@ -182,7 +183,7 @@ export default function ProfileOverview() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {overview ? [
           ['SR', overview.stats.skillRating ?? '—'],
-          ['Honour', overview.stats.honourScore ?? '—'],
+          ['Honour', overview.stats.honourScore == null ? '—' : getHonourGrade(overview.stats.honourScore).label],
           ['Global Rank', overview.stats.rank ? `#${overview.stats.rank}` : '—'],
           ['Completed', overview.stats.completedRaces],
           ['Regional Rank', overview.stats.regionalRank ? `#${overview.stats.regionalRank}` : '—'],

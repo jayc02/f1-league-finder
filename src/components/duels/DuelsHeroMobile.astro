@@ -1,0 +1,15 @@
+---
+interface Props { openCount: number; activeCount: number; completedCount: number; }
+const { openCount, activeCount, completedCount } = Astro.props;
+---
+<section class="md:hidden">
+  <div class="rounded-[1.75rem] border border-white/15 bg-gradient-to-br from-white/[0.12] via-black/70 to-black/95 p-5 shadow-[0_28px_80px_rgba(0,0,0,.65)]">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100/80">RaceHub head-to-head</p>
+    <h1 class="mt-3 font-display text-5xl leading-none text-white">1v1 Duels</h1>
+    <p class="mt-3 text-base text-slate-200">Two-leg races. One winner.</p>
+    <a href="/duels/new" class="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-white px-5 text-sm font-black uppercase tracking-[0.12em] text-black">Create challenge</a>
+  </div>
+  <div class="mt-4 rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-slate-100">
+    <span>Open {openCount}</span><span class="px-2 text-slate-500">·</span><span>Active {activeCount}</span><span class="px-2 text-slate-500">·</span><span>Completed {completedCount}</span>
+  </div>
+</section>

@@ -41,7 +41,7 @@ const progressTone = (status: string) => {
 <BaseLayout title="Race slots | RaceHub">
   <section class="relative isolate overflow-hidden bg-black">
     <div class="pointer-events-none absolute inset-x-0 top-0 h-[min(560px,70vh)] -z-20 bg-black" aria-hidden="true"></div>
-    <video class="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden h-[min(560px,70vh)] w-full object-cover object-center opacity-45 md:block" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+    <video class="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden h-[min(560px,70vh)] w-full object-cover object-center opacity-45 md:block" autoplay muted loop playsinline preload="metadata" poster="/og/racehub-default.svg" aria-hidden="true" data-bg-video>
       <source src="/videos/raceslot.mp4" type="video/mp4" />
     </video>
     <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[min(560px,70vh)] bg-gradient-to-b from-black/80 via-black/70 to-black"></div>

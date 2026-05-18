@@ -166,3 +166,7 @@ body::before {
     background-size: 62px 62px;
   }
 }
+
+.mobile-menu-open body {
+  overflow: hidden;
+}
