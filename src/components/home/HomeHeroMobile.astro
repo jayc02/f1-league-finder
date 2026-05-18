@@ -1,12 +1,12 @@
 ---
 const ruleChips = ['Same car', 'Same track', 'Ranked'];
 ---
-<section class="relative isolate min-h-[720px] overflow-hidden bg-black px-5 pb-16 pt-5 md:hidden" id="top">
-  <div class="absolute inset-0 z-0 bg-[url('/og/racehub-default.svg')] bg-cover bg-center opacity-20" aria-hidden="true"></div>
-  <video autoplay muted loop playsinline webkit-playsinline preload="metadata" poster="/og/racehub-default.svg" class="absolute inset-0 z-10 h-full w-full object-cover object-center opacity-75" data-bg-video aria-hidden="true">
+<section class="relative isolate min-h-[calc(100svh-4.75rem)] overflow-hidden bg-black px-5 pb-20 pt-5 md:hidden" id="top">
+  <video autoplay muted loop playsinline webkit-playsinline preload="metadata" class="absolute inset-0 z-0 h-full w-full object-cover object-center" data-bg-video aria-hidden="true">
     <source src="/videos/output.mp4" type="video/mp4" />
   </video>
-  <div class="absolute inset-0 z-20 bg-gradient-to-b from-black/25 via-black/20 to-black/70" aria-hidden="true"></div>
+  <div class="absolute inset-0 z-10 bg-gradient-to-b from-black/45 via-black/30 to-black/80" aria-hidden="true"></div>
+  <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-32 bg-gradient-to-b from-transparent to-black" aria-hidden="true"></div>
   <div class="relative z-30 mx-auto max-w-md overflow-hidden [text-shadow:0_2px_18px_rgba(0,0,0,.65)]">
     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/80">Ranked 1v1 racing</p>
     <h1 class="mt-4 max-w-full font-display text-5xl leading-none text-white min-[390px]:text-6xl">
