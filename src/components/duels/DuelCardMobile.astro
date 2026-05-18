@@ -1,0 +1,19 @@
+---
+import HonourGradeBadge from '@/components/ui/HonourGradeBadge.astro';
+interface Props { duel: any; statusTone: Record<string, string>; }
+const { duel, statusTone } = Astro.props;
+---
+<a href={`/duels/${duel.id}`} class="block w-full max-w-full overflow-hidden rounded-[1.5rem] border border-white/15 bg-gradient-to-br from-white/[0.09] via-black/70 to-black/95 p-4 shadow-[0_18px_55px_rgba(0,0,0,.55)] transition hover:border-white/35 md:hidden">
+  <div class="flex items-center gap-2 overflow-hidden">
+    <span class:list={['rh-badge rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em]', statusTone[duel.status] ?? 'border-white/20 bg-white/10 text-white']}>{duel.status.replaceAll('_', ' ')}</span>
+    <span class="rh-badge rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-cyan-100">{duel.ranked ? 'Ranked' : 'Unranked'}</span>
+    <HonourGradeBadge score={duel.createdBy.honourScore} />
+  </div>
+  <div class="mt-4 min-w-0">
+    <p class="truncate text-xl font-bold text-white">{duel.createdBy.username}</p>
+    <p class="my-1 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">vs</p>
+    <p class="truncate text-xl font-bold text-white">{duel.opponent?.username ?? 'Open opponent'}</p>
+  </div>
+  <p class="mt-4 truncate text-sm text-slate-300">{duel.track} · {duel.game} · Two legs</p>
+  <span class="mt-4 flex min-h-11 w-full items-center justify-center rounded-2xl bg-white px-4 text-sm font-black uppercase tracking-[0.12em] text-black">{duel.status === 'OPEN' ? 'Accept' : 'View duel'}</span>
+</a>

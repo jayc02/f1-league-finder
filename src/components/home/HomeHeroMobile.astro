@@ -1,0 +1,36 @@
+---
+const ruleChips = ['Same car', 'Same track', 'Ranked'];
+---
+<section class="relative isolate overflow-hidden px-5 pb-10 pt-5 md:hidden" id="top">
+  <div class="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_18%_5%,rgba(225,6,0,.28),transparent_34%),radial-gradient(circle_at_85%_8%,rgba(34,211,238,.22),transparent_32%),linear-gradient(180deg,#050505_0%,#020202_72%,#000_100%)]" aria-hidden="true"></div>
+  <div class="pointer-events-none absolute -right-20 top-20 -z-10 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" aria-hidden="true"></div>
+  <div class="mx-auto max-w-md overflow-hidden">
+    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/80">Ranked 1v1 racing</p>
+    <h1 class="mt-4 max-w-full font-display text-5xl leading-none text-white min-[390px]:text-6xl">
+      Race 1v1.
+      <span class="block text-white">Prove it.</span>
+    </h1>
+    <p class="mt-4 max-w-xs text-base leading-6 text-slate-200">Challenge drivers. Confirm results. Climb ranks.</p>
+    <div class="mt-5 grid grid-cols-2 gap-3">
+      <a href="/duels" class="flex min-h-12 items-center justify-center rounded-2xl bg-white px-4 text-sm font-bold uppercase tracking-[0.1em] text-black">Find a duel</a>
+      <a href="/duels/new" class="flex min-h-12 items-center justify-center rounded-2xl border border-white/20 bg-white/8 px-4 text-sm font-bold uppercase tracking-[0.1em] text-white">Create challenge</a>
+    </div>
+    <div class="mt-4 flex max-w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {ruleChips.map((chip) => <span class="rh-badge rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-slate-200 backdrop-blur">{chip}</span>)}
+    </div>
+
+    <article class="mt-7 w-full max-w-full overflow-hidden rounded-[1.75rem] border border-cyan-200/15 bg-gradient-to-br from-white/[0.11] via-black/70 to-black/95 p-4 shadow-[0_24px_70px_rgba(0,0,0,.6),0_0_35px_rgba(34,211,238,.08)]">
+      <div class="flex items-center justify-between gap-3">
+        <p class="min-w-0 truncate text-xs font-bold uppercase tracking-[0.16em] text-slate-300">Open challenge</p>
+        <span class="rh-badge rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100">Ranked</span>
+      </div>
+      <div class="mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+        <div class="min-w-0"><p class="truncate font-display text-2xl text-white">magicmonkey</p><p class="mt-1 text-xs text-slate-300">1280 SR</p></div>
+        <div class="shrink-0 rounded-full border border-redline/60 bg-redline/25 px-3 py-2 font-display text-sm text-white shadow-[0_0_26px_rgba(181,31,47,.4)]">VS</div>
+        <div class="min-w-0 text-right"><p class="truncate font-display text-2xl text-white">peanut05</p><p class="mt-1 text-xs text-slate-300">1215 SR</p></div>
+      </div>
+      <p class="mt-4 truncate rounded-2xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-slate-200">Monza · 1v1 · Open</p>
+      <a href="/duels" class="mt-4 flex min-h-12 w-full items-center justify-center rounded-2xl bg-white px-5 text-sm font-black uppercase tracking-[0.14em] text-black">Accept challenge</a>
+    </article>
+  </div>
+</section>

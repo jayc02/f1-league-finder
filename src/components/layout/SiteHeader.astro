@@ -18,7 +18,7 @@ const appNav = [
 ];
 ---
 
-<header class="fixed left-0 top-0 z-50 w-full border-b border-white/[0.05] bg-black/35 backdrop-blur-xl" data-header>
+<header class="fixed left-0 top-0 z-[90] w-full border-b border-white/[0.05] bg-black/35 backdrop-blur-xl" data-header>
   <div class="mx-auto flex w-[min(1280px,94vw)] items-center justify-between gap-3 py-3 md:py-4">
     <a href="/" data-astro-prefetch="hover" class="font-display text-base tracking-[0.2em] text-white sm:text-lg sm:tracking-[0.24em]">RaceHub</a>
 
@@ -32,8 +32,9 @@ const appNav = [
 
     <button
       type="button"
-      class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/[0.06] text-white lg:hidden"
+      class="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/[0.06] text-white lg:hidden"
       aria-label="Open navigation"
+      aria-expanded="false"
       data-mobile-menu-toggle
     >
       <span class="sr-only">Open navigation</span>
@@ -41,7 +42,9 @@ const appNav = [
     </button>
   </div>
 
-  <div class="hidden border-t border-white/10 bg-black/90 px-3 py-4 lg:hidden" data-mobile-menu>
+  <div class="fixed inset-0 z-[80] hidden bg-black/55 backdrop-blur-sm lg:hidden" data-mobile-menu-backdrop></div>
+
+  <div class="pointer-events-auto fixed inset-x-3 top-[4.5rem] z-[100] hidden rounded-3xl border border-white/15 bg-black/95 px-3 py-4 shadow-[0_28px_80px_rgba(0,0,0,.75)] lg:hidden" data-mobile-menu>
     <nav class="grid gap-2">
       {appNav.map((item) => (
         <a href={item.href} data-astro-prefetch={['/duels', '/race-slots', '/communities', '/leaderboards', '/leagues'].includes(item.href) ? 'hover' : undefined} class="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 transition hover:border-white/30 hover:bg-white/10">{item.label}</a>
@@ -68,18 +71,67 @@ const appNav = [
 </header>
 
 <script>
-  const toggle = document.querySelector('[data-mobile-menu-toggle]');
-  const menu = document.querySelector('[data-mobile-menu]');
-  const logoutButton = document.querySelector('[data-mobile-logout]');
+  function initRaceHubMobileMenu() {
+    const toggle = document.querySelector('[data-mobile-menu-toggle]');
+    const menu = document.querySelector('[data-mobile-menu]');
+    const backdrop = document.querySelector('[data-mobile-menu-backdrop]');
+    const logoutButton = document.querySelector('[data-mobile-logout]');
 
-  toggle?.addEventListener('click', () => {
-    menu?.classList.toggle('hidden');
-  });
+    if (!toggle || !menu) return;
 
-  logoutButton?.addEventListener('click', async (event) => {
-    event.preventDefault();
-    menu?.classList.add('hidden');
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-    window.location.assign('/');
-  });
+    function openMenu() {
+      menu.classList.remove('hidden');
+      backdrop?.classList.remove('hidden');
+      toggle.setAttribute('aria-expanded', 'true');
+      document.documentElement.classList.add('mobile-menu-open');
+    }
+
+    function closeMenu() {
+      menu.classList.add('hidden');
+      backdrop?.classList.add('hidden');
+      toggle.setAttribute('aria-expanded', 'false');
+      document.documentElement.classList.remove('mobile-menu-open');
+    }
+
+    if (toggle.dataset.menuBound !== 'true') {
+      toggle.dataset.menuBound = 'true';
+      toggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const isHidden = menu.classList.contains('hidden');
+        if (isHidden) openMenu();
+        else closeMenu();
+      });
+    }
+
+    menu.querySelectorAll('a').forEach((link) => {
+      if (link.dataset.menuCloseBound === 'true') return;
+      link.dataset.menuCloseBound = 'true';
+      link.addEventListener('click', closeMenu);
+    });
+
+    if (backdrop && backdrop.dataset.menuBackdropBound !== 'true') {
+      backdrop.dataset.menuBackdropBound = 'true';
+      backdrop.addEventListener('click', closeMenu);
+    }
+
+    if (logoutButton && logoutButton.dataset.logoutBound !== 'true') {
+      logoutButton.dataset.logoutBound = 'true';
+      logoutButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        closeMenu();
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+        window.location.assign('/');
+      });
+    }
+
+    if (document.documentElement.dataset.mobileMenuLifecycleBound !== 'true') {
+      document.documentElement.dataset.mobileMenuLifecycleBound = 'true';
+      document.addEventListener('astro:before-swap', closeMenu);
+    }
+  }
+
+  initRaceHubMobileMenu();
+  document.addEventListener('astro:page-load', initRaceHubMobileMenu);
+  document.addEventListener('astro:after-swap', initRaceHubMobileMenu);
 </script>
