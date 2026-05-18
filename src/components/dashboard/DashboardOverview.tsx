@@ -124,11 +124,11 @@ export default function DashboardOverview() {
   }
 
   return (
-    <div className="mt-8" aria-live="polite">
-      <div className="mb-3 flex justify-end"><span className="rh-badge rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">{statusLabel}</span></div>
+    <div className="mt-8 pb-20 md:pb-0" aria-live="polite">
+      <div className="mb-3 hidden justify-end md:flex"><span className="rh-badge rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-slate-300">{statusLabel}</span></div>
       <div className="grid gap-6 xl:grid-cols-2">
         <article className="panel rounded-3xl p-4 sm:p-6">
-          <h2 className="font-display text-2xl">My Upcoming Races</h2>
+          <h2 className="font-display text-2xl">My next race</h2>
           <div className="mt-4 space-y-3">
             {overview ? overview.upcomingRegistrations.length ? overview.upcomingRegistrations.map((registration) => (
               <a key={registration.raceSlot.id} href={`/race-slots/${registration.raceSlot.id}`} className="block rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/40 hover:bg-white/[0.07]">
@@ -141,7 +141,7 @@ export default function DashboardOverview() {
         </article>
 
         <article className="panel rounded-3xl p-4 sm:p-6">
-          <h2 className="font-display text-2xl">Available Races</h2>
+          <h2 className="font-display text-2xl">Open grids</h2>
           <div className="mt-4 space-y-2">
             {overview ? overview.upcomingEvents.length ? overview.upcomingEvents.map((slot) => (
               <a key={slot.id} href={`/race-slots/${slot.id}`} className="block rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/35">
@@ -157,7 +157,7 @@ export default function DashboardOverview() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Two-leg challenges</p>
-            <h2 className="font-display text-2xl">My Duels</h2>
+            <h2 className="font-display text-2xl">Pending duel</h2>
           </div>
           <a href="/duels" className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Browse duels</a>
         </div>
@@ -181,7 +181,7 @@ export default function DashboardOverview() {
               {overview ? managedCommunity ? (
                 <>
                   <p className="mt-2 text-lg font-semibold text-white">{managedCommunity.displayName}</p>
-                  {managedCommunity.shortDescription && <p className="mt-1 max-w-2xl text-sm text-slate-300">{managedCommunity.shortDescription}</p>}
+                  {managedCommunity.shortDescription && <p className="mt-1 max-w-2xl text-sm text-slate-300 line-clamp-2 md:line-clamp-none">{managedCommunity.shortDescription}</p>}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <span className={`rh-badge rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.16em] ${managedCommunity.isPublic ? 'border-emerald-300/35 bg-emerald-500/15 text-emerald-100' : 'border-slate-300/25 bg-white/5 text-slate-200'}`}>{managedCommunity.isPublic ? 'Public' : 'Private'}</span>
                     {managedCommunity.verified && <span className="rh-badge rounded-full border border-cyan-300/35 bg-cyan-500/15 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-100">Verified</span>}
@@ -197,6 +197,13 @@ export default function DashboardOverview() {
           </div>
         </div>
       </article>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/10 bg-black/80 px-3 py-2 text-center text-[11px] font-semibold text-slate-200 backdrop-blur-xl mobile-safe-bottom md:hidden">
+        <a href="/duels" className="rounded-xl px-2 py-2">Duels</a>
+        <a href="/race-slots" className="rounded-xl px-2 py-2">Races</a>
+        <a href="/dashboard" className="rounded-xl bg-white/10 px-2 py-2 text-white">Dash</a>
+        <a href="/profile" className="rounded-xl px-2 py-2">Profile</a>
+      </nav>
     </div>
   );
 }
