@@ -61,14 +61,8 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
         background: #000;
       }
 
-      video[data-video-failed='true'] {
+      video[data-bg-video][data-video-failed='true'] {
         opacity: 0;
-      }
-
-      @media (max-width: 640px) {
-        video[data-bg-video][data-mobile-poster-only='true'] {
-          display: none;
-        }
       }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -104,22 +98,73 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
       <SpeedInsights />
     </div>
     <script>
+      const isRaceHubBackgroundVideoDev = import.meta.env.DEV;
+      const raceHubBackgroundVideoWindow = window as typeof window & {
+        __raceHubBackgroundVideoListenersAttached?: boolean;
+      };
+
       function initRaceHubBackgroundVideos() {
         document.querySelectorAll('video[data-bg-video]').forEach((video) => {
+          if (!(video instanceof HTMLVideoElement)) return;
+
           video.muted = true;
+          video.defaultMuted = true;
           video.playsInline = true;
-          const promise = video.play?.();
-          if (promise && typeof promise.catch === 'function') {
-            promise.catch(() => {
-              video.setAttribute('data-video-failed', 'true');
-            });
-          }
+          video.setAttribute('muted', '');
+          video.setAttribute('playsinline', '');
+          video.setAttribute('webkit-playsinline', '');
+          video.setAttribute('autoplay', '');
+          video.setAttribute('loop', '');
+
+          const tryPlay = () => {
+            if (isRaceHubBackgroundVideoDev) {
+              console.debug('[RaceHub background video] attempting playback', {
+                currentSrc: video.currentSrc,
+                videoState: video.dataset.videoState,
+              });
+            }
+
+            const promise = video.play();
+
+            if (promise && typeof promise.catch === 'function') {
+              promise
+                .then(() => {
+                  video.dataset.videoState = 'playing';
+                  video.removeAttribute('data-video-failed');
+
+                  if (isRaceHubBackgroundVideoDev) {
+                    console.debug('[RaceHub background video] playback started', {
+                      currentSrc: video.currentSrc,
+                      videoState: video.dataset.videoState,
+                    });
+                  }
+                })
+                .catch((error) => {
+                  video.dataset.videoState = 'failed';
+                  video.setAttribute('data-video-failed', 'true');
+
+                  if (isRaceHubBackgroundVideoDev) {
+                    console.debug('[RaceHub background video] playback failed', {
+                      currentSrc: video.currentSrc,
+                      videoState: video.dataset.videoState,
+                      error,
+                    });
+                  }
+                });
+            }
+          };
+
+          tryPlay();
         });
       }
 
       initRaceHubBackgroundVideos();
-      document.addEventListener('astro:page-load', initRaceHubBackgroundVideos);
-      document.addEventListener('astro:after-swap', initRaceHubBackgroundVideos);
+
+      if (!raceHubBackgroundVideoWindow.__raceHubBackgroundVideoListenersAttached) {
+        document.addEventListener('astro:page-load', initRaceHubBackgroundVideos);
+        document.addEventListener('astro:after-swap', initRaceHubBackgroundVideos);
+        raceHubBackgroundVideoWindow.__raceHubBackgroundVideoListenersAttached = true;
+      }
     </script>
   </body>
 </html>
