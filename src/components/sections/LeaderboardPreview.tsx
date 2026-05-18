@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { PublicUser } from '@/server/types/api';
+import { getHonourGrade } from '@/lib/honour';
 
 type Tab = 'global' | 'honour';
 
@@ -49,7 +50,7 @@ export default function LeaderboardPreview({ globalLeaderboard, honourLeaderboar
                   <td className="px-5 py-4 font-display text-xl text-white">{index + 1}</td>
                   <td>{row.username}</td>
                   <td>{row.skillRating.toLocaleString()}</td>
-                  <td>{row.honourScore}</td>
+                  <td><span className={`rh-badge rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${getHonourGrade(row.honourScore).tone}`}>{getHonourGrade(row.honourScore).grade}</span></td>
                   <td>{row.region}</td>
                 </tr>
               ))}
