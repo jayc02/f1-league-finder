@@ -60,6 +60,16 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
       ::view-transition-new(root) {
         background: #000;
       }
+
+      video[data-video-failed='true'] {
+        opacity: 0;
+      }
+
+      @media (max-width: 640px) {
+        video[data-bg-video][data-mobile-poster-only='true'] {
+          display: none;
+        }
+      }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
@@ -93,5 +103,23 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
       <SiteFooter />
       <SpeedInsights />
     </div>
+    <script>
+      function initRaceHubBackgroundVideos() {
+        document.querySelectorAll('video[data-bg-video]').forEach((video) => {
+          video.muted = true;
+          video.playsInline = true;
+          const promise = video.play?.();
+          if (promise && typeof promise.catch === 'function') {
+            promise.catch(() => {
+              video.setAttribute('data-video-failed', 'true');
+            });
+          }
+        });
+      }
+
+      initRaceHubBackgroundVideos();
+      document.addEventListener('astro:page-load', initRaceHubBackgroundVideos);
+      document.addEventListener('astro:after-swap', initRaceHubBackgroundVideos);
+    </script>
   </body>
 </html>

@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import HeroScene from '@/components/sections/HeroScene';
+import HomeHero from '@/components/home/HomeHero.astro';
 import SlotShowcase from '@/components/sections/SlotShowcase';
 import LeaderboardPreview from '@/components/sections/LeaderboardPreview';
 import HonourSystem from '@/components/sections/HonourSystem';
@@ -60,7 +60,7 @@ const structuredData = {
   canonicalPath="/"
 >
   <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
-  <HeroScene client:idle />
+  <HomeHero />
   <SlotShowcase client:idle raceSlots={raceSlots} />
 
   <section class="section-shell pt-0" data-reveal>
