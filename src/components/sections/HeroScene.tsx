@@ -5,14 +5,17 @@ const ruleChips = ['Same car', 'Same track', 'Ranked'];
 export default function HeroScene() {
   return (
     <section className="relative min-h-[88vh] overflow-hidden pt-20 md:min-h-screen md:pt-28" id="top">
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,0,.24),transparent_36%),radial-gradient(circle_at_82%_20%,rgba(34,211,238,.18),transparent_34%),linear-gradient(180deg,#050505_0%,#020202_50%,#000_100%)] md:hidden" aria-hidden="true" />
+      <div className="absolute inset-0 z-0 bg-[url('/og/racehub-default.svg')] bg-cover bg-center opacity-20" aria-hidden="true" />
       <video
         autoPlay
         muted
         loop
         playsInline
+        webkit-playsinline=""
         preload="metadata"
-        className="absolute inset-0 z-0 hidden h-full w-full object-cover md:block"
+        poster="/og/racehub-default.svg"
+        className="absolute inset-0 z-0 h-full w-full object-cover object-center"
+        data-bg-video
         aria-hidden="true"
       >
         <source src="/videos/output.mp4" type="video/mp4" />
