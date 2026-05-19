@@ -3,6 +3,7 @@ import type { APIRoute } from 'astro';
 import { createOAuthState } from '@/lib/auth/oauth';
 import { withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError } from '@/lib/utils/http';
+import { redirectResponse } from '@/lib/auth/http';
 
 export const GET: APIRoute = (context) => withErrorHandling(async () => {
   if (!process.env.DISCORD_OAUTH_CLIENT_ID) throw new HttpError(500, 'Discord OAuth is not configured.');
@@ -14,5 +15,5 @@ export const GET: APIRoute = (context) => withErrorHandling(async () => {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', 'identify email');
   url.searchParams.set('state', state);
-  return Response.redirect(url.toString(), 302);
+  return redirectResponse(url);
 });
