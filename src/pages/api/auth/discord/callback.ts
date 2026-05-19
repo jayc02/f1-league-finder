@@ -18,8 +18,9 @@ export const GET: APIRoute = (context) => withErrorHandling(async () => {
   if (!tokenRes.ok) throw new HttpError(400, 'Discord OAuth failed.');
   const tokenData = await tokenRes.json() as { access_token: string };
   const profileRes = await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
-  const profile = await profileRes.json() as { id: string; email?: string; username?: string; avatar?: string };
+  const profile = await profileRes.json() as { id: string; email?: string; verified?: boolean; username?: string; avatar?: string };
   if (!profile.email) throw new HttpError(400, 'Discord account must expose an email.');
+  if (!profile.verified) throw new HttpError(400, 'Discord account email must be verified.');
   const email = profile.email.toLowerCase();
   let authProvider = await prisma.authProvider.findUnique({ where: { provider_providerUserId: { provider: 'discord', providerUserId: profile.id } }, include: { user: true } });
   let user = authProvider?.user ?? await prisma.user.findUnique({ where: { email } });
