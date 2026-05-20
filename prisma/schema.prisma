@@ -119,6 +119,7 @@ enum DuelTokenPotStatus {
 
 enum RaceTokenLedgerType {
   DEMO_GRANT
+  PURCHASE
   ADMIN_GRANT
   ADMIN_DEBIT
   BID_HOLD
