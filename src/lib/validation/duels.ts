@@ -8,6 +8,7 @@ export const duelPlatformSchema = z.enum(['PC', 'PLAYSTATION', 'XBOX']).optional
 export const duelVisibilitySchema = z.enum(['PUBLIC', 'COMMUNITY_ONLY', 'PRIVATE']).default('PUBLIC');
 
 export const createDuelSchema = z.object({
+  entryMode: z.enum(['OPEN', 'BIDDED', 'PRIVATE']).default('OPEN'),
   opponentId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   communityId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   visibility: duelVisibilitySchema,
@@ -24,9 +25,15 @@ export const createDuelSchema = z.object({
   rulesSummary: z.preprocess(emptyToUndefined, z.string().trim().max(800).optional()),
   scheduledAt: optionalDate,
   expiresAt: optionalDate,
+  startingBidTokens: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+  maxBidTokens: z.preprocess(emptyToUndefined, z.coerce.number().int().positive().optional()),
+  bidClosesAt: optionalDate,
 }).refine((data) => data.visibility !== 'COMMUNITY_ONLY' || Boolean(data.communityId), {
   path: ['communityId'],
   message: 'Choose a community for community-only duels.',
+}).refine((data) => data.entryMode !== 'BIDDED' || Boolean(data.startingBidTokens && data.bidClosesAt), {
+  path: ['startingBidTokens'],
+  message: 'Bidded duels require starting bid and close time.',
 });
 
 export const duelListQuerySchema = z.object({
