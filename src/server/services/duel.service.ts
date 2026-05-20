@@ -1,9 +1,10 @@
 import { randomInt } from 'node:crypto';
-import { DuelStatus, DuelVisibility, HonourEventType, ModerationActionType, OrganiserProfileMemberStatus, Role, type Prisma, type User } from '@prisma/client';
+import { DuelStatus, DuelTokenPotStatus, DuelVisibility, HonourEventType, ModerationActionType, OrganiserProfileMemberStatus, RaceTokenLedgerType, Role, type Prisma, type User } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { HttpError } from '@/lib/utils/http';
 import { withPerf } from '@/lib/utils/perf';
 import { applyHonourEvent } from '@/server/services/honour.service';
+import { tokenPotRewardsEnabled } from '@/lib/server/race-token-config';
 
 const duelUserSelect = {
   id: true,
@@ -221,6 +222,9 @@ export const confirmDuelResult = async ({ duelId, userId, confirmedWinnerId, not
         ranked: true,
         resultAppliedAt: true,
         winnerUserId: true,
+        tokenPot: true,
+        tokenPotStatus: true,
+        tokenPotAwardedAt: true,
       },
     });
     if (!duel) throw new HttpError(404, 'Duel not found.');
@@ -281,7 +285,7 @@ export const confirmDuelResult = async ({ duelId, userId, confirmedWinnerId, not
 
     const [first, second] = confirmations;
     if (!first.confirmedWinnerId || !second.confirmedWinnerId || first.confirmedWinnerId !== second.confirmedWinnerId) {
-      await tx.duel.update({ where: { id: duelId }, data: { status: DuelStatus.DISPUTED } });
+      await tx.duel.update({ where: { id: duelId }, data: { status: DuelStatus.DISPUTED, tokenPotStatus: duel.tokenPot > 0 ? DuelTokenPotStatus.DISPUTED : undefined } });
       return buildConfirmationResponse(tx, duelId, 'disputed', 'Confirmations conflict. A platform admin must review this duel.');
     }
 
@@ -306,6 +310,11 @@ export const confirmDuelResult = async ({ duelId, userId, confirmedWinnerId, not
         ...(duel.ranked && !duel.resultAppliedAt ? { resultAppliedAt: completedAt } : {}),
       },
     });
+    if (duel.tokenPotStatus === DuelTokenPotStatus.HOLDING && duel.tokenPot > 0 && !duel.tokenPotAwardedAt && tokenPotRewardsEnabled) {
+      await tx.raceTokenBalance.upsert({ where: { userId: first.confirmedWinnerId }, update: { available: { increment: duel.tokenPot }, lifetimeEarned: { increment: duel.tokenPot } }, create: { userId: first.confirmedWinnerId, available: duel.tokenPot, lifetimeEarned: duel.tokenPot } });
+      await tx.raceTokenLedger.create({ data: { userId: first.confirmedWinnerId, amount: duel.tokenPot, type: RaceTokenLedgerType.POT_AWARD, reason: 'Duel token pot award', duelId } });
+      await tx.duel.update({ where: { id: duelId }, data: { tokenPotStatus: DuelTokenPotStatus.AWARDED, tokenPotWinnerUserId: first.confirmedWinnerId, tokenPotAwardedAt: new Date() } });
+    }
     return buildConfirmationResponse(tx, duelId, 'completed', 'Both drivers confirmed the result. Duel completed.');
   });
 };
