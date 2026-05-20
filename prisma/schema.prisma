@@ -103,6 +103,42 @@ enum DuelCoinSide {
   TAILS
 }
 
+enum DuelEntryMode {
+  OPEN
+  BIDDED
+  PRIVATE
+}
+
+enum DuelTokenPotStatus {
+  NONE
+  HOLDING
+  AWARDED
+  REFUNDED
+  DISPUTED
+}
+
+enum RaceTokenLedgerType {
+  DEMO_GRANT
+  ADMIN_GRANT
+  ADMIN_DEBIT
+  BID_HOLD
+  BID_RELEASE
+  BID_TO_POT
+  POT_AWARD
+  POT_REFUND
+  DUEL_CANCEL_REFUND
+}
+
+enum DuelBidStatus {
+  ACTIVE
+  OUTBID
+  WON_SEAT
+  RELEASED
+  MOVED_TO_POT
+  REFUNDED
+  CANCELLED
+}
+
 model User {
   id                String             @id @default(cuid())
   username          String             @unique
@@ -144,6 +180,9 @@ model User {
   duelsAccepted               Duel[]                   @relation("DuelOpponent")
   duelsWon                    Duel[]                   @relation("DuelWinner")
   duelConfirmations           DuelConfirmation[]
+  raceTokenBalance            RaceTokenBalance?
+  raceTokenLedger             RaceTokenLedger[]
+  duelBids                    DuelBid[]
   authProviders              AuthProvider[]
   passwordResetTokens         PasswordResetToken[]
 
@@ -340,6 +379,7 @@ model Duel {
   status       DuelStatus     @default(OPEN)
   visibility   DuelVisibility @default(PUBLIC)
   ranked       Boolean        @default(true)
+  entryMode    DuelEntryMode  @default(OPEN)
 
   game            String
   track           String
@@ -354,6 +394,15 @@ model Duel {
   scheduledAt     DateTime?
   expiresAt       DateTime?
   resultAppliedAt DateTime?
+  bidClosesAt      DateTime?
+  biddingLockedAt  DateTime?
+  startingBidTokens Int?
+  maxBidTokens      Int?
+  winningBidId      String?
+  tokenPot          Int                @default(0)
+  tokenPotAwardedAt DateTime?
+  tokenPotWinnerUserId String?
+  tokenPotStatus    DuelTokenPotStatus @default(NONE)
 
   playerAChoice        DuelCoinSide @default(HEADS)
   playerBChoice        DuelCoinSide @default(TAILS)
@@ -371,6 +420,7 @@ model Duel {
   community     OrganiserProfile?  @relation(fields: [communityId], references: [id], onDelete: SetNull)
   legs          DuelLeg[]
   confirmations DuelConfirmation[]
+  bids          DuelBid[]
 
   @@index([status, visibility, scheduledAt])
   @@index([visibility, status, createdAt])
@@ -380,6 +430,59 @@ model Duel {
   @@index([resultAppliedAt])
   @@index([communityId, status])
   @@index([status, ranked])
+}
+
+model RaceTokenBalance {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  available      Int      @default(0)
+  held           Int      @default(0)
+  lifetimeEarned Int      @default(0)
+  lifetimeSpent  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RaceTokenLedger {
+  id            String              @id @default(cuid())
+  userId        String
+  amount        Int
+  type          RaceTokenLedgerType
+  reason        String
+  duelId        String?
+  bidId         String?
+  relatedUserId String?
+  metadata      Json?
+  createdAt     DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([duelId])
+  @@index([bidId])
+  @@index([type])
+}
+
+model DuelBid {
+  id           String       @id @default(cuid())
+  duelId       String
+  userId       String
+  amountTokens Int
+  status       DuelBidStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  duel Duel @relation(fields: [duelId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([duelId, createdAt])
+  @@index([userId, createdAt])
+  @@index([duelId, amountTokens])
+  @@index([status])
 }
 
 model DuelLeg {
