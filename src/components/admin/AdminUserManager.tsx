@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '@/lib/api/http';
 
 type Role = 'PLAYER' | 'ORGANISER' | 'ADMIN';
+interface TokenLedgerRow { id:string; amount:number; type:string; reason:string; createdAt:string }
 interface UserRow {
   id: string;
   username: string;
@@ -26,6 +27,7 @@ export default function AdminUserManager({ users = [] }: { users?: UserRow[] }) 
   const [flash, setFlash] = useState('');
   const [loading, setLoading] = useState(users.length === 0);
   const [ratingForms, setRatingForms] = useState<Record<string, typeof emptyRatingForm>>({});
+  const [tokenForms, setTokenForms] = useState<Record<string, { amount: string; reason: string; ledger: TokenLedgerRow[]; balance?: { available:number; held:number } }>>({});
 
   const loadUsers = async (q = query) => {
     setLoading(true);
@@ -72,6 +74,8 @@ export default function AdminUserManager({ users = [] }: { users?: UserRow[] }) 
 
   const ratingFormFor = (user: UserRow) => ratingForms[user.id] ?? { skillRating: String(user.skillRating), honourScore: String(user.honourScore), reason: '' };
   const setRatingForm = (id: string, patch: Partial<typeof emptyRatingForm>) => setRatingForms((current) => ({ ...current, [id]: { ...(current[id] ?? emptyRatingForm), ...patch } }));
+
+  const adjustTokens = async (user: UserRow) => { const f = tokenForms[user.id] ?? { amount:'', reason:'', ledger:[] }; const amount=Number(f.amount); if(!Number.isInteger(amount)||amount===0){setFlash('Enter a whole token amount.'); return;} if((f.reason||'').trim().length<5){setFlash('Reason required.'); return;} try{ const r=await apiRequest<{balance:{available:number;held:number};ledger:TokenLedgerRow[]}>(`/api/admin/users/${user.id}/tokens`,{method:'PATCH',body:JSON.stringify({amount,reason:f.reason.trim()})}); setTokenForms((c)=>({...c,[user.id]:{amount:'',reason:'',ledger:r.ledger,balance:r.balance}})); setFlash('Token balance updated.'); } catch(e){ setFlash(e instanceof Error?e.message:'Token update failed.'); } };
 
   const saveRatings = async (user: UserRow) => {
     const form = ratingFormFor(user);
@@ -142,6 +146,15 @@ export default function AdminUserManager({ users = [] }: { users?: UserRow[] }) 
               </div>
 
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className='text-xs uppercase tracking-[0.18em] text-slate-400'>Token balance</p>
+                <div className='mt-2 grid gap-2 md:grid-cols-[120px_1fr_auto]'>
+                  <input placeholder='+500 or -200' value={tokenForms[user.id]?.amount ?? ''} onChange={(e)=>setTokenForms((c)=>({...c,[user.id]:{...(c[user.id]??{amount:'',reason:'',ledger:[]}),amount:e.target.value}}))} className='rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm' />
+                  <input placeholder='Reason required' value={tokenForms[user.id]?.reason ?? ''} onChange={(e)=>setTokenForms((c)=>({...c,[user.id]:{...(c[user.id]??{amount:'',reason:'',ledger:[]}),reason:e.target.value}}))} className='rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm' />
+                  <button onClick={()=>adjustTokens(user)} className='rounded-xl border border-cyan-300/35 bg-cyan-500/15 px-4 py-2 text-xs'>Apply tokens</button>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4"> 
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Manual SR / Honour adjustment</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-[120px_120px_1fr_auto]">
                   <input type="number" min={0} max={9999} value={form.skillRating} onChange={(event) => setRatingForm(user.id, { skillRating: event.target.value })} className="rounded-xl border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60" aria-label="Skill rating" />
