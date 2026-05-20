@@ -1,0 +1,35 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { TOKEN_PACKS } from '@/lib/server/token-packs';
+import { getSessionUser } from '@/lib/auth/session';
+const user = await getSessionUser(Astro as never);
+---
+<BaseLayout title="Race Tokens | RaceHub" sessionUser={user}>
+  <section class="section-shell pb-24">
+    <div class="rounded-3xl border border-cyan-300/25 bg-gradient-to-br from-cyan-500/15 via-white/[0.04] to-black/70 p-6 shadow-[0_0_60px_rgba(34,211,238,0.15)]">
+      <p class="text-xs uppercase tracking-[0.2em] text-cyan-100/80">Race Tokens</p>
+      <h1 class="section-title mt-2">Race Tokens</h1>
+      <p class="mt-2 text-slate-300">Use tokens to bid for challenger slots and compete for token pots.</p>
+      <p id="big-bal" class="mt-4 text-4xl font-black text-cyan-100">—</p>
+    </div>
+    <div id="wallet-grid" class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"></div>
+    <div class="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {TOKEN_PACKS.map((p) => (
+        <article class="rounded-3xl border border-white/15 bg-white/[0.04] p-5 backdrop-blur">
+          {p.highlight && <span class="rounded-full border border-emerald-300/40 bg-emerald-500/15 px-2 py-1 text-[10px] uppercase tracking-[0.14em] text-emerald-100">Popular</span>}
+          <h3 class="mt-2 font-display text-2xl">{p.label}</h3>
+          <p class="mt-1 text-slate-300">{new Intl.NumberFormat().format(p.tokenAmount)} Race Tokens</p>
+          <p class="text-xs text-slate-400">Higher packs unlock stronger challenger-slot pushes.</p>
+          <button class="buy-btn mt-4 min-h-12 w-full rounded-2xl bg-white px-4 py-2 text-sm font-bold text-black" data-pack={p.packId}>Buy {p.displayPrice}</button>
+          <p class="buy-msg mt-2 text-xs text-slate-400"></p>
+        </article>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
+<script>
+const fmt=(n)=>new Intl.NumberFormat().format(n);const walletGrid=document.querySelector('#wallet-grid'); const big=document.querySelector('#big-bal');
+function card(k,v){return `<article class='rounded-2xl border border-white/10 bg-black/30 p-4'><p class='text-xs uppercase tracking-[0.14em] text-slate-400'>${k}</p><p class='mt-1 text-2xl font-bold text-white'>${fmt(v)}</p></article>`;}
+fetch('/api/tokens/me',{credentials:'same-origin'}).then(r=>r.ok?r.json():Promise.reject()).then((d)=>{big.textContent=`${fmt(d.balance.available)} Tokens`;walletGrid.innerHTML=[card('Available Tokens',d.balance.available),card('Held in bids',d.balance.held),card('Lifetime earned',d.balance.lifetimeEarned),card('Lifetime spent',d.balance.lifetimeSpent)].join('');}).catch(()=>{big.textContent='No tokens yet';walletGrid.innerHTML="<article class='rounded-2xl border border-white/10 bg-black/30 p-4 text-slate-300'>No tokens yet. Buy Race Tokens to bid for duel slots.</article>"});
+for(const btn of document.querySelectorAll('.buy-btn'))btn.addEventListener('click',async()=>{const msg=btn.parentElement.querySelector('.buy-msg');msg.textContent='Starting checkout…';try{const res=await fetch('/api/tokens/checkout',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({packId:btn.dataset.pack})});const data=await res.json();if(!res.ok)throw new Error(data.error||'Purchase unavailable');sessionStorage.setItem('racehub.tokens.refresh','1');window.location.assign(data.url);}catch(e){msg.textContent=e instanceof Error?e.message:'Purchase unavailable';}})
+</script>

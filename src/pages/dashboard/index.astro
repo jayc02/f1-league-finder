@@ -3,6 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getSessionUser } from '@/lib/auth/session';
 import DashboardOverview from '@/components/dashboard/DashboardOverview';
+import TokenWalletCard from '@/components/dashboard/TokenWalletCard';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -38,6 +39,6 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.shell: ${(performance.now() 
       </div>
     </div>
 
-    <DashboardOverview client:load />
+    <div class='grid gap-5 lg:grid-cols-[1.5fr_0.9fr]'><DashboardOverview client:load /><TokenWalletCard client:load /></div>
   </section>
 </BaseLayout>
