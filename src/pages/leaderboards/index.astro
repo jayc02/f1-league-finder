@@ -26,7 +26,6 @@ try {
   console.error('[leaderboards page] Failed to load leaderboard', error);
   leaderboardError = 'Leaderboards are temporarily unavailable. Please refresh in a moment.';
 }
-const trendLabel: Record<'up' | 'down' | 'stable', string> = { up: '▲ Rising', stable: '■ Stable', down: '▼ Cooling' };
 ---
 
 <BaseLayout title="Leaderboards | RaceHub" lightweightApp={true}>
@@ -49,7 +48,7 @@ const trendLabel: Record<'up' | 'down' | 'stable', string> = { up: '▲ Rising',
     <article id="your-standing" class="panel mt-6 hidden rounded-3xl border-white/15 bg-gradient-to-br from-emerald-300/10 via-black/70 to-black/70 p-3 sm:p-6"></article>
 
     <LeaderboardListMobile entries={topHundred} />
-    <LeaderboardTableDesktop entries={topHundred} trendLabel={trendLabel} />
+    <LeaderboardTableDesktop entries={topHundred} />
     {!topHundred.length && <p class="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-slate-300">No leaderboard data yet. Complete race slots to populate rankings.</p>}
   </section>
   <script is:inline define:vars={{ type }}>
