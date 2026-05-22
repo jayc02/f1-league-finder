@@ -8,7 +8,7 @@ import { DUEL_GAMES, DUEL_TRACKS } from '@/data/duel-tracks';
 import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
 import { getNumericLimit } from '@/lib/utils/handlers';
 import { duelListQuerySchema } from '@/lib/validation/duels';
-import { getPublicDuels } from '@/server/services/duel.service';
+import { getDuelStatsSummary, getPublicDuelSummaries } from '@/server/services/duel-list.service';
 
 export const prerender = false;
 setAstroCache(Astro, publicPageShort);
@@ -17,12 +17,17 @@ const filters = duelListQuerySchema.parse(Object.fromEntries(Astro.url.searchPar
 let duels: Awaited<ReturnType<typeof getPublicDuels>> = [];
 let duelsError: string | null = null;
 try {
-  duels = await getPublicDuels({ ...filters, limit: getNumericLimit(Astro as never, 40, 100) });
+  duels = await getPublicDuelSummaries({
+    limit: getNumericLimit(Astro as never, 40, 100),
+    track: filters.track,
+    mode: filters.ranked === true ? 'ranked' : filters.ranked === false ? 'unranked' : undefined,
+  });
 } catch (error) {
   if (import.meta.env.DEV) console.error('[duels page] Failed to load public duels', error);
   duelsError = 'We could not load duels right now. Please refresh in a moment.';
 }
 
+const duelStats = await getDuelStatsSummary();
 const openDuels = duels.filter((duel) => duel.status === 'OPEN');
 const activeDuels = duels.filter((duel) => ['ACCEPTED', 'IN_PROGRESS', 'AWAITING_CONFIRMATION'].includes(duel.status));
 const completedDuels = duels.filter((duel) => duel.status === 'COMPLETED');
@@ -40,8 +45,8 @@ const statusTone: Record<string, string> = {
   <section class="relative isolate overflow-hidden bg-black pb-20 md:pb-0">
     <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[560px] bg-[radial-gradient(circle_at_20%_10%,rgba(244,63,94,0.20),transparent_34%),radial-gradient(circle_at_80%_16%,rgba(34,211,238,0.18),transparent_34%),linear-gradient(180deg,rgba(0,0,0,0.25),#000)]"></div>
     <div class="section-shell">
-      <DuelsHeroMobile openCount={openDuels.length} activeCount={activeDuels.length} completedCount={completedDuels.length} />
-      <DuelsHeroDesktop openCount={openDuels.length} activeCount={activeDuels.length} completedCount={completedDuels.length} />
+      <DuelsHeroMobile openCount={duelStats.open ?? openDuels.length} activeCount={duelStats.active ?? activeDuels.length} completedCount={duelStats.completed ?? completedDuels.length} />
+      <DuelsHeroDesktop openCount={duelStats.open ?? openDuels.length} activeCount={duelStats.active ?? activeDuels.length} completedCount={duelStats.completed ?? completedDuels.length} />
 
       <form method="get" class="mt-5 flex gap-2 overflow-x-auto rounded-3xl border border-white/15 bg-white/[0.05] p-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-5 md:gap-3 md:overflow-visible md:p-4">
         <select name="track" class="min-h-11 w-[9.5rem] shrink-0 rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-sm text-white md:w-auto md:min-w-0">
