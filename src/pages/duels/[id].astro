@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import CoinFlipBar from '@/components/duels/CoinFlipBar';
-import DuelBidPanel from '@/components/duels/DuelBidPanel';
 import HonourGradeBadge from '@/components/ui/HonourGradeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
@@ -97,9 +96,6 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
 
           <aside class="space-y-5">
 
-            {duel.entryMode === 'BIDDED' && (
-              <DuelBidPanel client:load duelId={duel.id} isCreator={isCreator} duelStatus={duel.status} tokenPotStatus={duel.tokenPotStatus} />
-            )}
 
             <article class="panel rounded-3xl p-5">
               <h2 class="font-display text-2xl">Duel Actions</h2>
