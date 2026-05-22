@@ -19,8 +19,6 @@ type AuthState = 'checking' | 'authenticated' | 'anonymous';
 
 const AUTH_CACHE_KEY = 'racehub.navUser.v2';
 const AUTH_CACHE_TTL_MS = 45_000;
-const TOKEN_CACHE_KEY='racehub.tokens.v1';
-const TOKEN_CACHE_TTL=30_000;
 let memoryAuthUser: NavUser | null | undefined;
 let memoryAuthCachedAt = 0;
 let inFlightAuthRequest: Promise<NavUser | null> | null = null;
@@ -87,7 +85,6 @@ const fetchAuthUser = () => {
 };
 
 export default function AuthNav({ user, authStateKnown = false }: Props) {
-  const [tokenBalance,setTokenBalance]=useState<number|null>(null);
   const [resolvedUser, setResolvedUser] = useState<NavUser | null>(() => {
     if (user) return user;
     if (authStateKnown) return null;
@@ -102,65 +99,6 @@ export default function AuthNav({ user, authStateKnown = false }: Props) {
     return 'checking';
   });
 
-  useEffect(() => {
-    if (user) {
-      writeStoredUser(user);
-      setResolvedUser(user);
-      setAuthState('authenticated');
-      return;
-    }
-
-    if (authStateKnown) {
-      writeStoredUser(null);
-      setResolvedUser(null);
-      setAuthState('anonymous');
-      return;
-    }
-
-    let cancelled = false;
-    const cachedUser = readStoredUser();
-    if (cachedUser !== undefined) {
-      setResolvedUser(cachedUser);
-      setAuthState(cachedUser ? 'authenticated' : 'anonymous');
-    } else {
-      setAuthState('checking');
-    }
-
-    if (cachedUser !== undefined) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    fetchAuthUser()
-      .then((nextUser) => {
-        writeStoredUser(nextUser);
-        if (!cancelled) {
-          setResolvedUser(nextUser);
-          setAuthState(nextUser ? 'authenticated' : 'anonymous');
-        }
-      })
-      .catch(() => {
-        writeStoredUser(null);
-        if (!cancelled) {
-          setResolvedUser(null);
-          setAuthState('anonymous');
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authStateKnown, user]);
-
-  useEffect(() => {
-    if (!resolvedUser) return;
-    const refresh = sessionStorage.getItem('racehub.tokens.refresh');
-    const raw = sessionStorage.getItem(TOKEN_CACHE_KEY);
-    const now = Date.now();
-    if (raw && !refresh) { try { const c = JSON.parse(raw); if (now - c.t < TOKEN_CACHE_TTL) { setTokenBalance(c.v); return; } } catch {} }
-    apiRequest('/api/tokens/me').then((d:any)=>{ setTokenBalance(d.balance.available); sessionStorage.setItem(TOKEN_CACHE_KEY, JSON.stringify({ v:d.balance.available, t: Date.now() })); sessionStorage.removeItem('racehub.tokens.refresh'); }).catch(()=>{});
-  }, [resolvedUser]);
 
   const logout = async () => {
     clearStoredUser();
@@ -192,8 +130,7 @@ export default function AuthNav({ user, authStateKnown = false }: Props) {
 
   return (
     <div className="flex items-center gap-3">
-      <a href="/tokens" className="rounded-full border border-cyan-300/30 bg-cyan-500/15 px-3 py-1.5 text-xs text-cyan-100">{tokenBalance !== null ? `${new Intl.NumberFormat().format(tokenBalance)} Tokens` : 'Tokens'}</a>
-      <a href="/dashboard" className="hidden rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/20 md:inline-flex">
+            <a href="/dashboard" className="hidden rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/20 md:inline-flex">
         Dashboard
       </a>
       {resolvedUser.role === 'ADMIN' && (

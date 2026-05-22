@@ -8,7 +8,7 @@ export const duelPlatformSchema = z.enum(['PC', 'PLAYSTATION', 'XBOX']).optional
 export const duelVisibilitySchema = z.enum(['PUBLIC', 'COMMUNITY_ONLY', 'PRIVATE']).default('PUBLIC');
 
 export const createDuelSchema = z.object({
-  entryMode: z.enum(['OPEN', 'BIDDED', 'PRIVATE']).default('OPEN'),
+  entryMode: z.enum(['OPEN', 'PRIVATE']).default('OPEN'),
   opponentId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   communityId: z.preprocess(emptyToUndefined, z.string().cuid().optional()),
   visibility: duelVisibilitySchema,
