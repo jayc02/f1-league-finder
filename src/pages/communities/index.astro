@@ -73,8 +73,9 @@ try {
       {communities.length ? communities.map((community) => (
         <article class="group panel relative overflow-hidden rounded-3xl border-white/15 transition hover:-translate-y-1 hover:border-white/40">
           <div class="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/15 via-white/5 to-transparent opacity-60"></div>
-          <div class="h-36 bg-cover bg-center sm:h-32" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.82)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
-          <div class="p-4 sm:p-5">
+          <a href={`/communities/${community.slug}`} class="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+            <div class="h-36 bg-cover bg-center sm:h-32" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.82)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
+            <div class="p-4 sm:p-5">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div class="flex min-w-0 items-center gap-3">
                 <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-10 w-10 rounded-xl border border-white/20 bg-black/40 object-cover sm:h-11 sm:w-11" />
@@ -110,12 +111,11 @@ try {
               <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()} <span class="hidden text-[10px] text-slate-500 md:inline">members · {community.memberCountSource}</span></p>
               <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Active events</span>{community._count.raceSlots}</p>
             </div>
-            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <button type="button" data-community-join={community.slug} class="rh-action-btn bg-white text-black">Join Community</button>
-              <a href={`/communities/${community.slug}`} class="rh-action-btn border border-white/20 bg-white/5 text-white">View Community</a>
-              {safeExternalUrl(community.discordUrl) && <DiscordJoinButton href={safeExternalUrl(community.discordUrl)!} />}
-              {safeExternalUrl(community.redditUrl) && <a href={safeExternalUrl(community.redditUrl)!} target="_blank" rel="noreferrer noopener" class="rh-action-btn border border-orange-300/35 bg-orange-500/15 text-orange-100">Join Reddit</a>}
             </div>
+          </a>
+          <div class="mt-5 flex w-full flex-col gap-3 p-4 pt-0 sm:p-5 sm:pt-0">
+            <button type="button" data-community-join={community.slug} class="rh-action-btn inline-flex min-h-[48px] w-full items-center justify-center whitespace-nowrap rounded-full bg-white text-center text-black">Join Community</button>
+            {safeExternalUrl(community.discordUrl) && <DiscordJoinButton href={safeExternalUrl(community.discordUrl)!} class="inline-flex min-h-[48px] w-full items-center justify-center whitespace-nowrap rounded-full text-center" fullWidthOnMobile={false} />}
           </div>
         </article>
       )) : <p class="panel rounded-2xl p-6 text-slate-300">No communities are public yet.</p>}
