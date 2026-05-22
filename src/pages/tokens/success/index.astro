@@ -1,5 +1,0 @@
----
-import BaseLayout from '@/layouts/BaseLayout.astro';
----
-<BaseLayout title="Purchase complete | RaceHub"><section class="section-shell"><h1 class="section-title">Purchase complete</h1><p class="text-slate-300">Tokens are being added to your wallet.</p><div id="bal"></div><div class="mt-4 flex gap-3"><a href="/dashboard">Dashboard</a><a href="/duels">Duels</a></div></section></BaseLayout>
-<script>fetch('/api/tokens/me',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{document.querySelector('#bal').textContent=`Available Tokens: ${d.balance.available}`;}).catch(()=>{});</script>

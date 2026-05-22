@@ -9,7 +9,6 @@ import { getNumericLimit, parseBody, withErrorHandling } from '@/lib/utils/handl
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
 import { canCreateCommunityDuel, getPublicDuels } from '@/server/services/duel.service';
-import { tokenPotDuelsCreationEnabled } from '@/lib/server/race-token-config';
 
 export const GET: APIRoute = (context) =>
   withErrorHandling(async () => {
@@ -37,12 +36,11 @@ export const POST: APIRoute = (context) =>
       if (!community) throw new HttpError(404, 'Community not found.');
       if (!(await canCreateCommunityDuel(user, community))) throw new HttpError(403, 'Only community staff can create community duels.');
     }
-    if (body.entryMode === 'BIDDED' && !tokenPotDuelsCreationEnabled) throw new HttpError(403, 'Token pot duels are not available yet.');
 
     const duel = await prisma.duel.create({
       data: {
         createdById: user.id,
-        opponentId: body.entryMode === 'BIDDED' ? undefined : body.opponentId,
+        opponentId: body.opponentId,
         communityId: body.communityId,
         visibility: body.visibility,
         ranked: body.ranked,
@@ -59,10 +57,7 @@ export const POST: APIRoute = (context) =>
         rulesSummary: body.rulesSummary,
         scheduledAt: body.scheduledAt,
         expiresAt: body.expiresAt,
-        startingBidTokens: body.entryMode === 'BIDDED' ? body.startingBidTokens : undefined,
-        maxBidTokens: body.entryMode === 'BIDDED' ? body.maxBidTokens : undefined,
-        bidClosesAt: body.entryMode === 'BIDDED' ? body.bidClosesAt : undefined,
-      },
+              },
     });
 
     const response = jsonResponse(201, { duel });
