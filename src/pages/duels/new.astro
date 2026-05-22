@@ -23,7 +23,7 @@ const communities = await getManagedDuelCommunities(user);
 
     <form id="duel-create-form" class="panel mt-7 grid gap-5 rounded-3xl p-5 md:p-7">
       <div class="grid gap-4 md:grid-cols-2">
-<div class="rounded-2xl border border-cyan-300/25 bg-cyan-500/10 p-4"><p class="text-xs uppercase tracking-[0.18em] text-cyan-100">Entry mode</p><div class="mt-3 grid gap-2 md:grid-cols-3"><label class="rounded-xl border border-white/10 p-3"><input type="radio" name="entryMode" value="OPEN" checked /> Open challenge</label><label class="rounded-xl border border-white/10 p-3"><input type="radio" name="entryMode" value="BIDDED" /> Bid for challenger slot</label><label class="rounded-xl border border-white/10 p-3"><input type="radio" name="entryMode" value="PRIVATE" /> Private invite</label></div><div id="bidded-panel" class="mt-3 hidden rounded-2xl border border-cyan-300/30 bg-black/30 p-4"><p class="text-sm text-slate-200">Drivers bid Race Tokens for the challenger slot. The duel winner receives the token pot.</p><div class="mt-3 grid gap-3 md:grid-cols-3"><label class="grid gap-1 text-xs">Starting bid tokens<input name="startingBidTokens" type="number" value="100" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2" /></label><label class="grid gap-1 text-xs">Bid duration<select name="bidDurationMinutes" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2"><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option></select></label><label class="grid gap-1 text-xs">Max bid cap optional<input name="maxBidTokens" type="number" value="5000" class="rounded-xl border border-white/10 bg-black/60 px-3 py-2" /></label></div><p id="bidded-preview" class="mt-3 rounded-xl bg-white/5 p-3 text-xs">Starting bid: 100 Tokens · Duration: 5 min · Winner receives token pot</p></div></div>
+<div class="rounded-2xl border border-cyan-300/25 bg-cyan-500/10 p-4"><p class="text-xs uppercase tracking-[0.18em] text-cyan-100">Entry mode</p><div class="mt-3 grid gap-2 md:grid-cols-3"><label class="rounded-xl border border-white/10 p-3"><input type="radio" name="entryMode" value="OPEN" checked /> Open challenge</label><label class="rounded-xl border border-white/10 p-3"><input type="radio" name="entryMode" value="PRIVATE" /> Private invite</label></div></div>
         <label class="grid gap-2 text-sm text-slate-200">Game
           <select name="game" required class="rounded-xl border border-white/10 bg-black/60 px-3 py-2 text-white">
             {DUEL_GAMES.map((game) => <option value={game}>{game}</option>)}
@@ -110,11 +110,6 @@ const communities = await getManagedDuelCommunities(user);
   const entryModes = Array.from(document.querySelectorAll('input[name="entryMode"]'));
   const bidPanel = document.querySelector('#bidded-panel');
   const preview = document.querySelector('#bidded-preview');
-  const sInput = form?.querySelector('input[name="startingBidTokens"]');
-  const dInput = form?.querySelector('select[name="bidDurationMinutes"]');
-  const syncMode=()=>{ const mode = entryModes.find((el)=>el.checked)?.value; if (bidPanel) bidPanel.classList.toggle('hidden', mode!=='BIDDED');};
-  const syncPreview=()=>{ if(!preview) return; preview.textContent = `Starting bid: ${sInput?.value||100} Tokens · Duration: ${dInput?.value||5} min · Winner receives token pot`; };
-  entryModes.forEach((el)=>el.addEventListener('change',syncMode)); sInput?.addEventListener('input',syncPreview); dInput?.addEventListener('change',syncPreview); syncMode(); syncPreview();
 
   });
 </script>
