@@ -21,6 +21,38 @@ body {
   color: white;
 }
 
+#route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  height: 2px;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  background: linear-gradient(90deg, #22d3ee 0%, #38bdf8 45%, #f472b6 100%);
+  transition: transform 240ms ease, opacity 180ms ease;
+}
+
+#route-progress.is-active {
+  opacity: 0.95;
+  transform: scaleX(0.65);
+}
+
+#route-progress.is-active.is-complete {
+  transform: scaleX(1);
+  opacity: 0;
+}
+
+[data-pressable] {
+  transition: transform 120ms ease, filter 120ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+[data-pressable]:active {
+  transform: scale(0.985);
+  filter: brightness(1.06);
+}
+
 
 select {
   color-scheme: dark;
