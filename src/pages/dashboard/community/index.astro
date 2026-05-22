@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db/prisma';
 import CommunityEditorForm from '@/components/dashboard/CommunityEditorForm';
 import CommunityMemberManager from '@/components/dashboard/CommunityMemberManager';
 import CommunityRaceList from '@/components/dashboard/CommunityRaceList';
+import DiscordJoinButton from '@/components/ui/DiscordJoinButton.astro';
 import { userCommunityRole } from '@/lib/server/community-permissions';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
@@ -136,7 +137,7 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.community.routeTotal: ${(per
               <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Races</p>
               <h2 class="mt-2 font-display text-2xl">Manage races</h2>
             </div>
-            {canManageRaces && <a href="/dashboard/community/races/new" class="rounded-full bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-black">Create race</a>}
+            {canManageRaces && <a href="/dashboard/community/races/new" class="rh-action-btn bg-white text-black">Create race</a>}
           </div>
           <div class="mt-5">
             <CommunityRaceList client:idle organiserProfileId={community.id} canManageRaces={canManageRaces} />
@@ -157,7 +158,7 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.community.routeTotal: ${(per
           <h2 class="mt-2 font-display text-2xl">External community surfaces</h2>
           <div class="mt-4 grid gap-3 md:grid-cols-3">
             <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Cached members</p><p class="mt-2 font-display text-3xl">{community.displayedMemberCount.toLocaleString()}</p><p class="text-[11px] text-slate-500">{community.memberCountSource} · {community.memberCountLastSyncedAt ? new Date(community.memberCountLastSyncedAt).toLocaleString() : 'not synced'}</p></div>
-            <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Discord</p>{community.discordUrl ? <a href={community.discordUrl} target="_blank" rel="noreferrer noopener" class="mt-3 inline-flex rounded-full border border-indigo-300/35 bg-indigo-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-indigo-100">Join Discord</a> : <p class="mt-2 text-sm text-slate-400">No Discord link set.</p>}</div>
+            <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Discord</p>{community.discordUrl ? <div class="mt-3"><DiscordJoinButton href={community.discordUrl} fullWidthOnMobile={false} /></div> : <p class="mt-2 text-sm text-slate-400">No Discord link set.</p>}</div>
             <div class="rounded-2xl border border-white/10 bg-black/25 p-4"><p class="text-xs text-slate-500">Reddit</p>{community.redditUrl ? <a href={community.redditUrl} target="_blank" rel="noreferrer noopener" class="mt-3 inline-flex rounded-full border border-orange-300/35 bg-orange-500/15 px-4 py-2 text-xs uppercase tracking-[0.16em] text-orange-100">Join Reddit</a> : <p class="mt-2 text-sm text-slate-400">No Reddit link set.</p>}</div>
           </div>
         </article>

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { getCommunityMemberCountDisplay, getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
 import { getCommunityMembership } from '@/lib/server/community-permissions';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
+import DiscordJoinButton from '@/components/ui/DiscordJoinButton.astro';
 
 export const prerender = false;
 
@@ -151,11 +152,11 @@ const RaceCard = (event: (typeof publicRaces)[number]) => {
                 <p class="mt-2 text-xs uppercase tracking-[0.18em] text-slate-300">{community.region} · {community.platformFocus ?? 'Cross-platform'} · {community.gameFocus ?? 'F1'}</p>
               </div>
             </div>
-            <div class="grid w-full gap-2 sm:w-auto sm:grid-cols-2 lg:min-w-80">
-              <button type="button" data-community-join={community.slug} class="rounded-full bg-white px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-black">Join Community</button>
-              {discordUrl && <a href={discordUrl} target="_blank" rel="noopener noreferrer" class="rh-badge rounded-full border border-indigo-300/35 bg-indigo-500/15 px-5 py-3 text-center text-xs uppercase tracking-[0.16em] text-indigo-100">Join Discord</a>}
-              {redditUrl && <a href={redditUrl} target="_blank" rel="noopener noreferrer" class="rh-badge rounded-full border border-orange-300/35 bg-orange-500/15 px-5 py-3 text-center text-xs uppercase tracking-[0.16em] text-orange-100">Join Reddit</a>}
-              {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rh-badge rounded-full border border-white/20 bg-white/10 px-5 py-3 text-center text-xs uppercase tracking-[0.16em] text-white">Website</a>}
+            <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap lg:max-w-[30rem]">
+              <button type="button" data-community-join={community.slug} class="rh-action-btn bg-white text-black">Join Community</button>
+              {discordUrl && <DiscordJoinButton href={discordUrl} />}
+              {redditUrl && <a href={redditUrl} target="_blank" rel="noopener noreferrer" class="rh-action-btn border border-orange-300/35 bg-orange-500/15 text-orange-100">Join Reddit</a>}
+              {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rh-action-btn border border-white/20 bg-white/10 text-white">Website</a>}
             </div>
           </div>
         </div>
@@ -239,9 +240,9 @@ const RaceCard = (event: (typeof publicRaces)[number]) => {
 
 
       <div class="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 px-4 py-3 backdrop-blur-xl mobile-safe-bottom md:hidden">
-        <div class="mx-auto grid max-w-md grid-cols-2 gap-2">
-          <button type="button" data-community-join={community.slug} class="min-h-12 rounded-2xl bg-white px-4 text-sm font-bold text-black">Join</button>
-          <a href="#races" class="flex min-h-12 items-center justify-center rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-bold text-white">Active races</a>
+        <div class="mx-auto flex max-w-md flex-col gap-2">
+          <button type="button" data-community-join={community.slug} class="rh-action-btn min-h-12 rounded-2xl bg-white px-4 text-sm font-bold normal-case tracking-normal text-black">Join</button>
+          <a href="#races" class="rh-action-btn min-h-12 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-bold normal-case tracking-normal text-white">Active races</a>
         </div>
       </div>
 
