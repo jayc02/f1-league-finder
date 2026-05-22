@@ -26,10 +26,10 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.shell: ${(performance.now() 
           <p class="mt-2 text-sm text-slate-300 line-clamp-1 md:line-clamp-none">Jump into a duel, race, community, or profile.</p>
         </div>
         <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <a href="/duels/new" class="flex min-h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black">Create duel</a>
-          <a href="/dashboard/community" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Manage community</a>
-          <a href="/race-slots" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">My races</a>
-          <a href="/profile/edit" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit profile</a>
+          <a href="/duels/new" data-astro-prefetch="hover" class="flex min-h-12 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black">Create duel</a>
+          <a href="/dashboard/community" data-astro-prefetch="hover" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Manage community</a>
+          <a href="/race-slots" data-astro-prefetch="hover" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">My races</a>
+          <a href="/profile/edit" data-astro-prefetch="hover" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-sm text-white transition hover:border-white/40 hover:bg-white/10">Edit profile</a>
         </div>
       </div>
       <div class="mt-6 grid gap-3 sm:grid-cols-2 md:max-w-md">
@@ -38,6 +38,6 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.shell: ${(performance.now() 
       </div>
     </div>
 
-    <div class='grid gap-5'><DashboardOverview client:load /></div>
+    <div class='grid gap-5'><DashboardOverview client:idle /></div>
   </section>
 </BaseLayout>

@@ -60,7 +60,7 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.community.routeTotal: ${(per
     {!community ? (
       <div class="mt-8">
         <CommunityEditorForm
-          client:load
+          client:visible
           mode="create"
           canManagePlatformBadges={user.role === 'ADMIN'}
           initialState={{
@@ -99,11 +99,11 @@ if (shouldLogPerf()) console.info(`[perf] dashboard.community.routeTotal: ${(per
               <h2 class="mt-2 font-display text-2xl">{community.displayName}</h2>
               <p class="mt-1 text-sm text-slate-400">Your role: {actorRole}</p>
             </div>
-            {community.isPublic && <a href={`/communities/${community.slug}`} class="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200">View public page</a>}
+            {community.isPublic && <a href={`/communities/${community.slug}`} data-astro-prefetch="hover" class="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200">View public page</a>}
           </div>
           {canEditProfile ? (
             <CommunityEditorForm
-              client:load
+              client:visible
               mode="edit"
               canManagePlatformBadges={user.role === 'ADMIN'}
               initialState={{
