@@ -30,6 +30,42 @@ export interface ApplyCommunityRaceResultInput {
   occurredAt?: Date;
 }
 
+export interface SubmitCommunityResultEntry {
+  userId: string;
+  finishingPosition: number;
+  ratingDelta?: number;
+  honourDelta?: number;
+  notes?: string | null;
+}
+
+export interface SubmitCommunityResultInput {
+  organiserProfileId: string;
+  submittedById: string;
+  eventName: string;
+  track?: string | null;
+  occurredAt: Date | string;
+  evidenceUrl?: string | null;
+  notes?: string | null;
+  entries: SubmitCommunityResultEntry[];
+  applyGlobalRating?: boolean;
+  allowPlatformAdminBypass?: boolean;
+}
+
+export interface SubmitCommunityResultResult {
+  result: {
+    organiserProfileId: string;
+    eventName: string;
+    track: string | null;
+    occurredAt: Date;
+    evidenceUrl: string | null;
+    notes: string | null;
+    submittedById: string;
+    totalDrivers: number;
+  };
+  ratingEvents: Awaited<ReturnType<Prisma.TransactionClient['communityRatingEvent']['create']>>[];
+  updatedRatings: Awaited<ReturnType<Prisma.TransactionClient['communityDriverRating']['update']>>[];
+}
+
 export const computeCommunitySkillDelta = (finishingPosition: number, totalDrivers: number) => {
   const midpoint = (totalDrivers + 1) / 2;
   return clamp(Math.round((midpoint - finishingPosition) * 4), -24, 24);
@@ -191,6 +227,140 @@ export const applyCommunityDuelOutcome = async (
     }),
   ]);
 };
+
+export async function submitCommunityResult(input: SubmitCommunityResultInput): Promise<SubmitCommunityResultResult> {
+  const eventName = input.eventName.trim();
+  const occurredAt = input.occurredAt instanceof Date ? input.occurredAt : new Date(input.occurredAt);
+
+  if (!eventName) throw new Error('Event name is required.');
+  if (Number.isNaN(occurredAt.getTime())) throw new Error('A valid occurredAt date is required.');
+  if (!input.entries.length) throw new Error('At least one result entry is required.');
+
+  const uniqueUsers = new Set(input.entries.map((entry) => entry.userId));
+  const uniquePositions = new Set(input.entries.map((entry) => entry.finishingPosition));
+  if (uniqueUsers.size !== input.entries.length || uniquePositions.size !== input.entries.length) {
+    throw new Error('Result entries must have unique users and finishing positions.');
+  }
+
+  const ordered = [...input.entries].sort((a, b) => a.finishingPosition - b.finishingPosition);
+  if (ordered.some((entry) => !entry.userId || !Number.isInteger(entry.finishingPosition) || entry.finishingPosition < 1)) {
+    throw new Error('Each result entry requires a valid user and finishing position.');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const community = await tx.organiserProfile.findUnique({
+      where: { id: input.organiserProfileId },
+      select: { id: true, userId: true },
+    });
+    if (!community) throw new Error('Community not found.');
+
+    const submitterRole = await tx.organiserProfileMember.findUnique({
+      where: { organiserProfileId_userId: { organiserProfileId: input.organiserProfileId, userId: input.submittedById } },
+      select: { role: true, status: true },
+    });
+    const canSubmit =
+      input.allowPlatformAdminBypass === true ||
+      community.userId === input.submittedById ||
+      Boolean(submitterRole?.status === 'ACTIVE' && ['OWNER', 'ADMIN', 'MODERATOR'].includes(submitterRole.role));
+    if (!canSubmit) throw new Error('Insufficient community permissions.');
+
+    if (!input.allowPlatformAdminBypass) {
+      const activeMemberships = await tx.organiserProfileMember.findMany({
+        where: {
+          organiserProfileId: input.organiserProfileId,
+          userId: { in: ordered.map((entry) => entry.userId) },
+          status: 'ACTIVE',
+        },
+        select: { userId: true },
+      });
+      const activeUserIds = new Set(activeMemberships.map((membership) => membership.userId));
+      if (community.userId) activeUserIds.add(community.userId);
+      const missingUser = ordered.find((entry) => !activeUserIds.has(entry.userId));
+      if (missingUser) throw new Error(`User ${missingUser.userId} is not an active community member.`);
+    }
+
+    const totalDrivers = ordered.length;
+    const ratingEvents = [];
+    const updatedRatings = [];
+    for (const entry of ordered) {
+      const existing = await ensureCommunityDriverRating(tx, input.organiserProfileId, entry.userId);
+      const skillDelta = entry.ratingDelta ?? computeCommunitySkillDelta(entry.finishingPosition, totalDrivers);
+      const honourDelta = entry.honourDelta ?? computeCommunityHonourDelta(entry.finishingPosition, totalDrivers);
+      const nextSkill = Math.max(0, existing.skillRating + skillDelta);
+      const nextHonour = clamp(existing.honourScore + honourDelta, MIN_HONOUR, MAX_HONOUR);
+
+      const updatedRating = await tx.communityDriverRating.update({
+        where: { id: existing.id },
+        data: {
+          skillRating: nextSkill,
+          honourScore: nextHonour,
+          starts: { increment: 1 },
+          wins: { increment: entry.finishingPosition === 1 ? 1 : 0 },
+          podiums: { increment: entry.finishingPosition <= 3 ? 1 : 0 },
+          cleanRaces: { increment: honourDelta > 0 ? 1 : 0 },
+          incidents: { increment: honourDelta < 0 ? 1 : 0 },
+          lastRaceAt: occurredAt,
+        },
+      });
+      updatedRatings.push(updatedRating);
+
+      if (input.applyGlobalRating) {
+        const user = await tx.user.findUnique({ where: { id: entry.userId }, select: { honourScore: true } });
+        await tx.user.update({
+          where: { id: entry.userId },
+          data: {
+            skillRating: { increment: skillDelta },
+            honourScore: clamp((user?.honourScore ?? DEFAULT_COMMUNITY_HONOUR) + honourDelta, MIN_HONOUR, MAX_HONOUR),
+          },
+        });
+      }
+
+      ratingEvents.push(await tx.communityRatingEvent.create({
+        data: {
+          organiserProfileId: input.organiserProfileId,
+          userId: entry.userId,
+          appliedById: input.submittedById,
+          skillDelta,
+          honourDelta,
+          reason: `Community result submitted: ${eventName}`,
+          metadata: {
+            source: 'community_result',
+            eventName,
+            track: input.track ?? null,
+            occurredAt: occurredAt.toISOString(),
+            evidenceUrl: input.evidenceUrl ?? null,
+            notes: input.notes ?? null,
+            entryNotes: entry.notes ?? null,
+            finishingPosition: entry.finishingPosition,
+            totalDrivers,
+            applyGlobalRating: Boolean(input.applyGlobalRating),
+            entries: ordered.map((resultEntry) => ({
+              userId: resultEntry.userId,
+              finishingPosition: resultEntry.finishingPosition,
+            })),
+            before: { skillRating: existing.skillRating, honourScore: existing.honourScore },
+            after: { skillRating: nextSkill, honourScore: nextHonour },
+          } satisfies Prisma.JsonObject,
+        },
+      }));
+    }
+
+    return {
+      result: {
+        organiserProfileId: input.organiserProfileId,
+        eventName,
+        track: input.track ?? null,
+        occurredAt,
+        evidenceUrl: input.evidenceUrl ?? null,
+        notes: input.notes ?? null,
+        submittedById: input.submittedById,
+        totalDrivers,
+      },
+      ratingEvents,
+      updatedRatings,
+    };
+  });
+}
 
 export const getCommunityRankings = async (slug: string, view: CommunityRankingView = 'sr', limit = 25) =>
   withPerf('communityRankings.fetch', async () => {
