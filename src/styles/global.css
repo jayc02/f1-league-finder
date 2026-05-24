@@ -21,6 +21,38 @@ body {
   color: white;
 }
 
+#route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  height: 2px;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+  background: linear-gradient(90deg, #22d3ee 0%, #38bdf8 45%, #f472b6 100%);
+  transition: transform 240ms ease, opacity 180ms ease;
+}
+
+#route-progress.is-active {
+  opacity: 0.95;
+  transform: scaleX(0.65);
+}
+
+#route-progress.is-active.is-complete {
+  transform: scaleX(1);
+  opacity: 0;
+}
+
+[data-pressable] {
+  transition: transform 120ms ease, filter 120ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+[data-pressable]:active {
+  transform: scale(0.985);
+  filter: brightness(1.06);
+}
+
 
 select {
   color-scheme: dark;
@@ -112,6 +144,15 @@ body::before {
   word-break: keep-all;
 }
 
+
+
+.rh-action-btn {
+  @apply inline-flex min-h-[48px] w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 text-center text-xs font-semibold uppercase tracking-[0.14em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/45 sm:w-auto;
+}
+
+.rh-discord-btn {
+  @apply border border-indigo-300/40 bg-[#5865F2] text-white hover:bg-[#4752C4] focus-visible:ring-[#5865F2]/70;
+}
 @layer utilities {
   .mobile-safe-bottom {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));

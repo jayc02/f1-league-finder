@@ -74,7 +74,7 @@ const structuredData = {
       </div>
       <div class="mobile-scroll-row mt-6 md:grid md:gap-4 md:overflow-visible md:grid-cols-3">
         {showcaseCommunities.length ? showcaseCommunities.map((community) => (
-          <a href={`/communities/${community.slug}`} class="mobile-scroll-card rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35 hover:bg-white/[0.06] md:min-w-0">
+          <a href={`/communities/${community.slug}`} data-astro-prefetch="hover" data-pressable class="mobile-scroll-card rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35 hover:bg-white/[0.06] md:min-w-0">
             <div class="flex items-center gap-3">
               <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-10 w-10 rounded-xl border border-white/10 object-cover" />
               <div>

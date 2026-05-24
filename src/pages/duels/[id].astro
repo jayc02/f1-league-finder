@@ -5,6 +5,7 @@ import HonourGradeBadge from '@/components/ui/HonourGradeBadge.astro';
 import { getSessionUser } from '@/lib/auth/session';
 import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { getDuelForViewer } from '@/server/services/duel.service';
+import { withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
 
@@ -13,8 +14,10 @@ setAstroCache(Astro, privateNoStore);
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/duels');
-const currentUser = await getSessionUser(Astro as never);
-const detail = await getDuelForViewer(id, currentUser?.id);
+const renderStart = performance.now();
+const currentUser = await withPerf('duel.detail.session', () => getSessionUser(Astro as never));
+const detail = await withPerf('duel.detail.publicData', () => getDuelForViewer(id, currentUser?.id));
+await withPerf('duel.detail.viewerState', async () => null);
 if (detail.status === 'not_found') Astro.response.status = 404;
 if (detail.status === 'access_denied') Astro.response.status = 403;
 const duel = detail.status === 'ok' ? detail.duel : null;
@@ -31,6 +34,7 @@ const canSubmitResult = Boolean(currentUser && duel && ['ACCEPTED', 'IN_PROGRESS
 const myConfirmation = currentUser && duel ? duel.confirmations.find((confirmation) => confirmation.userId === currentUser.id) : null;
 const conflict = duel?.status === 'DISPUTED';
 const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.username : duel?.winnerUserId === duel?.opponentId ? playerB?.username : null;
+console.info(`[perf] duel.detail.firstRender: ${(performance.now() - renderStart).toFixed(1)}ms`);
 ---
 
 <BaseLayout noindex={duel?.visibility !== 'PUBLIC'} sessionUser={currentUser} title={duel ? `${duel.createdBy.username} vs ${duel.opponent?.username ?? 'Open'} | RaceHub Duels` : 'Duel | RaceHub'}>
@@ -99,7 +103,7 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
 
             <article class="panel rounded-3xl p-5">
               <h2 class="font-display text-2xl">Duel Actions</h2>
-              <div id="duel-action-message" class="mt-4 hidden rounded-2xl border px-4 py-3 text-sm"></div>
+              <div id="duel-action-message" class="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-300">Loading actions...</div>
               <div class="mt-4 flex flex-wrap gap-2">
                 {!currentUser && <a href="/login" class="rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">Sign in to act</a>}
                 {canAccept && <button data-duel-action="accept" class="rounded-full bg-emerald-300 px-5 py-2 text-sm font-semibold text-black">Accept challenge</button>}
@@ -158,7 +162,7 @@ const completedWinnerName = duel?.winnerUserId === duel?.createdById ? playerA?.
         <p class="text-xs uppercase tracking-[0.2em] text-rose-100/80">{detail.status === 'access_denied' ? 'Access denied' : 'Duel not found'}</p>
         <h1 class="section-title mt-3">This duel is unavailable</h1>
         <p class="mt-3 text-sm text-slate-300">{detail.status === 'access_denied' ? detail.message : 'This duel does not exist or may have been removed.'}</p>
-        <a href="/duels" class="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white">Back to duels</a>
+        <a href="/duels" data-astro-prefetch="hover" class="mt-6 inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-2 text-sm text-white">Back to duels</a>
       </article>
     )}
   </section>

@@ -19,7 +19,7 @@ const appNav = [
 
 <header class="fixed left-0 top-0 z-[90] w-full border-b border-white/[0.05] bg-black/35 backdrop-blur-xl" data-header>
   <div class="mx-auto flex w-[min(1280px,94vw)] items-center justify-between gap-3 py-3 md:py-4">
-    <a href="/" data-astro-prefetch="hover" class="font-display text-base tracking-[0.2em] text-white sm:text-lg sm:tracking-[0.24em]">RaceHub</a>
+    <a href="/" data-astro-prefetch="hover" data-pressable class="font-display text-base tracking-[0.2em] text-white sm:text-lg sm:tracking-[0.24em]">RaceHub</a>
 
     <nav class="hidden gap-7 text-sm text-slate-200/90 lg:flex">
       {appNav.map((item) => <a href={item.href} data-astro-prefetch={['/duels', '/race-slots', '/communities', '/leaderboards'].includes(item.href) ? 'hover' : undefined} class="transition hover:text-white">{item.label}</a>)}

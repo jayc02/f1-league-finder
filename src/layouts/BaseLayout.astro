@@ -87,9 +87,10 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
     <ClientRouter />
   </head>
   <body>
+    <div id="route-progress" aria-hidden="true"></div>
     <div id="app-shell">
-      {!lightweightApp && <CursorGlow client:load />}
-      {!lightweightApp && <PageMotion client:load />}
+      {!lightweightApp && <CursorGlow client:idle />}
+      {!lightweightApp && <PageMotion client:idle />}
       <SiteHeader user={sessionUser} authStateKnown={authStateKnown} />
       <main class="pt-24">
         <slot />
@@ -98,6 +99,26 @@ const ogImageUrl = /^https?:\/\//i.test(ogImage) ? ogImage : absoluteUrl(ogImage
       <SpeedInsights />
     </div>
     <script>
+      const progressBar = document.getElementById('route-progress');
+      let routeProgressTimer: number | undefined;
+      const showRouteProgress = () => {
+        if (!progressBar) return;
+        progressBar.classList.add('is-active');
+        window.clearTimeout(routeProgressTimer);
+      };
+      const hideRouteProgress = () => {
+        if (!progressBar) return;
+        progressBar.classList.add('is-complete');
+        routeProgressTimer = window.setTimeout(() => {
+          progressBar.classList.remove('is-active', 'is-complete');
+        }, 220);
+      };
+
+      document.addEventListener('astro:before-preparation', showRouteProgress);
+      document.addEventListener('astro:after-preparation', showRouteProgress);
+      document.addEventListener('astro:before-swap', showRouteProgress);
+      document.addEventListener('astro:page-load', hideRouteProgress);
+
       const isRaceHubBackgroundVideoDev = import.meta.env.DEV;
       const raceHubBackgroundVideoWindow = window as typeof window & {
         __raceHubBackgroundVideoListenersAttached?: boolean;
