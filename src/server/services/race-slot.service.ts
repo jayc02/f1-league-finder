@@ -35,7 +35,7 @@ const raceSlotSummarySelect = {
   status: true,
   registrationCutoffAt: true,
   rulesSummary: true,
-  stakeTierMetadata: true,
+  eventTierLabel: true,
   cancellationReason: true,
   createdAt: true,
   updatedAt: true,

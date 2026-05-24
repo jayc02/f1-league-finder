@@ -91,8 +91,6 @@ const communities = await getManagedDuelCommunities(user);
     event.preventDefault();
     const data = new FormData(form);
     const payload = Object.fromEntries(data.entries());
-    if (payload.entryMode === 'BIDDED') { const minutes = Number(payload.bidDurationMinutes || 5); payload.bidClosesAt = new Date(Date.now() + minutes * 60_000).toISOString(); }
-    delete payload.bidDurationMinutes;
     payload.ranked = data.has('ranked');
     payload.crossplay = data.has('crossplay');
     try {
@@ -106,10 +104,6 @@ const communities = await getManagedDuelCommunities(user);
         message.textContent = error instanceof Error ? error.message : 'Could not create duel.';
       }
     }
-
-  const entryModes = Array.from(document.querySelectorAll('input[name="entryMode"]'));
-  const bidPanel = document.querySelector('#bidded-panel');
-  const preview = document.querySelector('#bidded-preview');
 
   });
 </script>

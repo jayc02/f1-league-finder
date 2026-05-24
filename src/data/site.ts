@@ -53,10 +53,10 @@ export const leaderboardData = {
 };
 
 export const features = [
-  '1v1 challenges',
-  'Same car rules',
-  'Ranked duels',
-  'Honour rating',
+  'Community SR',
+  'Honour grades',
+  'Clean racing history',
+  'Race results',
   'Global rankings',
   'Dispute tools',
   'Organiser controls'

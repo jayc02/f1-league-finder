@@ -3,6 +3,7 @@ import { DuelStatus, DuelVisibility, HonourEventType, ModerationActionType, Orga
 import { prisma } from '@/lib/db/prisma';
 import { HttpError } from '@/lib/utils/http';
 import { withPerf } from '@/lib/utils/perf';
+import { applyCommunityDuelOutcome } from '@/server/services/community-rating.service';
 import { applyHonourEvent } from '@/server/services/honour.service';
 
 const duelUserSelect = {
@@ -151,7 +152,7 @@ export const acceptDuel = async (duelId: string, user: Pick<User, 'id'>) => {
   });
 };
 
-export const applyRankedDuelOutcome = async (tx: Prisma.TransactionClient, duel: { id: string; ranked: boolean; createdById: string; opponentId: string | null; resultAppliedAt?: Date | null }, winnerUserId: string) => {
+export const applyRankedDuelOutcome = async (tx: Prisma.TransactionClient, duel: { id: string; ranked: boolean; createdById: string; opponentId: string | null; communityId?: string | null; resultAppliedAt?: Date | null }, winnerUserId: string, appliedById?: string | null) => {
   if (!duel.ranked || !duel.opponentId || duel.resultAppliedAt) return;
   const loserUserId = winnerUserId === duel.createdById ? duel.opponentId : duel.createdById;
   const ratingDelta = 16;
@@ -171,6 +172,16 @@ export const applyRankedDuelOutcome = async (tx: Prisma.TransactionClient, duel:
     type: HonourEventType.CLEAN_RACE,
     metadata: { duelId: duel.id, duelType: '1v1' },
   });
+  if (duel.communityId) {
+    await applyCommunityDuelOutcome(tx, {
+      organiserProfileId: duel.communityId,
+      duelId: duel.id,
+      winnerUserId,
+      loserUserId,
+      appliedById,
+      reason: 'Ranked community duel result confirmed.',
+    });
+  }
 };
 
 type DuelConfirmationInput = {
@@ -219,6 +230,7 @@ export const confirmDuelResult = async ({ duelId, userId, confirmedWinnerId, not
         opponentId: true,
         status: true,
         ranked: true,
+        communityId: true,
         resultAppliedAt: true,
         winnerUserId: true,
       },
@@ -296,7 +308,7 @@ export const confirmDuelResult = async ({ duelId, userId, confirmedWinnerId, not
       data: { winnerUserId: winningConfirmation.leg2WinnerId ?? first.confirmedWinnerId, completedAt, evidenceUrl: winningConfirmation.evidenceUrl },
     });
     if (duel.ranked && !duel.resultAppliedAt) {
-      await applyRankedDuelOutcome(tx, duel, first.confirmedWinnerId);
+      await applyRankedDuelOutcome(tx, duel, first.confirmedWinnerId, userId);
     }
     await tx.duel.update({
       where: { id: duelId },
@@ -367,7 +379,7 @@ export const resolveDuelAsAdmin = async (duelId: string, admin: Pick<User, 'id'>
     const nextStatus = input.action === 'COMPLETED' ? DuelStatus.COMPLETED : input.action === 'CANCELLED' ? DuelStatus.CANCELLED : DuelStatus.DISPUTED;
 
     if (input.action === 'COMPLETED' && input.winnerUserId && duel.ranked && !duel.resultAppliedAt) {
-      await applyRankedDuelOutcome(tx, duel, input.winnerUserId);
+      await applyRankedDuelOutcome(tx, duel, input.winnerUserId, admin.id);
     }
 
     const updated = await tx.duel.update({

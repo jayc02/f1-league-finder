@@ -3,8 +3,11 @@
 ## Environment
 Copy `.env.example` to `.env` and configure:
 - `DATABASE_URL`
+- `DIRECT_URL`
 - `PUBLIC_SITE_URL` (set to `https://racehub.gg` in production)
-- `UPLOAD_STORAGE_DIR` (mount to persistent storage in production)
+- `UPLOAD_STORAGE_PROVIDER=supabase`
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET` for production uploads
+- `UPLOAD_STORAGE_DIR` only when using local development uploads
 - `RESEND_API_KEY` and `EMAIL_FROM` for dispute and moderation emails
 
 ## First-time local setup

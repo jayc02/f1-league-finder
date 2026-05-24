@@ -9,11 +9,10 @@ interface Props {
 
 const { user, authStateKnown = false } = Astro.props;
 const appNav = [
-  { label: '1v1 Duels', href: '/duels' },
-  { label: 'Race Slots', href: '/race-slots' },
   { label: 'Communities', href: '/communities' },
   { label: 'Rankings', href: '/leaderboards' },
-  { label: 'Leagues', href: '/leagues' },
+  { label: 'Race Slots', href: '/race-slots' },
+  { label: 'Duels', href: '/duels' },
   ...(user ? [{ label: 'Dashboard', href: '/dashboard' }, ...(user.role === 'ADMIN' ? [{ label: 'Admin', href: '/admin' }] : []), { label: 'Profile', href: '/profile' }] : []),
 ];
 ---
@@ -23,7 +22,7 @@ const appNav = [
     <a href="/" data-astro-prefetch="hover" class="font-display text-base tracking-[0.2em] text-white sm:text-lg sm:tracking-[0.24em]">RaceHub</a>
 
     <nav class="hidden gap-7 text-sm text-slate-200/90 lg:flex">
-      {appNav.map((item) => <a href={item.href} data-astro-prefetch={['/duels', '/race-slots', '/communities', '/leaderboards', '/leagues'].includes(item.href) ? 'hover' : undefined} class="transition hover:text-white">{item.label}</a>)}
+      {appNav.map((item) => <a href={item.href} data-astro-prefetch={['/duels', '/race-slots', '/communities', '/leaderboards'].includes(item.href) ? 'hover' : undefined} class="transition hover:text-white">{item.label}</a>)}
     </nav>
 
     <div class="hidden lg:block">
@@ -47,7 +46,7 @@ const appNav = [
   <div class="pointer-events-auto fixed inset-x-3 top-[4.5rem] z-[100] hidden rounded-3xl border border-white/15 bg-black/95 px-3 py-4 shadow-[0_28px_80px_rgba(0,0,0,.75)] lg:hidden" data-mobile-menu>
     <nav class="grid gap-2">
       {appNav.map((item) => (
-        <a href={item.href} data-astro-prefetch={['/duels', '/race-slots', '/communities', '/leaderboards', '/leagues'].includes(item.href) ? 'hover' : undefined} class="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 transition hover:border-white/30 hover:bg-white/10">{item.label}</a>
+        <a href={item.href} data-astro-prefetch={['/duels', '/race-slots', '/communities', '/leaderboards'].includes(item.href) ? 'hover' : undefined} class="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 transition hover:border-white/30 hover:bg-white/10">{item.label}</a>
       ))}
     </nav>
 

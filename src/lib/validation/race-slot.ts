@@ -18,7 +18,7 @@ export const createRaceSlotSchema = z.object({
   maxPlayers: z.number().int().min(2).max(30),
   registrationCutoffAt: z.coerce.date(),
   rulesSummary: z.string().min(10).max(600),
-  stakeTierMetadata: z.string().max(80).optional(),
+  eventTierLabel: z.string().max(80).optional(),
   status: slotStatusEnum.optional(),
 });
 
@@ -36,7 +36,7 @@ export const updateRaceSlotSchema = z.object({
   maxPlayers: z.number().int().min(2).max(30).optional(),
   registrationCutoffAt: z.coerce.date().optional(),
   rulesSummary: z.string().min(10).max(600).optional(),
-  stakeTierMetadata: z.string().max(80).nullable().optional(),
+  eventTierLabel: z.string().max(80).nullable().optional(),
   status: slotStatusEnum.optional(),
   cancellationReason: z.string().max(400).optional(),
 }).refine((data) => Object.keys(data).length > 0, {

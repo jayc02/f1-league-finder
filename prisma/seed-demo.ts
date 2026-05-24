@@ -219,6 +219,8 @@ async function clearDemoData() {
   await prisma.disputeEmailLog.deleteMany({ where: { OR: [{ disputeId: { in: ids.disputeIds } }, { recipientId: { in: ids.userIds } }, { sentById: { in: ids.userIds } }] } });
   await prisma.disputeStatusLog.deleteMany({ where: { OR: [{ disputeId: { in: ids.disputeIds } }, { changedById: { in: ids.userIds } }] } });
   await prisma.dispute.deleteMany({ where: { id: { in: ids.disputeIds } } });
+  await prisma.communityRatingEvent.deleteMany({ where: { OR: [{ organiserProfileId: { in: ids.profileIds } }, { raceSlotId: { in: ids.raceSlotIds } }, { raceResultId: { in: ids.resultIds } }] } });
+  await prisma.communityDriverRating.deleteMany({ where: { organiserProfileId: { in: ids.profileIds } } });
   await prisma.moderationAction.deleteMany({ where: { OR: [{ targetUserId: { in: ids.userIds } }, { raceSlotId: { in: ids.raceSlotIds } }, { disputeId: { in: ids.disputeIds } }] } });
   await prisma.honourEvent.deleteMany({ where: { OR: [{ userId: { in: ids.userIds } }, { raceSlotId: { in: ids.raceSlotIds } }, { raceResultId: { in: ids.resultIds } }] } });
   await prisma.raceResultEntry.deleteMany({ where: { OR: [{ userId: { in: ids.userIds } }, { raceResultId: { in: ids.resultIds } }] } });
@@ -389,6 +391,8 @@ async function clearDemoRaceActivityOnly() {
   await prisma.disputeEmailLog.deleteMany({ where: { disputeId: { in: ids.disputeIds } } });
   await prisma.disputeStatusLog.deleteMany({ where: { disputeId: { in: ids.disputeIds } } });
   await prisma.dispute.deleteMany({ where: { id: { in: ids.disputeIds } } });
+  await prisma.communityRatingEvent.deleteMany({ where: { OR: [{ organiserProfileId: { in: ids.profileIds } }, { raceSlotId: { in: ids.raceSlotIds } }, { raceResultId: { in: ids.resultIds } }] } });
+  await prisma.communityDriverRating.deleteMany({ where: { organiserProfileId: { in: ids.profileIds } } });
   await prisma.moderationAction.deleteMany({ where: { raceSlotId: { in: ids.raceSlotIds } } });
   await prisma.honourEvent.deleteMany({ where: { OR: [{ raceSlotId: { in: ids.raceSlotIds } }, { raceResultId: { in: ids.resultIds } }] } });
   await prisma.raceResultEntry.deleteMany({ where: { raceResultId: { in: ids.resultIds } } });
@@ -431,7 +435,7 @@ async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
         status: item.status,
         registrationCutoffAt: new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000),
         rulesSummary: 'Respect racing room, leave space on corner exit, and accept organiser stewarding decisions.',
-        stakeTierMetadata: 'demo-data',
+        eventTierLabel: 'Demo Series',
         cancellationReason: item.status === 'CANCELLED' ? 'Fictional demo cancellation due to calendar conflict.' : null,
       },
     });
@@ -487,6 +491,49 @@ async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
             reason: 'Fictional demo clean-race and leaderboard activity event.',
             metadata: { demoSeed: true, finishingPosition: entry.finishingPosition },
             appliedById: slot.organiserId,
+          },
+        });
+        const previous = await prisma.communityDriverRating.upsert({
+          where: { organiserProfileId_userId: { organiserProfileId: slot.organiserProfileId, userId: entry.userId } },
+          update: {},
+          create: {
+            organiserProfileId: slot.organiserProfileId,
+            userId: entry.userId,
+            skillRating: 1000,
+            honourScore: 100,
+          },
+        });
+        const nextSkill = Math.max(0, previous.skillRating + entry.ratingDelta);
+        const nextHonour = Math.max(0, Math.min(150, previous.honourScore + entry.honourDelta));
+        await prisma.communityDriverRating.update({
+          where: { id: previous.id },
+          data: {
+            skillRating: nextSkill,
+            honourScore: nextHonour,
+            starts: { increment: 1 },
+            wins: { increment: entry.finishingPosition === 1 ? 1 : 0 },
+            podiums: { increment: entry.finishingPosition <= 3 ? 1 : 0 },
+            cleanRaces: { increment: entry.honourDelta > 0 ? 1 : 0 },
+            lastRaceAt: result.submittedAt,
+          },
+        });
+        await prisma.communityRatingEvent.create({
+          data: {
+            organiserProfileId: slot.organiserProfileId,
+            userId: entry.userId,
+            raceSlotId: slot.id,
+            raceResultId: result.id,
+            appliedById: slot.organiserId,
+            skillDelta: entry.ratingDelta,
+            honourDelta: entry.honourDelta,
+            reason: 'Fictional demo race result applied to community ranking.',
+            metadata: {
+              demoSeed: true,
+              source: 'race_result',
+              finishingPosition: entry.finishingPosition,
+              before: { skillRating: previous.skillRating, honourScore: previous.honourScore },
+              after: { skillRating: nextSkill, honourScore: nextHonour },
+            },
           },
         });
       }

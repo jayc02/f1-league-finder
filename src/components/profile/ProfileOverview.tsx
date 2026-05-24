@@ -56,11 +56,28 @@ interface Accolade {
   tier: 'legend' | 'elite' | 'pro' | 'core';
 }
 
+interface CommunityRankingRow {
+  community: {
+    slug: string;
+    displayName: string;
+    logoUrl: string | null;
+    verified: boolean;
+  };
+  rank: number;
+  skillRating: number;
+  honourScore: number;
+  starts: number;
+  wins: number;
+  podiums: number;
+  cleanRaceRatio: number;
+}
+
 interface OverviewData {
   stats: OverviewStats;
   recentResults: RecentResult[];
   upcomingRegistrations: UpcomingRegistration[];
   community: { owned: null | { displayName: string; slug: string; verified: boolean; displayedMemberCount: number }; membershipCount: number };
+  communityRankings: CommunityRankingRow[];
   accolades: Accolade[];
   counts: { registrations: number; recentResults: number; upcomingRegistrations: number; communities: number };
 }
@@ -232,6 +249,42 @@ export default function ProfileOverview() {
           {overview && overview.community.membershipCount > 0 && <p className="mt-3 text-xs text-slate-400">Member of {overview.community.membershipCount} RaceHub communities.</p>}
         </article>
       </div>
+
+      <article className="panel mt-6 min-h-[180px] rounded-3xl p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/70">Local SR and Honour</p>
+            <h2 className="font-display text-2xl">Community Reputation</h2>
+          </div>
+          <a href="/communities" className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Find communities</a>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+          {overview ? (
+            overview.communityRankings.length ? overview.communityRankings.map((row) => {
+              const grade = getHonourGrade(row.honourScore);
+              return (
+                <a key={row.community.slug} href={`/communities/${row.community.slug}#rankings`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
+                  <div className="flex items-center gap-3">
+                    {row.community.logoUrl ? <img src={row.community.logoUrl} alt="" className="h-10 w-10 rounded-xl border border-white/10 object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-xs font-semibold">{row.community.displayName.slice(0, 2).toUpperCase()}</div>}
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-white">{row.community.displayName}</p>
+                      <p className="text-xs text-slate-500">Rank #{row.rank} / {row.starts} starts</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-end justify-between gap-3">
+                    <div>
+                      <p className="font-display text-3xl text-white">{row.skillRating}</p>
+                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Community SR</p>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${grade.tone}`}>{grade.label}</span>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-400">{row.wins} wins / {row.podiums} podiums / {row.cleanRaceRatio}% clean</p>
+                </a>
+              );
+            }) : <EmptyState>No community ranking history yet.</EmptyState>
+          ) : Array.from({ length: 3 }, (_, index) => <SkeletonCard key={index} label="community ranking" />)}
+        </div>
+      </article>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <article className="panel min-h-[260px] rounded-3xl p-6">

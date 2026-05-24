@@ -17,7 +17,7 @@ if (!id) return Astro.redirect('/dashboard');
 
 const slot = await prisma.raceSlot.findUnique({
   where: { id },
-  select: { id: true, organiserId: true, organiserProfileId: true, leagueId: true, title: true, scheduledAt: true, registrationCutoffAt: true, maxPlayers: true, platform: true, region: true, track: true, visibility: true, status: true, crossplay: true, stakeTierMetadata: true, formatDetails: true, rulesSummary: true, eventNotes: true, cancellationReason: true, league: { select: { ownerId: true } }, organiserProfile: { select: { id: true, userId: true, members: { where: { userId: user.id, status: 'ACTIVE', role: { in: ['OWNER', 'ADMIN'] } }, select: { id: true } } } } },
+  select: { id: true, organiserId: true, organiserProfileId: true, leagueId: true, title: true, scheduledAt: true, registrationCutoffAt: true, maxPlayers: true, platform: true, region: true, track: true, visibility: true, status: true, crossplay: true, eventTierLabel: true, formatDetails: true, rulesSummary: true, eventNotes: true, cancellationReason: true, league: { select: { ownerId: true } }, organiserProfile: { select: { id: true, userId: true, members: { where: { userId: user.id, status: 'ACTIVE', role: { in: ['OWNER', 'ADMIN'] } }, select: { id: true } } } } },
 });
 if (!slot) return Astro.redirect('/dashboard');
 
@@ -52,7 +52,7 @@ const toLocalInput = (date: Date) => new Date(date.getTime() - date.getTimezoneO
           platform: slot.platform ?? '',
           visibility: slot.visibility,
           status: slot.status,
-          stakeTierMetadata: slot.stakeTierMetadata ?? '',
+          eventTierLabel: slot.eventTierLabel ?? '',
           formatDetails: slot.formatDetails,
           rulesSummary: slot.rulesSummary,
           eventNotes: slot.eventNotes ?? '',

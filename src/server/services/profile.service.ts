@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { buildAccolades } from '@/server/services/accolade.service';
+import { getProfileCommunityRankings } from '@/server/services/community-rating.service';
 import { withPerf } from '@/lib/utils/perf';
 
 export interface ProfileRankSummary {
@@ -131,7 +132,7 @@ export const getProfileOverview = async (userId: string) =>
   withPerf('profile.total', async () => {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const [user, recentResults, upcomingRegistrations, ranks, statsRows, ownedCommunity, memberCommunityCount] = await Promise.all([
+    const [user, recentResults, upcomingRegistrations, ranks, statsRows, ownedCommunity, memberCommunityCount, communityRankings] = await Promise.all([
       withPerf('profile.shell', () =>
         prisma.user.findUnique({
           where: { id: userId },
@@ -179,6 +180,7 @@ export const getProfileOverview = async (userId: string) =>
       withPerf('profile.communityMemberships', () =>
         prisma.organiserProfileMember.count({ where: { userId, status: 'ACTIVE' } }),
       ),
+      getProfileCommunityRankings(userId, 6),
     ]);
 
     const summary = statsRows[0];
@@ -228,6 +230,7 @@ export const getProfileOverview = async (userId: string) =>
       community: ownedCommunity
         ? { owned: ownedCommunity, membershipCount: memberCommunityCount }
         : { owned: null, membershipCount: memberCommunityCount },
+      communityRankings,
       accolades,
       counts: {
         registrations: Number(summary?.registration_count ?? 0),

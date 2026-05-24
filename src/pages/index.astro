@@ -48,15 +48,15 @@ const structuredData = {
   url: absoluteUrl('/'),
   potentialAction: {
     '@type': 'SearchAction',
-    target: `${absoluteUrl('/race-slots')}?q={search_term_string}`,
+    target: `${absoluteUrl('/communities')}?q={search_term_string}`,
     'query-input': 'required name=search_term_string',
   },
 };
 ---
 
 <BaseLayout
-  title="RaceHub | Ranked 1v1 Racing Challenges"
-  description="Create and accept 1v1 racing challenges, confirm results, build your rating, and climb the RaceHub leaderboard."
+  title="RaceHub | Racing Community Rankings & Reputation"
+  description="Keep running races in Discord. Track rankings, Honour, results, and clean-racing reputation properly on RaceHub."
   canonicalPath="/"
 >
   <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
@@ -67,8 +67,8 @@ const structuredData = {
     <div class="panel rounded-3xl p-6 md:p-8">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Community ladders</p>
-          <h2 class="mt-2 font-display text-3xl md:text-4xl">Communities</h2><p class="mt-2 text-sm text-slate-300 md:hidden">Join active clubs and race tonight.</p><h2 class="mt-2 hidden font-display text-4xl md:block">Clubs host 1v1 nights, ranked challenges, and private ladders.</h2>
+          <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Community reputation</p>
+          <h2 class="mt-2 font-display text-3xl md:text-4xl">Communities</h2><p class="mt-2 text-sm text-slate-300 md:hidden">Join active clubs and build your reputation.</p><h2 class="mt-2 hidden font-display text-4xl md:block">Communities run races wherever they like. RaceHub tracks SR, Honour, and results.</h2>
         </div>
         <a href="/communities" class="flex min-h-11 items-center justify-center rounded-full border border-white/20 bg-white/5 px-5 text-xs uppercase tracking-[0.14em] transition hover:border-white/40 hover:bg-white/10 md:tracking-[0.18em]">Browse communities</a>
       </div>
@@ -82,8 +82,8 @@ const structuredData = {
                 <p class="text-xs text-slate-400">{community.region} · {community.platformFocus ?? 'Crossplay'}</p>
               </div>
             </div>
-            <p class="mt-3 text-sm text-slate-300 line-clamp-1 md:line-clamp-2">{community.shortDescription ?? 'Organiser-led 1v1 racing community.'}</p>
-            <p class="mt-3 text-xs uppercase tracking-[0.14em] text-slate-500">{community.displayedMemberCount.toLocaleString()} members · {community._count.raceSlots} active challenges</p>
+            <p class="mt-3 text-sm text-slate-300 line-clamp-1 md:line-clamp-2">{community.shortDescription ?? 'Organiser-led racing community with RaceHub rankings.'}</p>
+            <p class="mt-3 text-xs uppercase tracking-[0.14em] text-slate-500">{community.displayedMemberCount.toLocaleString()} members · {community._count.raceSlots} listed races</p>
           </a>
         )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No community ladders are available yet. Browse public communities to find organisers.</p>}
       </div>

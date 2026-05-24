@@ -37,12 +37,29 @@ interface CommunitySummary {
   verified: boolean;
 }
 
+interface CommunityRankingRow {
+  community: {
+    slug: string;
+    displayName: string;
+    logoUrl: string | null;
+    verified: boolean;
+  };
+  rank: number;
+  skillRating: number;
+  honourScore: number;
+  starts: number;
+  wins: number;
+  podiums: number;
+  cleanRaceRatio: number;
+}
+
 interface DashboardOverviewData {
   upcomingRegistrations: RegistrationRow[];
   upcomingEvents: EventRow[];
   myDuels: DuelRow[];
   managedCommunity: CommunitySummary | null;
   organiserCtaLabel: string;
+  communityRankings: CommunityRankingRow[];
 }
 
 interface CachedDashboardOverview {
@@ -169,6 +186,31 @@ export default function DashboardOverview() {
               <p className="mt-2 text-xs text-slate-400">{duel.track} · {duel.scheduledAt ? new Date(duel.scheduledAt).toLocaleString() : 'Open challenge'}{duel.confirmations.length ? ' · awaiting opponent confirmation' : ''}</p>
             </a>
           )) : <EmptyState>No duels yet. Create or accept a 1v1 challenge.</EmptyState> : Array.from({ length: 2 }, (_, index) => <SkeletonBlock key={index} className="h-24" />)}
+        </div>
+      </article>
+
+      <article className="panel mt-6 rounded-3xl p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/70">Community reputation</p>
+            <h2 className="font-display text-2xl">My community ranks</h2>
+          </div>
+          <a href="/communities" className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Explore communities</a>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {overview ? overview.communityRankings.length ? overview.communityRankings.map((row) => (
+            <a key={row.community.slug} href={`/communities/${row.community.slug}#rankings`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-500/[0.05] p-4 transition hover:border-emerald-200/40">
+              {row.community.logoUrl ? <img src={row.community.logoUrl} alt="" className="h-11 w-11 rounded-xl border border-white/10 object-cover" /> : <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-sm font-semibold">{row.community.displayName.slice(0, 2).toUpperCase()}</div>}
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-white">{row.community.displayName}</p>
+                <p className="text-xs text-slate-400">#{row.rank} / {row.starts} starts / {row.cleanRaceRatio}% clean</p>
+              </div>
+              <div className="text-right">
+                <p className="font-display text-2xl text-white">{row.skillRating}</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">SR</p>
+              </div>
+            </a>
+          )) : <EmptyState>Race in a community to build local SR and Honour.</EmptyState> : Array.from({ length: 2 }, (_, index) => <SkeletonBlock key={index} className="h-24" />)}
         </div>
       </article>
 

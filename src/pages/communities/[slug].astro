@@ -5,6 +5,8 @@ import { privateNoStore, setAstroCache } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { getCommunityMemberCountDisplay, getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
 import { getCommunityMembership } from '@/lib/server/community-permissions';
+import { getHonourGrade } from '@/lib/honour';
+import { getCommunityRankings, type CommunityRankingView } from '@/server/services/community-rating.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 
 export const prerender = false;
@@ -70,7 +72,10 @@ const canSeeCommunityOnly = Boolean(
 );
 
 const now = new Date();
-const [publicRaces, communityOnlyRaces, recentRaces, communityDuels] = community
+const rankingViews = ['sr', 'honour', 'clean', 'movers'] as const;
+const requestedRankingView = Astro.url.searchParams.get('ranking') as CommunityRankingView | null;
+const rankingView = requestedRankingView && rankingViews.includes(requestedRankingView) ? requestedRankingView : 'sr';
+const [publicRaces, communityOnlyRaces, recentRaces, communityDuels, communityRankings] = community
   ? await withPerf('community.raceLists', () => Promise.all([
       prisma.raceSlot.findMany({
         where: { ...getPublicUpcomingRaceSlotWhere(), organiserProfileId: community.id },
@@ -112,8 +117,9 @@ const [publicRaces, communityOnlyRaces, recentRaces, communityDuels] = community
         orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
         take: 6,
       }),
+      getCommunityRankings(community.slug, rankingView, 10),
     ]))
-  : [[], [], [], []];
+  : [[], [], [], [], null];
 
 const memberDisplay = community ? getCommunityMemberCountDisplay(community) : { count: 0, source: 'racehub' };
 const raceHubMembers = community?._count.members ?? 0;
@@ -130,6 +136,8 @@ const RaceCard = (event: (typeof publicRaces)[number]) => {
   const filled = Math.min(100, Math.round((event._count.registrations / event.maxPlayers) * 100));
   return { event, filled };
 };
+
+const formatDelta = (value: number) => value > 0 ? `+${value}` : String(value);
 ---
 
 <BaseLayout title={community ? `${community.displayName} | RaceHub` : 'Community not found | RaceHub'}>
@@ -175,6 +183,49 @@ const RaceCard = (event: (typeof publicRaces)[number]) => {
             {!externalCount && <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Displayed members</p><p class="mt-2 font-display text-4xl">{memberDisplay.count.toLocaleString()}</p><p class="text-[11px] text-slate-500">Source: {memberDisplay.source}</p></div>}
             <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Operated by</p><p class="mt-2 text-lg font-semibold">@{community.user.username}</p><p class="text-xs text-slate-500">Honour {community.user.honourScore}</p></div>
           </div>
+        </div>
+      </article>
+
+      <article id="rankings" class="panel mt-8 rounded-3xl p-5 md:p-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.18em] text-emerald-100/70">SR / Honour / Clean driving</p>
+            <h2 class="font-display text-2xl">Community rankings</h2>
+            <p class="mt-2 max-w-2xl text-sm text-slate-400">A community-specific reputation table for drivers who race here, separate from the global RaceHub rating.</p>
+          </div>
+          <nav class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Community ranking views">
+            {rankingViews.map((view) => (
+              <a href={`/communities/${community.slug}?ranking=${view}#rankings`} class={`rounded-full border px-4 py-2 text-center text-xs uppercase tracking-[0.14em] transition ${rankingView === view ? 'border-white/45 bg-white text-black' : 'border-white/15 bg-white/[0.04] text-slate-200 hover:border-white/35'}`}>
+                {view === 'sr' ? 'SR' : view === 'honour' ? 'Honour' : view === 'clean' ? 'Clean' : 'Movers'}
+              </a>
+            ))}
+          </nav>
+        </div>
+
+        <div class="mt-5 space-y-2">
+          {communityRankings?.rows.length ? communityRankings.rows.map((row) => {
+            const grade = getHonourGrade(row.honourScore);
+            return (
+              <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3 sm:grid-cols-[auto_1fr_auto_auto_auto]">
+                <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/35 text-sm font-semibold text-white">#{row.rank}</span>
+                <div class="flex min-w-0 items-center gap-3">
+                  <img src={row.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${row.user.username}`} alt="" class="h-10 w-10 rounded-full border border-white/10 object-cover" />
+                  <div class="min-w-0">
+                    <p class="truncate font-semibold text-white">{row.user.username}</p>
+                    <p class="text-xs text-slate-500">{row.starts} starts · {row.wins} wins · {row.cleanRaceRatio}% clean</p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <p class="font-display text-2xl text-white">{row.skillRating}</p>
+                  <p class="text-[10px] uppercase tracking-[0.16em] text-slate-500">SR</p>
+                </div>
+                <span class={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${grade.tone}`}>{grade.label}</span>
+                <span class={`hidden text-sm font-semibold sm:block ${row.recentSkillDelta >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>{formatDelta(row.recentSkillDelta)}</span>
+              </div>
+            );
+          }) : (
+            <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No community rating rows yet. Submit race results to start building this table.</p>
+          )}
         </div>
       </article>
 

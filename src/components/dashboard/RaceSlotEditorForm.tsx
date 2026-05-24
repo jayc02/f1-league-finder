@@ -39,7 +39,7 @@ export default function RaceSlotEditorForm({ leagues, slotId, defaults }: Props)
       platform: data.platform || undefined,
       region: data.region || undefined,
       track: data.track || undefined,
-      stakeTierMetadata: data.stakeTierMetadata || undefined,
+      eventTierLabel: data.eventTierLabel || undefined,
       eventNotes: data.eventNotes || undefined,
       cancellationReason: data.cancellationReason || undefined,
     };
@@ -85,11 +85,11 @@ export default function RaceSlotEditorForm({ leagues, slotId, defaults }: Props)
           <select name="status" defaultValue={String(defaults?.status ?? 'OPEN')} className="w-full rounded-lg border border-white/15 bg-black/50 px-3 py-2">{statuses.map((status) => <option key={status}>{status}</option>)}</select>
           <span className="mt-2 block text-xs text-slate-400">Use OPEN for listable upcoming races; DRAFT stays hidden from public discovery.</span>
         </label>
-        <input name="stakeTierMetadata" defaultValue={String(defaults?.stakeTierMetadata ?? '')} placeholder="Tier metadata" className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm md:col-span-2" />
+        <input name="eventTierLabel" defaultValue={String(defaults?.eventTierLabel ?? '')} placeholder="Series / tier label" className="min-h-11 rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm md:col-span-2" />
       </div>
       <textarea name="formatDetails" defaultValue={String(defaults?.formatDetails ?? '')} placeholder="Race format details" required rows={3} className="mt-4 w-full rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
       <textarea name="rulesSummary" defaultValue={String(defaults?.rulesSummary ?? '')} placeholder="Rules summary" required rows={4} className="mt-4 w-full rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
-      <textarea name="eventNotes" defaultValue={String(defaults?.eventNotes ?? '')} placeholder="Promotion notes, stream details, prize info" rows={3} className="mt-4 w-full rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
+      <textarea name="eventNotes" defaultValue={String(defaults?.eventNotes ?? '')} placeholder="Promotion notes, stream details, steward notes" rows={3} className="mt-4 w-full rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
       <textarea name="cancellationReason" defaultValue={String(defaults?.cancellationReason ?? '')} placeholder="Cancellation reason (required if cancelled)" rows={2} className="mt-4 w-full rounded-xl border border-white/20 bg-black/40 px-4 py-3 text-sm" />
       <label className="mt-4 flex items-center gap-2 text-sm text-slate-300"><input type="checkbox" name="crossplay" defaultChecked={Boolean(defaults?.crossplay)} /> Crossplay enabled</label>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">

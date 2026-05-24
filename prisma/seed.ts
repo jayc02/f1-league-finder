@@ -186,7 +186,7 @@ async function main() {
         status: 'OPEN',
         registrationCutoffAt: cutoff,
         rulesSummary: 'One mandatory stop, steward review for collisions, no divebombing from >1 car length back.',
-        stakeTierMetadata: 'pro-tier',
+        eventTierLabel: 'Pro Tier',
       },
     });
 

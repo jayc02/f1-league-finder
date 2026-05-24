@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
+import { getProfileCommunityRankings } from '@/server/services/community-rating.service';
 import { withPerf } from '@/lib/utils/perf';
 
 const communitySummarySelect = {
@@ -13,7 +14,7 @@ const communitySummarySelect = {
 
 export const getDashboardPageData = async (userId: string) => {
   const now = new Date();
-  const [upcomingRegistrations, upcomingEvents, myDuels, organiserProfile, staffMembership] = await Promise.all([
+  const [upcomingRegistrations, upcomingEvents, myDuels, organiserProfile, staffMembership, communityRankings] = await Promise.all([
     withPerf('dashboard.registrations', () =>
       prisma.raceRegistration.findMany({
         where: { userId, raceSlot: { scheduledAt: { gte: now } } },
@@ -50,7 +51,8 @@ export const getDashboardPageData = async (userId: string) => {
         select: { role: true, organiserProfile: { select: communitySummarySelect } },
       }),
     ),
+    getProfileCommunityRankings(userId, 4),
   ]);
 
-  return { upcomingRegistrations, upcomingEvents, myDuels, organiserProfile, staffMembership };
+  return { upcomingRegistrations, upcomingEvents, myDuels, organiserProfile, staffMembership, communityRankings };
 };

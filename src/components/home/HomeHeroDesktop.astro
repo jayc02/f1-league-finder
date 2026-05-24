@@ -1,5 +1,5 @@
 ---
-const ruleChips = ['Same car', 'Same track', 'Ranked'];
+const ruleChips = ['Community SR', 'Honour grade', 'Race history'];
 ---
 <section class="relative hidden min-h-screen overflow-hidden pt-28 md:block" id="top">
   <div class="absolute inset-x-0 top-0 z-0 h-[560px] bg-[radial-gradient(circle_at_18%_18%,rgba(225,6,0,.22),transparent_36%),radial-gradient(circle_at_82%_20%,rgba(34,211,238,.16),transparent_34%),linear-gradient(180deg,#050505_0%,#020202_55%,#000_100%)]" aria-hidden="true"></div>
@@ -12,15 +12,15 @@ const ruleChips = ['Same car', 'Same track', 'Ranked'];
 
   <div class="section-shell relative z-30 grid min-h-[72vh] items-center gap-12 pb-12 lg:grid-cols-[minmax(0,1fr)_minmax(360px,500px)]">
     <div class="space-y-7">
-      <p class="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100/80">Ranked 1v1 racing</p>
+      <p class="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-100/80">Racing community reputation</p>
       <h1 class="max-w-4xl font-display text-7xl leading-[0.94] text-white lg:text-8xl">
-        Race 1v1.
-        <span class="block">Prove it on track.</span>
+        Keep racing in Discord.
+        <span class="block">Track reputation here.</span>
       </h1>
-      <p class="max-w-2xl text-xl leading-8 text-slate-200">Create or accept head-to-head challenges, confirm the result, and climb the RaceHub rankings.</p>
+      <p class="max-w-2xl text-xl leading-8 text-slate-200">RaceHub gives communities a durable record for SR, Honour, clean driving, results, and stewarding.</p>
       <div class="flex flex-wrap items-center gap-4">
-        <a href="/duels" class="flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-bold uppercase tracking-[0.16em] text-black transition hover:bg-slate-200">Find a duel</a>
-        <a href="/duels/new" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-6 text-sm font-bold uppercase tracking-[0.16em] text-white transition hover:border-white/40 hover:bg-white/10">Create challenge</a>
+        <a href="/communities" class="flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-bold uppercase tracking-[0.16em] text-black transition hover:bg-slate-200">Explore communities</a>
+        <a href="/leaderboards" class="flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-6 text-sm font-bold uppercase tracking-[0.16em] text-white transition hover:border-white/40 hover:bg-white/10">View rankings</a>
       </div>
       <div class="flex flex-wrap gap-2">
         {ruleChips.map((chip) => <span class="rh-badge rounded-full border border-white/15 bg-black/30 px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-slate-200 backdrop-blur-sm">{chip}</span>)}
@@ -30,18 +30,18 @@ const ruleChips = ['Same car', 'Same track', 'Ranked'];
     <article class="panel rh-glow-card relative overflow-hidden rounded-[2rem] border-cyan-200/15 p-6">
       <div class="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-cyan-300/20 blur-3xl"></div>
       <div class="mb-5 flex items-center justify-between gap-3">
-        <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Open challenge</p>
-        <span class="rh-badge rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-emerald-100">Ranked</span>
+        <p class="text-xs uppercase tracking-[0.24em] text-slate-400">Community table</p>
+        <span class="rh-badge rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-emerald-100">Clean</span>
       </div>
       <div class="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
-        <article class="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p class="text-xs uppercase tracking-[0.18em] text-slate-500">Driver A</p><h2 class="mt-2 truncate font-display text-3xl text-white">magicmonkey</h2><p class="mt-1 text-sm text-slate-300">SR 1280</p></article>
-        <div class="my-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-redline/60 bg-redline/25 font-display text-lg text-white shadow-[0_0_38px_rgba(181,31,47,.45)]">VS</div>
-        <article class="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-right"><p class="text-xs uppercase tracking-[0.18em] text-slate-500">Driver B</p><h2 class="mt-2 truncate font-display text-3xl text-white">peanut05</h2><p class="mt-1 text-sm text-slate-300">SR 1215</p></article>
+        <article class="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p class="text-xs uppercase tracking-[0.18em] text-slate-500">P1</p><h2 class="mt-2 truncate font-display text-3xl text-white">magicmonkey</h2><p class="mt-1 text-sm text-slate-300">SR 1280 / Honour A</p></article>
+        <div class="my-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-redline/60 bg-redline/25 font-display text-lg text-white shadow-[0_0_38px_rgba(181,31,47,.45)]">SR</div>
+        <article class="min-w-0 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-right"><p class="text-xs uppercase tracking-[0.18em] text-slate-500">P2</p><h2 class="mt-2 truncate font-display text-3xl text-white">peanut05</h2><p class="mt-1 text-sm text-slate-300">SR 1215 / Honour B</p></article>
       </div>
       <div class="mt-4 grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-slate-300">
-        <p><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Track</span>Monza</p><p><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Mode</span>1v1</p><p><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Status</span>Open</p>
+        <p><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Community</span>Apex Racing</p><p><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Clean</span>96%</p><p><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Status</span>Verified</p>
       </div>
-      <a href="/duels" class="mt-4 flex min-h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-bold uppercase tracking-[0.14em] text-black transition hover:bg-slate-200">Accept challenge</a>
+      <a href="/communities" class="mt-4 flex min-h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-bold uppercase tracking-[0.14em] text-black transition hover:bg-slate-200">Find a community</a>
     </article>
   </div>
 </section>

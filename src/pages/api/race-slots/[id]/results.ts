@@ -9,6 +9,8 @@ import { submitResultSchema } from '@/lib/validation/results';
 import { parseBody, withErrorHandling } from '@/lib/utils/handlers';
 import { HttpError, jsonResponse } from '@/lib/utils/http';
 import { requireUser } from '@/server/permissions/authz';
+import { canManageCommunityRaces } from '@/lib/server/community-permissions';
+import { applyCommunityRaceResult } from '@/server/services/community-rating.service';
 import { applyHonourEvent } from '@/server/services/honour.service';
 import { computeHonourDeltaForResult, computeRacePoints, computeSkillDelta } from '@/server/services/rating.service';
 
@@ -45,13 +47,18 @@ export const POST: APIRoute = (context) =>
         registrations: { select: { userId: true } },
         result: true,
         league: true,
+        organiserProfile: true,
       },
     });
 
     if (!slot) throw new HttpError(404, 'Race slot not found.');
 
-    const canSubmit = user.role === 'ADMIN' || user.id === slot.organiserId || user.id === slot.league.ownerId;
-    if (!canSubmit) throw new HttpError(403, 'Only league organiser/owner or admin can submit results.');
+    const canSubmit =
+      user.role === 'ADMIN' ||
+      user.id === slot.organiserId ||
+      user.id === slot.league.ownerId ||
+      Boolean(slot.organiserProfile && (await canManageCommunityRaces(user, slot.organiserProfile)));
+    if (!canSubmit) throw new HttpError(403, 'Only community staff, league owner, organiser, or admin can submit results.');
     if (slot.status === 'CANCELLED') throw new HttpError(400, 'Cannot submit results for cancelled race slot.');
     if (slot.result) throw new HttpError(409, 'Result already submitted for this slot.');
 
@@ -73,7 +80,7 @@ export const POST: APIRoute = (context) =>
 
     const ordered = [...body.entries].sort((a, b) => a.finishingPosition - b.finishingPosition);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const { result, communityRatingEvents } = await prisma.$transaction(async (tx) => {
       const createdResult = await tx.raceResult.create({
         data: {
           raceSlotId,
@@ -119,8 +126,24 @@ export const POST: APIRoute = (context) =>
         }
       }
 
-      return createdResult;
+      const communityEvents = slot.organiserProfileId
+        ? await applyCommunityRaceResult(tx, {
+            organiserProfileId: slot.organiserProfileId,
+            raceSlotId,
+            raceResultId: createdResult.id,
+            appliedById: user.id,
+            entries: createdResult.entries.map((entry) => ({
+              userId: entry.userId,
+              finishingPosition: entry.finishingPosition,
+              ratingDelta: entry.ratingDelta,
+              honourDelta: entry.honourDelta,
+            })),
+            reason: `Race result submitted for ${slot.title}`,
+          })
+        : [];
+
+      return { result: createdResult, communityRatingEvents: communityEvents };
     });
 
-    return jsonResponse(201, { result });
+    return jsonResponse(201, { result, communityRatingEvents });
   });

@@ -315,7 +315,7 @@ model RaceSlot {
   status               RaceSlotStatus     @default(DRAFT)
   registrationCutoffAt DateTime
   rulesSummary         String
-  stakeTierMetadata    String?
+  eventTierLabel       String?
   cancellationReason   String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt

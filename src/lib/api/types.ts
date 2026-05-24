@@ -70,7 +70,7 @@ export interface RaceSlotSummary {
   status: string;
   registrationCutoffAt: string;
   rulesSummary: string;
-  stakeTierMetadata?: string | null;
+  eventTierLabel?: string | null;
   cancellationReason?: string | null;
   createdAt: string;
   updatedAt: string;
