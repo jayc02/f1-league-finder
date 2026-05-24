@@ -12,8 +12,7 @@ const appNav = [
   { label: 'Communities', href: '/communities' },
   { label: 'Rankings', href: '/leaderboards' },
   { label: 'Race Slots', href: '/race-slots' },
-  { label: 'Duels', href: '/duels' },
-  ...(user ? [{ label: 'Dashboard', href: '/dashboard' }, ...(user.role === 'ADMIN' ? [{ label: 'Admin', href: '/admin' }] : []), { label: 'Profile', href: '/profile' }] : []),
+  { label: '1v1 Duels', href: '/duels' },
 ];
 ---
 
@@ -51,20 +50,7 @@ const appNav = [
     </nav>
 
     <div class="mt-3 grid gap-2">
-      {!user ? (
-        <>
-          <a href="/login" class="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center text-sm text-slate-100">Sign in</a>
-          <a href="/register" class="rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900">Create account</a>
-        </>
-      ) : (
-        <>
-          <a href="/profile" class="flex items-center gap-3 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-3 text-sm text-slate-100">
-            <img src={user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${user.username}`} alt={`${user.username} avatar`} class="h-8 w-8 rounded-lg border border-white/10 object-cover" />
-            <span>{user.username}</span>
-          </a>
-          <button type="button" data-mobile-logout class="rounded-xl border border-rose-300/30 bg-rose-500/15 px-4 py-3 text-sm text-rose-100">Logout</button>
-        </>
-      )}
+      <AuthNav client:idle user={user} authStateKnown={authStateKnown} variant="mobile" />
     </div>
   </div>
 </header>
@@ -74,7 +60,6 @@ const appNav = [
     const toggle = document.querySelector('[data-mobile-menu-toggle]');
     const menu = document.querySelector('[data-mobile-menu]');
     const backdrop = document.querySelector('[data-mobile-menu-backdrop]');
-    const logoutButton = document.querySelector('[data-mobile-logout]');
 
     if (!toggle || !menu) return;
 
@@ -112,16 +97,6 @@ const appNav = [
     if (backdrop && backdrop.dataset.menuBackdropBound !== 'true') {
       backdrop.dataset.menuBackdropBound = 'true';
       backdrop.addEventListener('click', closeMenu);
-    }
-
-    if (logoutButton && logoutButton.dataset.logoutBound !== 'true') {
-      logoutButton.dataset.logoutBound = 'true';
-      logoutButton.addEventListener('click', async (event) => {
-        event.preventDefault();
-        closeMenu();
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-        window.location.assign('/');
-      });
     }
 
     if (document.documentElement.dataset.mobileMenuLifecycleBound !== 'true') {

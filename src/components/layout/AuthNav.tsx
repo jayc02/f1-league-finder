@@ -13,6 +13,7 @@ interface NavUser {
 interface Props {
   user?: NavUser | null;
   authStateKnown?: boolean;
+  variant?: 'desktop' | 'mobile';
 }
 
 type AuthState = 'checking' | 'authenticated' | 'anonymous';
@@ -75,7 +76,10 @@ const clearStoredUser = () => {
 const fetchAuthUser = () => {
   if (!inFlightAuthRequest) {
     inFlightAuthRequest = apiRequest<{ user: NavUser | null }>('/api/auth/me')
-      .then((payload) => payload.user ?? null)
+      .then((payload) => {
+        if (!payload || typeof payload !== 'object' || !('user' in payload)) return null;
+        return payload.user ?? null;
+      })
       .finally(() => {
         inFlightAuthRequest = null;
       });
@@ -84,7 +88,7 @@ const fetchAuthUser = () => {
   return inFlightAuthRequest;
 };
 
-export default function AuthNav({ user, authStateKnown = false }: Props) {
+export default function AuthNav({ user, authStateKnown = false, variant = 'desktop' }: Props) {
   const [resolvedUser, setResolvedUser] = useState<NavUser | null>(() => {
     if (user) return user;
     if (authStateKnown) return null;
@@ -99,12 +103,100 @@ export default function AuthNav({ user, authStateKnown = false }: Props) {
     return 'checking';
   });
 
+  useEffect(() => {
+    if (user) {
+      setResolvedUser(user);
+      setAuthState('authenticated');
+      writeStoredUser(user);
+      return;
+    }
+
+    if (authStateKnown) {
+      setResolvedUser(null);
+      setAuthState('anonymous');
+      writeStoredUser(null);
+      return;
+    }
+
+    const cachedUser = readStoredUser();
+    if (cachedUser !== undefined) {
+      setResolvedUser(cachedUser);
+      setAuthState(cachedUser ? 'authenticated' : 'anonymous');
+      return;
+    }
+
+    let cancelled = false;
+    const fallbackTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      setResolvedUser(null);
+      setAuthState('anonymous');
+    }, 3000);
+
+    setAuthState('checking');
+    fetchAuthUser()
+      .then((nextUser) => {
+        if (cancelled) return;
+        writeStoredUser(nextUser);
+        setResolvedUser(nextUser);
+        setAuthState(nextUser ? 'authenticated' : 'anonymous');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        clearStoredUser();
+        writeStoredUser(null);
+        setResolvedUser(null);
+        setAuthState('anonymous');
+      })
+      .finally(() => {
+        window.clearTimeout(fallbackTimer);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallbackTimer);
+    };
+  }, [authStateKnown, user]);
 
   const logout = async () => {
     clearStoredUser();
-    await apiRequest<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
+    try {
+      await apiRequest<{ ok: boolean }>('/api/auth/logout', { method: 'POST' });
+    } finally {
+      window.location.href = '/';
+    }
   };
+
+  if (variant === 'mobile') {
+    if (authState === 'checking') {
+      return (
+        <div className="grid gap-2" aria-label="Checking account status">
+          <div className="h-11 rounded-xl border border-white/10 bg-white/[0.06]" />
+          <div className="h-11 rounded-xl border border-white/10 bg-white/[0.08]" />
+        </div>
+      );
+    }
+
+    if (!resolvedUser) {
+      return (
+        <>
+          <a href="/login" className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-center text-sm text-slate-100">Sign in</a>
+          <a href="/register" className="rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-slate-900">Create account</a>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <a href="/dashboard" className="rounded-xl border border-white/20 bg-white/[0.04] px-4 py-3 text-sm text-slate-100">Dashboard</a>
+        {resolvedUser.role === 'ADMIN' && <a href="/admin" className="rounded-xl border border-rose-300/30 bg-rose-500/15 px-4 py-3 text-sm text-rose-100">Admin</a>}
+        <a href="/profile" className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/[0.04] px-4 py-3 text-sm text-slate-100">
+          <img src={resolvedUser.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${resolvedUser.username}`} alt={`${resolvedUser.username} avatar`} className="h-8 w-8 rounded-lg border border-white/10 object-cover" />
+          <span>{resolvedUser.username}</span>
+        </a>
+        <button type="button" onClick={logout} className="rounded-xl border border-rose-300/30 bg-rose-500/15 px-4 py-3 text-sm text-rose-100">Logout</button>
+      </>
+    );
+  }
 
   if (authState === 'checking') {
     return (
