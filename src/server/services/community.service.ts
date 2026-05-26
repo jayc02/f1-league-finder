@@ -30,7 +30,11 @@ export interface PublicCommunityDiscoveryOptions {
   limit?: number;
   q?: string | null;
   region?: string | null;
+  platform?: string | null;
+  tag?: string | null;
+  sort?: string | null;
   featuredOnly?: boolean;
+  verifiedOnly?: boolean;
 }
 
 export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunityDiscoveryOptions | number = 30) => {
@@ -42,7 +46,10 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
     where: {
       isPublic: true,
       ...(options.region ? { region: options.region as never } : {}),
+      ...(options.platform ? { platformFocus: options.platform as never } : {}),
+      ...(options.tag ? { tags: { has: options.tag } } : {}),
       ...(options.featuredOnly ? { featured: true } : {}),
+      ...(options.verifiedOnly ? { verified: true } : {}),
       ...(q
         ? {
             OR: [
@@ -54,7 +61,7 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
           }
         : {}),
     },
-    orderBy: [{ featured: 'desc' }, { updatedAt: 'desc' }],
+    orderBy: [{ featured: 'desc' }, { verified: 'desc' }, { updatedAt: 'desc' }],
     take: options.limit ?? 30,
     select: {
       id: true,
@@ -99,6 +106,17 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
           },
         },
       },
+      communityDriverRatings: {
+        orderBy: [{ skillRating: 'desc' }, { honourScore: 'desc' }],
+        take: 1,
+        select: {
+          skillRating: true,
+          honourScore: true,
+          cleanRaces: true,
+          starts: true,
+          user: { select: { username: true, avatarUrl: true } },
+        },
+      },
       _count: {
         select: {
           members: { where: { status: 'ACTIVE' } },
@@ -110,11 +128,14 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
     },
   });
 
-  return communities.map((community) => {
+  const mapped = communities.map((community) => {
     const memberDisplay = getCommunityMemberCountDisplay(community);
+    const topDriver = community.communityDriverRatings[0] ?? null;
 
     return {
       ...community,
+      topDriver,
+      reputationScore: topDriver?.skillRating ?? null,
       raceHubMemberCount: community._count.members,
       externalMemberCount:
         ['discord', 'reddit'].includes(community.memberCountSource.toLowerCase()) && community.displayedMemberCount > 0
@@ -125,6 +146,16 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
       memberCountSource: memberDisplay.source,
     };
   });
+
+  const sort = options.sort ?? 'featured';
+  if (sort === 'az') mapped.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  if (sort === 'events') mapped.sort((a, b) => b._count.raceSlots - a._count.raceSlots || a.displayName.localeCompare(b.displayName));
+  if (sort === 'members') mapped.sort((a, b) => b.displayedMemberCount - a.displayedMemberCount || a.displayName.localeCompare(b.displayName));
+  if (sort === 'sr') mapped.sort((a, b) => (b.reputationScore ?? 0) - (a.reputationScore ?? 0) || a.displayName.localeCompare(b.displayName));
+  if (sort === 'verified') mapped.sort((a, b) => Number(b.verified) - Number(a.verified) || b._count.raceSlots - a._count.raceSlots);
+  if (sort === 'featured') mapped.sort((a, b) => Number(b.featured) - Number(a.featured) || Number(b.verified) - Number(a.verified) || b._count.raceSlots - a._count.raceSlots);
+
+  return mapped;
 };
 
 export type PublicCommunitySummary = Awaited<ReturnType<typeof getPublicCommunitySummaries>>[number];

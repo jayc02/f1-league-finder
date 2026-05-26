@@ -3,7 +3,6 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { getCommunityMemberCountDisplay, getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
-import { getCommunityMembership } from '@/lib/server/community-permissions';
 import { getHonourGrade } from '@/lib/honour';
 import { getCommunityRankings, type CommunityRankingView } from '@/server/services/community-rating.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
@@ -11,7 +10,6 @@ import DiscordJoinButton from '@/components/ui/DiscordJoinButton.astro';
 
 export const prerender = false;
 
-// Public community detail page (user-specific state hydrates client-side).
 setAstroCache(Astro, publicPageShort);
 
 const routeStart = performance.now();
@@ -48,11 +46,11 @@ const community = await withPerf('community.detail', () => prisma.organiserProfi
   where: { slug, isPublic: true },
   include: {
     user: { select: { id: true, username: true, honourScore: true, avatarUrl: true } },
-    leagues: {
-      where: { active: true },
-      select: { id: true, name: true, slug: true, region: true },
-      orderBy: { createdAt: 'desc' },
-      take: 4,
+    members: {
+      where: { status: 'ACTIVE', role: { in: ['OWNER', 'ADMIN', 'MODERATOR'] } },
+      take: 8,
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+      select: { role: true, user: { select: { username: true, avatarUrl: true } } },
     },
     _count: { select: { members: { where: { status: 'ACTIVE' } } } },
   },
@@ -62,33 +60,18 @@ if (!community) {
   Astro.response.status = 404;
 }
 
-const canSeeCommunityOnly = false;
-
 const now = new Date();
 const rankingViews = ['sr', 'honour', 'clean', 'movers'] as const;
 const requestedRankingView = Astro.url.searchParams.get('ranking') as CommunityRankingView | null;
 const rankingView = requestedRankingView && rankingViews.includes(requestedRankingView) ? requestedRankingView : 'sr';
-const [publicRaces, communityOnlyRaces, recentRaces, communityDuels, communityRankings] = community
-  ? await withPerf('community.raceLists', () => Promise.all([
+const [publicRaces, recentRaces, communityDuels, communityRankings] = community
+  ? await withPerf('community.hqLists', () => Promise.all([
       prisma.raceSlot.findMany({
         where: { ...getPublicUpcomingRaceSlotWhere(), organiserProfileId: community.id },
         select: raceSelect,
         orderBy: { scheduledAt: 'asc' },
-        take: 8,
+        take: 6,
       }),
-      canSeeCommunityOnly
-        ? prisma.raceSlot.findMany({
-            where: {
-              organiserProfileId: community.id,
-              visibility: 'COMMUNITY_ONLY',
-              status: { in: ['OPEN', 'FULL', 'LOCKED'] },
-              scheduledAt: { gte: now },
-            },
-            select: raceSelect,
-            orderBy: { scheduledAt: 'asc' },
-            take: 8,
-          })
-        : Promise.resolve([]),
       prisma.raceSlot.findMany({
         where: {
           organiserProfileId: community.id,
@@ -98,7 +81,7 @@ const [publicRaces, communityOnlyRaces, recentRaces, communityDuels, communityRa
         },
         select: raceSelect,
         orderBy: { scheduledAt: 'desc' },
-        take: 4,
+        take: 6,
       }),
       prisma.duel.findMany({
         where: {
@@ -108,22 +91,22 @@ const [publicRaces, communityOnlyRaces, recentRaces, communityDuels, communityRa
         },
         select: { id: true, status: true, track: true, game: true, ranked: true, scheduledAt: true, createdBy: { select: { username: true } }, opponent: { select: { username: true } } },
         orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
-        take: 6,
+        take: 4,
       }),
       getCommunityRankings(community.slug, rankingView, 10),
     ]))
-  : [[], [], [], [], null];
+  : [[], [], [], null];
 
 const memberDisplay = community ? getCommunityMemberCountDisplay(community) : { count: 0, source: 'racehub' };
-const raceHubMembers = community?._count.members ?? 0;
-const externalSource = community && ['discord', 'reddit'].includes(community.memberCountSource.toLowerCase()) ? community.memberCountSource.toLowerCase() : null;
-const externalCount = externalSource && community.displayedMemberCount > 0 ? community.displayedMemberCount : null;
 const discordUrl = safeExternalUrl(community?.discordUrl);
 const redditUrl = safeExternalUrl(community?.redditUrl);
 const websiteUrl = safeExternalUrl(community?.websiteUrl);
 const accent = community?.brandingColor || '#38bdf8';
-
-if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
+const rankingRows = communityRankings?.rows ?? [];
+const topDriver = rankingRows[0] ?? null;
+const averageSkill = rankingRows.length ? Math.round(rankingRows.reduce((sum, row) => sum + row.skillRating, 0) / rankingRows.length) : null;
+const averageHonour = rankingRows.length ? Math.round(rankingRows.reduce((sum, row) => sum + row.honourScore, 0) / rankingRows.length) : null;
+const cleanAverage = rankingRows.length ? Math.round(rankingRows.reduce((sum, row) => sum + row.cleanRaceRatio, 0) / rankingRows.length) : null;
 
 const RaceCard = (event: (typeof publicRaces)[number]) => {
   const filled = Math.min(100, Math.round((event._count.registrations / event.maxPlayers) * 100));
@@ -131,199 +114,218 @@ const RaceCard = (event: (typeof publicRaces)[number]) => {
 };
 
 const formatDelta = (value: number) => value > 0 ? `+${value}` : String(value);
+
+if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
 
 <BaseLayout title={community ? `${community.displayName} | RaceHub` : 'Community not found | RaceHub'}>
   {community ? (
-    <section class="section-shell pb-28 md:pb-24">
-      <article class="panel overflow-hidden rounded-3xl border-white/15">
-        <div class="relative min-h-[20rem] bg-cover bg-center md:min-h-[18rem]" style={`background-image:linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.92)),url('${community.bannerUrl ?? '/pictures/communititesback.webp'}')`}>
-          <div class="absolute inset-0" style={`background: radial-gradient(circle at 18% 20%, ${accent}33, transparent 34%), linear-gradient(90deg, rgba(0,0,0,.68), transparent 62%)`}></div>
-          <div class="relative mx-auto flex min-h-[20rem] w-[min(1120px,94%)] flex-col justify-end gap-5 pb-6 pt-24 md:min-h-[18rem] lg:flex-row lg:items-end lg:justify-between">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
-              <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} class="h-20 w-20 rounded-3xl border border-white/25 bg-black/45 object-cover shadow-2xl sm:h-24 sm:w-24" alt={`${community.displayName} logo`} />
-              <div>
+    <section class="section-shell relative isolate pb-28 md:pb-24">
+      <div class="rh-community-atmosphere -z-10 opacity-45" aria-hidden="true"></div>
+      <article class="panel overflow-hidden rounded-[1.35rem] border-white/15">
+        <div class="relative min-h-[25rem] bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(2,6,23,.18),rgba(2,6,23,.94)),url('${community.bannerUrl ?? '/pictures/communititesback.webp'}')`}>
+          <div class="rh-community-atmosphere opacity-45" aria-hidden="true"></div>
+          <div class="absolute inset-0" style={`background: linear-gradient(90deg, rgba(0,0,0,.78), transparent 62%), radial-gradient(circle at 18% 20%, ${accent}33, transparent 32%)`}></div>
+          <div class="relative mx-auto flex min-h-[25rem] w-[min(1120px,94%)] flex-col justify-end gap-6 pb-6 pt-24 lg:flex-row lg:items-end lg:justify-between">
+            <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
+              <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} class="h-20 w-20 rounded-2xl border border-white/25 bg-black/45 object-cover shadow-2xl sm:h-24 sm:w-24" alt={`${community.displayName} logo`} />
+              <div class="min-w-0">
                 <div class="flex flex-wrap gap-2">
-                  {community.verified && <span class="rh-badge rounded-full border border-cyan-300/35 bg-cyan-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-cyan-100">Verified</span>}
-                  {community.featured && <span class="rh-badge rounded-full border border-amber-300/35 bg-amber-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-amber-100">Featured</span>}
+                  {community.verified && <span class="rh-badge rounded-full border border-cyan-300/35 bg-cyan-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-100">Verified</span>}
+                  {community.featured && <span class="rh-badge rounded-full border border-amber-300/35 bg-amber-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
                 </div>
-                <h1 class="mt-3 font-display text-4xl text-white md:text-6xl">{community.displayName}</h1>
-                <p class="mt-2 max-w-2xl text-sm text-slate-200 line-clamp-2 md:line-clamp-none">{community.shortDescription ?? 'A RaceHub organiser community.'}</p>
-                <p class="mt-2 text-xs uppercase tracking-[0.18em] text-slate-300">{community.region} · {community.platformFocus ?? 'Cross-platform'} · {community.gameFocus ?? 'F1'}</p>
+                <h1 class="mt-3 max-w-4xl font-display text-4xl leading-none text-white md:text-6xl">{community.displayName}</h1>
+                <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-200 md:text-base">{community.shortDescription ?? 'A RaceHub organiser community.'}</p>
+                <p class="mt-3 text-xs uppercase tracking-[0.18em] text-slate-300">{community.region} / {community.platformFocus ?? 'Cross-platform'} / {community.gameFocus ?? 'Racing'}</p>
               </div>
             </div>
-            <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap lg:max-w-[30rem]">
-              <button type="button" data-community-join={community.slug} class="rh-action-btn bg-white text-black">Join Community</button>
-              {discordUrl && <DiscordJoinButton href={discordUrl} />}
-              {redditUrl && <a href={redditUrl} target="_blank" rel="noopener noreferrer" class="rh-action-btn border border-orange-300/35 bg-orange-500/15 text-orange-100">Join Reddit</a>}
-              {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rh-action-btn border border-white/20 bg-white/10 text-white">Website</a>}
+            <div class="grid w-full gap-2 sm:w-auto lg:min-w-72">
+              <button type="button" data-community-join={community.slug} class="rh-community-action bg-white text-black shadow-[0_12px_34px_rgba(255,255,255,0.14)] hover:bg-slate-100">Join Community</button>
+              {discordUrl && <DiscordJoinButton href={discordUrl} class="rh-community-action !min-h-[46px] !w-full !rounded-xl !px-4 !text-sm !font-bold !normal-case !tracking-normal" fullWidthOnMobile={false} label={`Join ${community.displayName} Discord`} />}
+              {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rh-community-action border border-white/20 bg-white/[0.06] text-slate-100 hover:border-white/40 hover:bg-white/[0.1]">Website</a>}
             </div>
           </div>
         </div>
 
-        <div class="grid gap-6 p-5 md:p-8 lg:grid-cols-[1.35fr_.65fr]">
-          <div>
-            <h2 class="font-display text-2xl text-white">Community hub</h2>
-            <p class="mt-3 whitespace-pre-line text-sm leading-7 text-slate-300 line-clamp-4 md:line-clamp-none">{community.description ?? community.shortDescription ?? 'This organiser has not added a long-form community description yet.'}</p>
-            <div class="mt-5 flex flex-wrap gap-2">
-              {(community.tags ?? []).slice(0, 3).map((tag) => <span class="rh-badge rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300">{tag}</span>)}
-            </div>
-            {community.credibilityNotes && <div class="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-slate-300"><p class="text-xs uppercase tracking-[0.18em] text-slate-500">Community rules / notes</p><p class="mt-2 whitespace-pre-line">{community.credibilityNotes}</p></div>}
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">RaceHub members</p><p class="mt-2 font-display text-4xl">{raceHubMembers.toLocaleString()}</p></div>
-            {externalCount && <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">{externalSource} members</p><p class="mt-2 font-display text-4xl">{externalCount.toLocaleString()}</p><p class="text-[11px] text-slate-500">Cached count{community.memberCountLastSyncedAt ? ` · synced ${new Date(community.memberCountLastSyncedAt).toLocaleDateString()}` : ''}</p></div>}
-            {!externalCount && <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Displayed members</p><p class="mt-2 font-display text-4xl">{memberDisplay.count.toLocaleString()}</p><p class="text-[11px] text-slate-500">Source: {memberDisplay.source}</p></div>}
-            <div class="rounded-2xl border border-white/10 bg-black/30 p-4"><p class="text-xs uppercase tracking-[0.16em] text-slate-500">Operated by</p><p class="mt-2 text-lg font-semibold">@{community.user.username}</p><p class="text-xs text-slate-500">Honour {community.user.honourScore}</p></div>
-          </div>
-        </div>
+        <nav class="rh-tab-row border-t border-white/10 bg-black/35 px-4 py-3" aria-label="Community sections">
+          {['Overview', 'Rankings', 'Results', 'Events', 'Drivers', 'Members', 'Rules'].map((item, index) => (
+            <a href={`#${item === 'Rules' ? 'about' : item.toLowerCase()}`} class:list={['rh-tab', index === 0 ? 'rh-tab-active' : 'rh-tab-idle']}>{item}</a>
+          ))}
+        </nav>
       </article>
 
-      <article id="rankings" class="panel mt-8 rounded-3xl p-5 md:p-6">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p class="text-xs uppercase tracking-[0.18em] text-emerald-100/70">SR / Honour / Clean driving</p>
-            <h2 class="font-display text-2xl">Community rankings</h2>
-            <p class="mt-2 max-w-2xl text-sm text-slate-400">A community-specific reputation table for drivers who race here, separate from the global RaceHub rating.</p>
-          </div>
-          <nav class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Community ranking views">
-            {rankingViews.map((view) => (
-              <a href={`/communities/${community.slug}?ranking=${view}#rankings`} class={`rounded-full border px-4 py-2 text-center text-xs uppercase tracking-[0.14em] transition ${rankingView === view ? 'border-white/45 bg-white text-black' : 'border-white/15 bg-white/[0.04] text-slate-200 hover:border-white/35'}`}>
-                {view === 'sr' ? 'SR' : view === 'honour' ? 'Honour' : view === 'clean' ? 'Clean' : 'Movers'}
-              </a>
-            ))}
-          </nav>
-        </div>
+      <section id="overview" class="mt-6 grid gap-4 lg:grid-cols-4">
+        <article class="rh-community-stat"><p class="rh-section-kicker">Members</p><p class="mt-2 font-display text-4xl text-white">{memberDisplay.count.toLocaleString()}</p><p class="text-xs text-slate-500">Source: {memberDisplay.source}</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Average SR</p><p class="mt-2 font-display text-4xl text-white">{averageSkill ?? '—'}</p><p class="text-xs text-slate-500">Community ranking sample</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Average Honour</p><p class="mt-2 font-display text-4xl text-white">{averageHonour ? getHonourGrade(averageHonour).grade : '—'}</p><p class="text-xs text-slate-500">{averageHonour ?? 'No'} score recorded</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Clean Race %</p><p class="mt-2 font-display text-4xl text-white">{cleanAverage == null ? '—' : `${cleanAverage}%`}</p><p class="text-xs text-slate-500">From ranked drivers</p></article>
+      </section>
 
-        <div class="mt-5 space-y-2">
-          {communityRankings?.rows.length ? communityRankings.rows.map((row) => {
-            const grade = getHonourGrade(row.honourScore);
-            return (
-              <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3 sm:grid-cols-[auto_1fr_auto_auto_auto]">
-                <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/35 text-sm font-semibold text-white">#{row.rank}</span>
-                <div class="flex min-w-0 items-center gap-3">
-                  <img src={row.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${row.user.username}`} alt="" class="h-10 w-10 rounded-full border border-white/10 object-cover" />
-                  <div class="min-w-0">
-                    <p class="truncate font-semibold text-white">{row.user.username}</p>
-                    <p class="text-xs text-slate-500">{row.starts} starts · {row.wins} wins · {row.cleanRaceRatio}% clean</p>
+      <section class="mt-6 grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
+        <article id="rankings" class="panel rounded-[1.25rem] p-5 md:p-6">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p class="rh-section-kicker text-emerald-100/70">Community SR board</p>
+              <h2 class="font-display text-3xl">Rankings</h2>
+              <p class="mt-2 max-w-2xl text-sm text-slate-400">Local SR and Honour for drivers who race inside this community.</p>
+            </div>
+            <nav class="rh-tab-row" aria-label="Community ranking views">
+              {rankingViews.map((view) => (
+                <a href={`/communities/${community.slug}?ranking=${view}#rankings`} class:list={['rh-tab', rankingView === view ? 'rh-tab-active' : 'rh-tab-idle']}>
+                  {view === 'sr' ? 'SR' : view === 'honour' ? 'Honour' : view === 'clean' ? 'Clean' : 'Movers'}
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          <div class="mt-5 space-y-2">
+            {rankingRows.length ? rankingRows.map((row) => {
+              const grade = getHonourGrade(row.honourScore);
+              return (
+                <div class="rh-ranking-row sm:grid-cols-[auto_1fr_auto_auto_auto]">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/35 text-sm font-semibold text-white">#{row.rank}</span>
+                  <div class="flex min-w-0 items-center gap-3">
+                    <img src={row.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${row.user.username}`} alt="" loading="lazy" decoding="async" class="h-10 w-10 rounded-full border border-white/10 object-cover" />
+                    <div class="min-w-0">
+                      <p class="truncate font-semibold text-white">{row.user.username}</p>
+                      <p class="text-xs text-slate-500">{row.starts} starts / {row.wins} wins / {row.cleanRaceRatio}% clean</p>
+                    </div>
                   </div>
+                  <div class="text-right"><p class="font-display text-2xl text-white">{row.skillRating}</p><p class="text-[10px] uppercase tracking-[0.16em] text-slate-500">SR</p></div>
+                  <span class={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${grade.tone}`}>{grade.label}</span>
+                  <span class={`hidden text-sm font-semibold sm:block ${row.recentSkillDelta >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>{formatDelta(row.recentSkillDelta)}</span>
                 </div>
-                <div class="text-right">
-                  <p class="font-display text-2xl text-white">{row.skillRating}</p>
-                  <p class="text-[10px] uppercase tracking-[0.16em] text-slate-500">SR</p>
-                </div>
-                <span class={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${grade.tone}`}>{grade.label}</span>
-                <span class={`hidden text-sm font-semibold sm:block ${row.recentSkillDelta >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>{formatDelta(row.recentSkillDelta)}</span>
-              </div>
-            );
-          }) : (
-            <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No community rating rows yet. Submit race results to start building this table.</p>
-          )}
-        </div>
-      </article>
+              );
+            }) : <p class="rh-empty-card">No community rating rows yet. Submit results to start building this board.</p>}
+          </div>
+        </article>
 
-      <div class="mt-8 grid gap-5 xl:grid-cols-2">
-        <article class="panel rounded-3xl p-5 md:p-6">
-          <h2 class="font-display text-2xl">Public races</h2>
+        <aside id="drivers" class="space-y-6">
+          <article class="panel rounded-[1.25rem] p-5">
+            <p class="rh-section-kicker">Top driver</p>
+            {topDriver ? (
+              <div class="mt-4 flex items-center gap-3">
+                <img src={topDriver.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${topDriver.user.username}`} alt="" loading="lazy" decoding="async" class="h-14 w-14 rounded-2xl border border-white/10 object-cover" />
+                <div>
+                  <p class="font-semibold text-white">{topDriver.user.username}</p>
+                  <p class="text-sm text-slate-400">{topDriver.skillRating} SR / {getHonourGrade(topDriver.honourScore).label}</p>
+                </div>
+              </div>
+            ) : <p class="mt-4 text-sm text-slate-400">No ranked drivers yet.</p>}
+          </article>
+          <article id="members" class="panel rounded-[1.25rem] p-5">
+            <p class="rh-section-kicker">Community staff</p>
+            <div class="mt-4 space-y-2">
+              <div class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <img src={community.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.user.username}`} alt="" loading="lazy" decoding="async" class="h-9 w-9 rounded-xl border border-white/10 object-cover" />
+                <div><p class="text-sm font-semibold text-white">@{community.user.username}</p><p class="text-xs uppercase tracking-[0.14em] text-slate-500">Owner</p></div>
+              </div>
+              {community.members.map((member) => (
+                <div class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <img src={member.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${member.user.username}`} alt="" loading="lazy" decoding="async" class="h-9 w-9 rounded-xl border border-white/10 object-cover" />
+                  <div><p class="text-sm font-semibold text-white">@{member.user.username}</p><p class="text-xs uppercase tracking-[0.14em] text-slate-500">{member.role}</p></div>
+                </div>
+              ))}
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="mt-6 grid gap-6 xl:grid-cols-2">
+        <article id="events" class="panel rounded-[1.25rem] p-5 md:p-6">
+          <div class="flex items-end justify-between gap-3">
+            <div><p class="rh-section-kicker">Upcoming</p><h2 class="font-display text-2xl">Community events</h2></div>
+            <a href="/race-slots" class="rh-btn rh-btn-secondary hidden sm:inline-flex">All race slots</a>
+          </div>
           <div class="mt-4 space-y-3">
             {publicRaces.length ? publicRaces.map((race) => {
               const { event, filled } = RaceCard(race);
-              return <a href={`/race-slots/${event.id}`} data-astro-prefetch="hover" data-pressable class="block rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-white/35">
-                <div class="flex items-start justify-between gap-3"><div><p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.league.name} · {event.game} · {event.platform ?? 'Cross-platform'}</p><h3 class="mt-1 font-semibold text-white">{event.title}</h3></div><span class="rh-badge rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-emerald-100">{event.visibility}</span></div>
-                <p class="mt-2 text-sm text-slate-300">{event.track ?? 'Track TBA'} · {new Date(event.scheduledAt).toLocaleString()}</p>
+              return <a href={`/race-slots/${event.id}`} data-astro-prefetch="hover" data-pressable class="rh-focus-card block rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+                <div class="flex items-start justify-between gap-3"><div><p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.league.name} / {event.game}</p><h3 class="mt-1 font-semibold text-white">{event.title}</h3></div><span class="rh-badge rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-emerald-100">{event.status}</span></div>
+                <p class="mt-2 text-sm text-slate-300">{event.track ?? 'Track TBA'} / {new Date(event.scheduledAt).toLocaleString()}</p>
                 <div class="mt-3 h-2 rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-emerald-300 to-cyan-200" style={`width:${filled}%`}></div></div>
-                <p class="mt-2 text-xs text-slate-400">{event._count.registrations}/{event.maxPlayers} registered · View details</p>
+                <p class="mt-2 text-xs text-slate-400">{event._count.registrations}/{event.maxPlayers} registered</p>
               </a>;
-            }) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No public upcoming races are listed yet.</p>}
+            }) : <p class="rh-empty-card">No public upcoming races are listed yet.</p>}
           </div>
         </article>
 
-        <article class="panel rounded-3xl p-5 md:p-6">
-          <h2 class="font-display text-2xl">Community-only races</h2>
+        <article id="results" class="panel rounded-[1.25rem] p-5 md:p-6">
+          <div><p class="rh-section-kicker">Recent activity</p><h2 class="font-display text-2xl">Results feed</h2></div>
           <div class="mt-4 space-y-3">
-            {canSeeCommunityOnly ? (
-              communityOnlyRaces.length ? communityOnlyRaces.map((race) => {
-                const { event, filled } = RaceCard(race);
-                return <a href={`/race-slots/${event.id}`} data-astro-prefetch="hover" data-pressable class="block rounded-2xl border border-violet-300/20 bg-violet-500/[0.06] p-4 transition hover:border-violet-200/45">
-                  <div class="flex items-start justify-between gap-3"><div><p class="text-xs uppercase tracking-[0.16em] text-violet-100/70">{event.league.name} · {event.game} · {event.platform ?? 'Cross-platform'}</p><h3 class="mt-1 font-semibold text-white">{event.title}</h3></div><span class="rh-badge rounded-full border border-violet-300/35 bg-violet-500/15 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-violet-100">Members</span></div>
-                  <p class="mt-2 text-sm text-slate-300">{event.track ?? 'Track TBA'} · {new Date(event.scheduledAt).toLocaleString()}</p>
-                  <div class="mt-3 h-2 rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-violet-300 to-fuchsia-200" style={`width:${filled}%`}></div></div>
-                  <p class="mt-2 text-xs text-slate-400">{event._count.registrations}/{event.maxPlayers} registered · View details</p>
-                </a>;
-              }) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No member-only upcoming races are listed yet.</p>
-            ) : (
-              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">
-                <p class="font-semibold text-white">Join this RaceHub community to see member-only races.</p>
-                <p class="mt-1 text-slate-400">Public visitors only see public race slots.</p>
-              </div>
-            )}
+            {recentRaces.length ? recentRaces.map((event) => (
+              <a href={`/race-slots/${event.id}`} data-astro-prefetch="hover" data-pressable class="rh-focus-card block rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.status} / {event.track ?? 'Track TBA'}</p>
+                <h3 class="mt-1 font-semibold text-white">{event.title}</h3>
+                <p class="mt-1 text-sm text-slate-300">{new Date(event.scheduledAt).toLocaleDateString()} / {event._count.registrations} entrants</p>
+              </a>
+            )) : <p class="rh-empty-card">No recent public results yet.</p>}
           </div>
         </article>
-      </div>
+      </section>
 
-
-      <article id="races" class="panel mt-8 rounded-3xl p-5 md:p-6">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p class="text-xs uppercase tracking-[0.18em] text-cyan-100/70">Community 1v1 arena</p>
-            <h2 class="font-display text-2xl">Hosted Duels</h2>
+      <section class="mt-6 grid gap-6 xl:grid-cols-[.8fr_1.2fr]">
+        <article id="about" class="panel rounded-[1.25rem] p-5 md:p-6">
+          <p class="rh-section-kicker">About / Rules</p>
+          <h2 class="mt-2 font-display text-2xl">Community operating layer</h2>
+          <p class="mt-3 whitespace-pre-line text-sm leading-7 text-slate-300">{community.description ?? community.shortDescription ?? 'This organiser has not added a long-form community description yet.'}</p>
+          {community.credibilityNotes && <div class="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-slate-300"><p class="rh-section-kicker">Rules / notes</p><p class="mt-2 whitespace-pre-line">{community.credibilityNotes}</p></div>}
+          <div class="mt-5 flex flex-wrap gap-2">
+            {(community.tags ?? []).slice(0, 6).map((tag) => <span class="rh-badge rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300">{tag}</span>)}
           </div>
-          <a href="/duels/new" class="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.16em] text-slate-200 transition hover:border-white/40 hover:bg-white/10">Create community duel</a>
-        </div>
-        <div class="mt-4 grid gap-3 md:grid-cols-2">
-          {communityDuels.length ? communityDuels.map((duel) => (
-            <a href={`/duels/${duel.id}`} data-astro-prefetch="hover" data-pressable class="rounded-2xl border border-cyan-300/15 bg-cyan-500/[0.06] p-4 transition hover:border-cyan-200/45">
-              <p class="text-xs uppercase tracking-[0.16em] text-cyan-100/70">{duel.game} · {duel.status.replaceAll('_', ' ')}</p>
-              <h3 class="mt-1 font-semibold text-white">{duel.createdBy.username} vs {duel.opponent?.username ?? 'Open opponent'}</h3>
-              <p class="mt-1 text-sm text-slate-300">{duel.track} · {duel.ranked ? 'Ranked' : 'Unranked'} · {duel.scheduledAt ? new Date(duel.scheduledAt).toLocaleString() : 'Open challenge'}</p>
-            </a>
-          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300 md:col-span-2">No community duels are listed yet.</p>}
-        </div>
-      </article>
+          <div class="mt-5 grid gap-2 sm:grid-cols-2">
+            {discordUrl && <DiscordJoinButton href={discordUrl} fullWidthOnMobile={false} class="rh-community-action !min-h-[46px] !w-full !rounded-xl !px-4 !text-sm !font-bold !normal-case !tracking-normal" label={`Join ${community.displayName} Discord`} />}
+            {redditUrl && <a href={redditUrl} target="_blank" rel="noopener noreferrer" class="rh-community-action border border-orange-300/35 bg-orange-500/15 text-orange-100">Reddit</a>}
+            {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rh-community-action border border-white/20 bg-white/[0.06] text-slate-100 hover:border-white/40 hover:bg-white/[0.1]">Website</a>}
+          </div>
+        </article>
 
+        <article class="panel rounded-[1.25rem] p-5 md:p-6">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div><p class="rh-section-kicker">Secondary format</p><h2 class="font-display text-2xl">Hosted 1v1 duels</h2></div>
+            <a href="/duels/new" class="rh-btn rh-btn-secondary">Create duel</a>
+          </div>
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            {communityDuels.length ? communityDuels.map((duel) => (
+              <a href={`/duels/${duel.id}`} data-astro-prefetch="hover" data-pressable class="rh-focus-card rounded-2xl border border-cyan-300/15 bg-cyan-500/[0.06] p-4">
+                <p class="text-xs uppercase tracking-[0.16em] text-cyan-100/70">{duel.game} / {duel.status.replaceAll('_', ' ')}</p>
+                <h3 class="mt-1 font-semibold text-white">{duel.createdBy.username} vs {duel.opponent?.username ?? 'Open opponent'}</h3>
+                <p class="mt-1 text-sm text-slate-300">{duel.track} / {duel.ranked ? 'Ranked' : 'Unranked'} / {duel.scheduledAt ? new Date(duel.scheduledAt).toLocaleString() : 'Open challenge'}</p>
+              </a>
+            )) : <p class="rh-empty-card md:col-span-2">No community duels are listed yet.</p>}
+          </div>
+        </article>
+      </section>
 
-      <div class="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/80 px-4 py-3 backdrop-blur-xl mobile-safe-bottom md:hidden">
+      <div class="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/85 px-4 py-3 backdrop-blur-xl mobile-safe-bottom md:hidden">
         <div class="mx-auto flex max-w-md flex-col gap-2">
-          <button type="button" data-community-join={community.slug} class="rh-action-btn min-h-12 rounded-2xl bg-white px-4 text-sm font-bold normal-case tracking-normal text-black">Join</button>
-          <a href="#races" class="rh-action-btn min-h-12 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-bold normal-case tracking-normal text-white">Active races</a>
+          <button type="button" data-community-join={community.slug} class="rh-community-action bg-white text-black">Join Community</button>
+          <a href="#rankings" class="rh-community-action border border-white/20 bg-white/[0.06] text-slate-100">View rankings</a>
         </div>
       </div>
-
-      <article class="panel mt-8 rounded-3xl p-5 md:p-6">
-        <h2 class="font-display text-2xl">Recent events</h2>
-        <div class="mt-4 grid gap-3 md:grid-cols-2">
-          {recentRaces.length ? recentRaces.map((event) => (
-            <a href={`/race-slots/${event.id}`} data-astro-prefetch="hover" data-pressable class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
-              <p class="text-xs uppercase tracking-[0.16em] text-slate-500">{event.status} · {event.track ?? 'Track TBA'}</p>
-              <h3 class="mt-1 font-semibold text-white">{event.title}</h3>
-              <p class="mt-1 text-sm text-slate-300">{new Date(event.scheduledAt).toLocaleDateString()} · {event._count.registrations} entrants</p>
-            </a>
-          )) : <p class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-300">No recent public events yet.</p>}
-        </div>
-      </article>
     </section>
   ) : (
     <section class="section-shell pb-28 md:pb-24">
-      <div class="panel rounded-3xl p-8">
-        <p class="text-xs uppercase tracking-[0.2em] text-slate-500">404</p>
+      <div class="panel rounded-[1.25rem] p-8">
+        <p class="rh-section-kicker">404</p>
         <h1 class="section-title mt-2">Community not found</h1>
         <p class="mt-3 text-slate-300">This community is not public or does not exist.</p>
-        <a href="/communities" class="mt-5 inline-flex rounded-full bg-white px-5 py-3 text-sm font-semibold text-black">Back to communities</a>
+        <a href="/communities" class="rh-btn rh-btn-primary mt-5">Back to communities</a>
       </div>
     </section>
   )}
 
   <script>
-    const button = document.querySelector<HTMLButtonElement>('[data-community-join]');
-    const setButton = (label: string, disabled = false) => {
-      if (!button) return;
+    const buttons = document.querySelectorAll<HTMLButtonElement>('[data-community-join]');
+    const setButton = (button: HTMLButtonElement, label: string, disabled = false) => {
       button.textContent = label;
       button.disabled = disabled;
       button.classList.toggle('opacity-60', disabled);
     };
 
-    if (button) {
+    buttons.forEach((button) => {
       const slug = button.dataset.communityJoin;
+      if (!slug) return;
       fetch(`/api/communities/${slug}/membership`, { credentials: 'include' })
         .then(async (response) => {
           if (response.status === 401) return null;
@@ -332,9 +334,9 @@ const formatDelta = (value: number) => value > 0 ? `+${value}` : String(value);
         })
         .then((state) => {
           if (!state) return;
-          if (state.isOwner) setButton('Manage Community');
-          else if (state.member?.status === 'ACTIVE') setButton('Joined', true);
-          else if (state.member?.status === 'BANNED') setButton('Unable to join', true);
+          if (state.isOwner) setButton(button, 'Manage Community');
+          else if (state.member?.status === 'ACTIVE') setButton(button, 'Joined', true);
+          else if (state.member?.status === 'BANNED') setButton(button, 'Unable to join', true);
         })
         .catch(() => undefined);
 
@@ -344,7 +346,7 @@ const formatDelta = (value: number) => value > 0 ? `+${value}` : String(value);
           return;
         }
         if (button.disabled) return;
-        setButton('Joining...', true);
+        setButton(button, 'Joining...', true);
         try {
           const response = await fetch(`/api/communities/${slug}/join`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' } });
           if (response.status === 401) {
@@ -353,11 +355,11 @@ const formatDelta = (value: number) => value > 0 ? `+${value}` : String(value);
           }
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(payload.error ?? 'Unable to join community');
-          setButton('Joined', true);
+          buttons.forEach((peer) => setButton(peer, 'Joined', true));
         } catch (error) {
-          setButton(error instanceof Error ? error.message : 'Unable to join', false);
+          setButton(button, error instanceof Error ? error.message : 'Unable to join', false);
         }
       });
-    }
+    });
   </script>
 </BaseLayout>

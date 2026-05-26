@@ -6,8 +6,6 @@ import DiscordJoinButton from '@/components/ui/DiscordJoinButton.astro';
 
 export const prerender = false;
 
-// Public SSR route: communities index renders public organiser profiles directly from OrganiserProfile.
-// Temporarily disabled public caching while verifying fresh community discovery output.
 setAstroCache(Astro, 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
 
 const safeExternalUrl = (url?: string | null) => {
@@ -20,15 +18,49 @@ const safeExternalUrl = (url?: string | null) => {
   }
 };
 
+const query = Astro.url.searchParams.get('q') ?? '';
+const selectedSort = Astro.url.searchParams.get('sort') ?? 'featured';
+const selectedRegion = Astro.url.searchParams.get('region') ?? '';
+const selectedPlatform = Astro.url.searchParams.get('platform') ?? '';
+const selectedTag = Astro.url.searchParams.get('tag') ?? '';
+
+const regions = ['GLOBAL', 'EU', 'NA', 'SA', 'APAC', 'MENA'];
+const platforms = ['PC', 'PLAYSTATION', 'XBOX'];
+const sortOptions = [
+  { key: 'featured', label: 'Featured first' },
+  { key: 'verified', label: 'Verified first' },
+  { key: 'az', label: 'A-Z' },
+  { key: 'events', label: 'Active Events' },
+  { key: 'members', label: 'Members' },
+  { key: 'sr', label: 'Highest SR' },
+];
+
+const filterHref = (params: Record<string, string>) => {
+  const next = new URLSearchParams();
+  if (query) next.set('q', query);
+  if (selectedRegion) next.set('region', selectedRegion);
+  if (selectedPlatform) next.set('platform', selectedPlatform);
+  if (selectedTag) next.set('tag', selectedTag);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) next.set(key, value);
+    else next.delete(key);
+  });
+  const text = next.toString();
+  return text ? `/communities?${text}` : '/communities';
+};
+
 let communities: PublicCommunitySummary[] = [];
 let communitiesError: unknown = null;
 
 try {
-  communities = await getPublicCommunitySummaries(30);
-
-  if (import.meta.env.DEV) {
-    console.log('[communities page]', communities.map((community) => community.slug));
-  }
+  communities = await getPublicCommunitySummaries({
+    limit: 36,
+    q: query,
+    sort: selectedSort,
+    region: selectedRegion || null,
+    platform: selectedPlatform || null,
+    tag: selectedTag || null,
+  });
 } catch (error) {
   communitiesError = error;
   console.error('[communities page] Failed to load public communities', error);
@@ -37,31 +69,61 @@ try {
 
 <BaseLayout title="Communities | RaceHub">
   <section class="section-shell relative isolate">
-    <div class="pointer-events-none absolute inset-x-0 -top-8 h-[22rem] -z-20 overflow-hidden rounded-[2.2rem] md:h-[min(560px,72vh)]">
-      <div class="absolute inset-0 bg-cover opacity-36" style="background-image:url('/pictures/communititesback.webp'); background-size: cover; background-position: center top;"></div>
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,rgba(56,189,248,.16),transparent_36%),radial-gradient(circle_at_86%_0%,rgba(244,114,182,.14),transparent_36%),linear-gradient(180deg,rgba(5,8,12,.45)_0%,rgba(3,4,6,.78)_58%,rgba(0,0,0,1)_100%)]"></div>
-      <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,4,6,.9)_0%,transparent_24%,transparent_78%,rgba(2,4,6,.9)_100%)]"></div>
+    <div class="pointer-events-none absolute inset-x-0 -top-8 h-[22rem] -z-20 overflow-hidden rounded-[1.5rem] md:h-[min(560px,72vh)]">
+      <div class="absolute inset-0 bg-cover opacity-32" style="background-image:url('/pictures/communititesback.webp'); background-size: cover; background-position: center top;"></div>
+      <div class="absolute inset-0 bg-[linear-gradient(180deg,rgba(5,8,12,.48)_0%,rgba(3,4,6,.82)_58%,rgba(0,0,0,1)_100%)]"></div>
       <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-black"></div>
     </div>
 
-    <div class="panel relative overflow-hidden rounded-3xl p-5 md:p-8">
-      <div class="absolute -left-20 -top-20 h-56 w-56 rounded-full bg-sky-300/20 blur-3xl"></div>
-      <div class="absolute -right-16 top-0 h-52 w-52 rounded-full bg-fuchsia-400/15 blur-3xl"></div>
-      <p class="text-xs uppercase tracking-[0.22em] text-slate-300">Community discovery</p>
-      <h1 class="section-title mt-3">Communities</h1>
-      <p class="mt-3 max-w-3xl text-sm text-slate-200 line-clamp-1 md:line-clamp-none">Join active racing clubs and find the next grid.</p>
+    <div class="panel relative overflow-hidden rounded-[1.35rem] p-5 md:p-8">
+      <div class="rh-community-atmosphere -z-10 opacity-70" aria-hidden="true"></div>
+      <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"></div>
+      <p class="rh-section-kicker text-slate-300">Community discovery</p>
+      <h1 class="section-title mt-3">Find your racing HQ</h1>
+      <p class="mt-3 max-w-3xl text-sm leading-6 text-slate-200 md:text-base">Keep racing in Discord. Use RaceHub to track community SR, Honour, clean results, and organiser reputation.</p>
     </div>
+
+    <form method="get" class="rh-community-control mt-7">
+      <div class="grid min-w-0 gap-3 lg:grid-cols-[minmax(260px,300px)_minmax(0,1fr)] lg:items-center">
+        <label class="relative block">
+          <span class="sr-only">Find community</span>
+          <input name="q" value={query} placeholder="Find community" class="rh-input rh-search-input min-h-[48px] rounded-2xl border-white/15 bg-black/55 text-base" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
+        </label>
+        <div class="flex min-w-0 gap-2 overflow-x-auto pb-1 pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <a href="/communities" class="rh-filter-pill border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/35 hover:text-white">Discover</a>
+          <a href="/dashboard" class="rh-filter-pill border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/35 hover:text-white">Joined</a>
+          {sortOptions.map((option) => (
+            <a href={filterHref({ sort: option.key })} class:list={['rh-filter-pill', selectedSort === option.key ? 'border-white/60 bg-white text-black shadow-[0_0_28px_rgba(255,255,255,0.16)]' : 'border-white/10 bg-white/[0.045] text-slate-300 hover:border-white/35 hover:text-white']}>{option.label}</a>
+          ))}
+        </div>
+      </div>
+      <div class="mt-3 grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+        <select name="region" class="rh-select" aria-label="Filter by region">
+          <option value="">All regions</option>
+          {regions.map((region) => <option value={region} selected={selectedRegion === region}>{region}</option>)}
+        </select>
+        <select name="platform" class="rh-select" aria-label="Filter by platform">
+          <option value="">Any platform</option>
+          {platforms.map((platform) => <option value={platform} selected={selectedPlatform === platform}>{platform}</option>)}
+        </select>
+        <div class="grid min-w-0 gap-2 sm:grid-cols-[1fr_auto]">
+          <input name="tag" value={selectedTag} placeholder="Tag filter" class="rh-input" />
+          <button class="rh-community-action bg-white text-black shadow-[0_12px_34px_rgba(255,255,255,0.14)] hover:bg-slate-100 sm:w-auto">Apply</button>
+        </div>
+      </div>
+    </form>
 
     <div class="mt-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Discover communities</p>
-        <h2 class="font-display text-3xl text-white">All public communities</h2>
+        <p class="rh-section-kicker">Discover communities</p>
+        <h2 class="font-display text-3xl text-white">Public racing communities</h2>
       </div>
-      <p class="hidden max-w-xl text-xs text-slate-400 sm:block">Public organiser profiles appear here whether or not they are featured or verified.</p>
+      <p class="max-w-xl text-xs text-slate-400">{communities.length} communities shown. Cards open the community HQ; actions stay in the lower command row.</p>
     </div>
 
     {communitiesError ? (
-      <div class="mt-5 rounded-3xl border border-rose-400/30 bg-rose-950/30 p-5 text-sm text-rose-100 shadow-[0_0_40px_rgba(244,63,94,.12)]">
+      <div class="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-5 text-sm text-rose-100 shadow-[0_0_40px_rgba(244,63,94,.12)]">
         <p class="font-display text-2xl text-white">Community discovery is temporarily unavailable.</p>
         <p class="mt-2 text-rose-100/80">RaceHub could not load public organiser profiles from the database. The issue has been logged server-side.</p>
         {import.meta.env.DEV && (
@@ -69,57 +131,47 @@ try {
         )}
       </div>
     ) : (
-    <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {communities.length ? communities.map((community) => (
-        <article class="group panel relative overflow-hidden rounded-3xl border-white/15 transition hover:-translate-y-1 hover:border-white/40">
-          <div class="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/15 via-white/5 to-transparent opacity-60"></div>
-          <a href={`/communities/${community.slug}`} data-astro-prefetch="hover" data-pressable class="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black">
-            <div class="h-36 bg-cover bg-center sm:h-32" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,.82)),url('${community.bannerUrl ?? 'https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=900&q=80'}')`} />
-            <div class="p-4 sm:p-5">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div class="flex min-w-0 items-center gap-3">
-                <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-10 w-10 rounded-xl border border-white/20 bg-black/40 object-cover sm:h-11 sm:w-11" />
-                <div class="min-w-0">
-                  <h2 class="truncate font-display text-xl sm:text-2xl">{community.displayName}</h2>
-                  <p class="text-[11px] uppercase tracking-[0.15em] text-slate-400">{community.region} · {community.platformFocus ?? 'Cross-platform'}</p>
+      <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {communities.length ? communities.map((community) => (
+          <article class="group panel relative flex min-h-full flex-col overflow-hidden rounded-[1.15rem] border-white/10 transition hover:-translate-y-1 hover:border-white/35">
+            <a href={`/communities/${community.slug}`} data-astro-prefetch="hover" data-pressable class="rh-focus-card flex flex-1 flex-col">
+              <div class="relative aspect-[16/7] bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(0,0,0,.04),rgba(0,0,0,.72)),url('${community.bannerUrl ?? '/pictures/communititesback.webp'}')`}>
+                <div class="absolute inset-x-0 top-0 flex justify-end gap-2 p-3">
+                  {community.verified && <span class="rh-badge rounded-full border border-cyan-300/35 bg-cyan-500/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-cyan-100 backdrop-blur">Verified</span>}
+                  {community.featured && <span class="rh-badge rounded-full border border-amber-300/35 bg-amber-500/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-amber-100 backdrop-blur">Featured</span>}
                 </div>
               </div>
-              <div class="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
-                {community.verified && <span class="rh-badge rounded-full border border-cyan-300/35 bg-cyan-500/20 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-100">Verified</span>}
-                {community.featured && <span class="rh-badge rounded-full border border-amber-300/35 bg-amber-500/20 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
-              </div>
-            </div>
-            <p class="mt-3 text-sm text-slate-200 line-clamp-1 md:line-clamp-2">{community.shortDescription ?? community.description ?? 'Structured racing community with active organiser staffing.'}</p>
-            <div class="mt-4 flex flex-wrap gap-2">
-              {(community.tags ?? []).slice(0, 3).map((tag) => <span class="rh-badge rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-xs text-slate-300">{tag}</span>)}
-            </div>
-
-            {community.raceSlots?.length ? (
-              <div class="mt-4 hidden rounded-2xl border border-white/10 bg-black/35 p-3 md:block">
-                <p class="text-[10px] uppercase tracking-[0.15em] text-slate-500">Next published events</p>
-                <div class="mt-2 space-y-2">
-                  {community.raceSlots.map((event) => (
-                    <p class="text-xs text-slate-200">{event.title} · {new Date(event.scheduledAt).toLocaleDateString()} · {event._count.registrations}/{event.maxPlayers}</p>
-                  ))}
+              <div class="flex flex-1 flex-col p-4 pt-0 sm:p-5 sm:pt-0">
+                <div class="-mt-8 mb-3 flex items-end gap-3">
+                  <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} alt={`${community.displayName} logo`} loading="lazy" decoding="async" class="h-16 w-16 rounded-2xl border border-white/25 bg-black/65 object-cover shadow-2xl" />
+                  <div class="min-w-0 pb-1">
+                    <h2 class="truncate font-display text-xl sm:text-2xl">{community.displayName}</h2>
+                  </div>
                 </div>
+                <p class="mt-1 text-[11px] uppercase tracking-[0.15em] text-slate-400">{community.region} / {community.platformFocus ?? 'Cross-platform'} / {community.gameFocus ?? 'Racing'}</p>
+                <p class="mt-3 min-h-[2.5rem] text-sm leading-5 text-slate-200 line-clamp-2">{community.shortDescription ?? community.description ?? 'Structured racing community with active organiser staffing.'}</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                  {(community.tags ?? []).slice(0, 3).map((tag) => <span class="rh-badge rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-xs text-slate-300">{tag}</span>)}
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-2">
+                  <p class="rh-community-stat"><span class="block text-[10px] uppercase tracking-[0.12em] text-slate-500">Members</span><span class="rh-community-stat-number">{community.displayedMemberCount.toLocaleString()}</span></p>
+                  <p class="rh-community-stat"><span class="block text-[10px] uppercase tracking-[0.12em] text-slate-500">Events</span><span class="rh-community-stat-number">{community._count.raceSlots}</span></p>
+                  <p class="rh-community-stat"><span class="block text-[10px] uppercase tracking-[0.12em] text-slate-500">Top SR</span><span class="rh-community-stat-number">{community.topDriver?.skillRating ?? '—'}</span></p>
+                </div>
+                {community.topDriver ? (
+                  <p class="mt-3 truncate rounded-xl border border-emerald-300/15 bg-emerald-500/[0.06] px-3 py-2 text-xs text-emerald-100">Top driver: {community.topDriver.user.username} / {community.topDriver.skillRating} SR</p>
+                ) : (
+                  <p class="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-400">No ranked drivers yet</p>
+                )}
               </div>
-            ) : (
-              <p class="mt-4 hidden rounded-2xl border border-white/10 bg-black/35 px-3 py-2 text-xs text-slate-400 md:block">No published events yet.</p>
-            )}
-
-            <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Members</span>{community.displayedMemberCount.toLocaleString()} <span class="hidden text-[10px] text-slate-500 md:inline">members · {community.memberCountSource}</span></p>
-              <p class="rounded-xl border border-white/10 bg-black/35 px-3 py-2"><span class="block text-[11px] uppercase tracking-[0.12em] text-slate-500">Active events</span>{community._count.raceSlots}</p>
+            </a>
+            <div class="grid w-full gap-2 border-t border-white/10 p-4">
+              <button type="button" data-community-join={community.slug} class="rh-community-action bg-white text-black shadow-[0_12px_34px_rgba(255,255,255,0.14)] hover:bg-slate-100">Join Community</button>
+              {safeExternalUrl(community.discordUrl) && <DiscordJoinButton href={safeExternalUrl(community.discordUrl)!} class="rh-community-action !min-h-[46px] !w-full !rounded-xl !px-4 !text-sm !font-bold !normal-case !tracking-normal" fullWidthOnMobile={false} label={`Join ${community.displayName} Discord`} />}
             </div>
-            </div>
-          </a>
-          <div class="mt-5 flex w-full flex-col gap-3 p-4 pt-0 sm:p-5 sm:pt-0">
-            <button type="button" data-community-join={community.slug} class="rh-action-btn inline-flex min-h-[48px] w-full items-center justify-center whitespace-nowrap rounded-full bg-white text-center text-black">Join Community</button>
-            {safeExternalUrl(community.discordUrl) && <DiscordJoinButton href={safeExternalUrl(community.discordUrl)!} class="inline-flex min-h-[48px] w-full items-center justify-center whitespace-nowrap rounded-full text-center" fullWidthOnMobile={false} />}
-          </div>
-        </article>
-      )) : <p class="panel rounded-2xl p-6 text-slate-300">No communities are public yet.</p>}
-    </div>
+          </article>
+        )) : <p class="rh-empty-card md:col-span-2 xl:col-span-3">No communities match these filters yet.</p>}
+      </div>
     )}
   </section>
   <script>
