@@ -1,6 +1,11 @@
-node_modules
+.env
+.env.*
+!.env.example
+!.env.sample
+node_modules/
 .dist
 .astro
-.vercel
-.env*.local
+.vercel/
+*.log
+.DS_Store
 
