@@ -4,7 +4,7 @@ import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
 import { prisma } from '@/lib/db/prisma';
 import { getCommunityMemberCountDisplay, getPublicUpcomingRaceSlotWhere } from '@/server/services/community.service';
 import { getHonourGrade } from '@/lib/honour';
-import { getCommunityRankings, type CommunityRankingView } from '@/server/services/community-rating.service';
+import { getCommunityRankings } from '@/server/services/community-rating.service';
 import { shouldLogPerf, withPerf } from '@/lib/utils/perf';
 import DiscordJoinButton from '@/components/ui/DiscordJoinButton.astro';
 
@@ -61,9 +61,6 @@ if (!community) {
 }
 
 const now = new Date();
-const rankingViews = ['sr', 'honour', 'clean', 'movers'] as const;
-const requestedRankingView = Astro.url.searchParams.get('ranking') as CommunityRankingView | null;
-const rankingView = requestedRankingView && rankingViews.includes(requestedRankingView) ? requestedRankingView : 'sr';
 const [publicRaces, recentRaces, communityDuels, communityRankings] = community
   ? await withPerf('community.hqLists', () => Promise.all([
       prisma.raceSlot.findMany({
@@ -93,7 +90,7 @@ const [publicRaces, recentRaces, communityDuels, communityRankings] = community
         orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
         take: 4,
       }),
-      getCommunityRankings(community.slug, rankingView, 10),
+	      getCommunityRankings(community.slug, 'sr', 5),
     ]))
   : [[], [], [], null];
 
@@ -104,7 +101,6 @@ const websiteUrl = safeExternalUrl(community?.websiteUrl);
 const accent = community?.brandingColor || '#38bdf8';
 const rankingRows = communityRankings?.rows ?? [];
 const topDriver = rankingRows[0] ?? null;
-const averageSkill = rankingRows.length ? Math.round(rankingRows.reduce((sum, row) => sum + row.skillRating, 0) / rankingRows.length) : null;
 const averageHonour = rankingRows.length ? Math.round(rankingRows.reduce((sum, row) => sum + row.honourScore, 0) / rankingRows.length) : null;
 const cleanAverage = rankingRows.length ? Math.round(rankingRows.reduce((sum, row) => sum + row.cleanRaceRatio, 0) / rankingRows.length) : null;
 
@@ -112,8 +108,6 @@ const RaceCard = (event: (typeof publicRaces)[number]) => {
   const filled = Math.min(100, Math.round((event._count.registrations / event.maxPlayers) * 100));
   return { event, filled };
 };
-
-const formatDelta = (value: number) => value > 0 ? `+${value}` : String(value);
 
 if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.now() - routeStart).toFixed(1)}ms`);
 ---
@@ -131,7 +125,7 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
               <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} class="h-20 w-20 rounded-2xl border border-white/25 bg-black/45 object-cover shadow-2xl sm:h-24 sm:w-24" alt={`${community.displayName} logo`} />
               <div class="min-w-0">
                 <div class="flex flex-wrap gap-2">
-                  {community.verified && <span class="rh-badge rounded-full border border-cyan-300/35 bg-cyan-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-100">Verified</span>}
+                  {community.verified && <span class="rh-verified-badge"><span class="rh-verified-check" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" class="h-3.5 w-3.5"><path d="m5 10.4 3.1 3.1L15.2 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Verified</span>}
                   {community.featured && <span class="rh-badge rounded-full border border-amber-300/35 bg-amber-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
                 </div>
                 <h1 class="mt-3 max-w-4xl font-display text-4xl leading-none text-white md:text-6xl">{community.displayName}</h1>
@@ -141,66 +135,64 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
             </div>
             <div class="grid w-full gap-2 sm:w-auto lg:min-w-72">
               <button type="button" data-community-join={community.slug} class="rh-community-action bg-white text-black shadow-[0_12px_34px_rgba(255,255,255,0.14)] hover:bg-slate-100">Join Community</button>
-              {discordUrl && <DiscordJoinButton href={discordUrl} class="rh-community-action !min-h-[46px] !w-full !rounded-xl !px-4 !text-sm !font-bold !normal-case !tracking-normal" fullWidthOnMobile={false} label={`Join ${community.displayName} Discord`} />}
+              {discordUrl && <DiscordJoinButton href={discordUrl} class="rh-community-action !min-h-11 !w-full !rounded-xl !px-4 !text-sm !font-bold !normal-case !tracking-normal" fullWidthOnMobile={false} label="Join Discord" />}
               {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rh-community-action border border-white/20 bg-white/[0.06] text-slate-100 hover:border-white/40 hover:bg-white/[0.1]">Website</a>}
             </div>
           </div>
         </div>
 
         <nav class="rh-tab-row border-t border-white/10 bg-black/35 px-4 py-3" aria-label="Community sections">
-          {['Overview', 'Rankings', 'Results', 'Events', 'Drivers', 'Members', 'Rules'].map((item, index) => (
-            <a href={`#${item === 'Rules' ? 'about' : item.toLowerCase()}`} class:list={['rh-tab', index === 0 ? 'rh-tab-active' : 'rh-tab-idle']}>{item}</a>
-          ))}
+          <a href={`/communities/${community.slug}`} class="rh-tab rh-tab-active">Overview</a>
+          <a href={`/communities/${community.slug}/rankings`} class="rh-tab rh-tab-idle">Rankings</a>
+          <a href="#results" class="rh-tab rh-tab-idle">Results</a>
+          <a href="#events" class="rh-tab rh-tab-idle">Events</a>
+          <a href="#drivers" class="rh-tab rh-tab-idle">Drivers</a>
+          <a href="#members" class="rh-tab rh-tab-idle">Members</a>
+          <a href="#about" class="rh-tab rh-tab-idle">Rules</a>
         </nav>
       </article>
 
-      <section id="overview" class="mt-6 grid gap-4 lg:grid-cols-4">
-        <article class="rh-community-stat"><p class="rh-section-kicker">Members</p><p class="mt-2 font-display text-4xl text-white">{memberDisplay.count.toLocaleString()}</p><p class="text-xs text-slate-500">Source: {memberDisplay.source}</p></article>
-        <article class="rh-community-stat"><p class="rh-section-kicker">Average SR</p><p class="mt-2 font-display text-4xl text-white">{averageSkill ?? '—'}</p><p class="text-xs text-slate-500">Community ranking sample</p></article>
-        <article class="rh-community-stat"><p class="rh-section-kicker">Average Honour</p><p class="mt-2 font-display text-4xl text-white">{averageHonour ? getHonourGrade(averageHonour).grade : '—'}</p><p class="text-xs text-slate-500">{averageHonour ?? 'No'} score recorded</p></article>
-        <article class="rh-community-stat"><p class="rh-section-kicker">Clean Race %</p><p class="mt-2 font-display text-4xl text-white">{cleanAverage == null ? '—' : `${cleanAverage}%`}</p><p class="text-xs text-slate-500">From ranked drivers</p></article>
+      <section id="overview" class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <article class="rh-community-stat"><p class="rh-section-kicker">Members</p><p class="mt-2 font-display text-4xl text-white">{memberDisplay.count.toLocaleString()}</p><p class="text-xs text-slate-500">Active community roster</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Events</p><p class="mt-2 font-display text-4xl text-white">{publicRaces.length + recentRaces.length}</p><p class="text-xs text-slate-500">Listed on RaceHub</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Top SR</p><p class="mt-2 font-display text-4xl text-white">{topDriver?.skillRating ?? '-'}</p><p class="text-xs text-slate-500">{topDriver ? topDriver.user.username : 'Rankings start with results'}</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Avg Honour</p><p class="mt-2 font-display text-4xl text-white">{averageHonour ? getHonourGrade(averageHonour).grade : '-'}</p><p class="text-xs text-slate-500">{averageHonour ? `${averageHonour} score` : 'No score recorded'}</p></article>
+        <article class="rh-community-stat sm:col-span-2 xl:col-span-1"><p class="rh-section-kicker">Clean Race %</p><p class="mt-2 font-display text-4xl text-white">{cleanAverage == null ? '-' : `${cleanAverage}%`}</p><p class="text-xs text-slate-500">From ranked drivers</p></article>
       </section>
 
       <section class="mt-6 grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
-        <article id="rankings" class="panel rounded-[1.25rem] p-5 md:p-6">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <article id="drivers" class="panel rounded-[1.25rem] p-5 md:p-6">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p class="rh-section-kicker text-emerald-100/70">Community SR board</p>
-              <h2 class="font-display text-3xl">Rankings</h2>
-              <p class="mt-2 max-w-2xl text-sm text-slate-400">Local SR and Honour for drivers who race inside this community.</p>
+              <p class="rh-section-kicker text-emerald-100/70">Community SR preview</p>
+              <h2 class="font-display text-3xl">Top drivers</h2>
+              <p class="mt-2 max-w-2xl text-sm text-slate-400">A quick look at local standings. The full SR, Honour, Clean, and Movers boards live on the rankings page.</p>
             </div>
-            <nav class="rh-tab-row" aria-label="Community ranking views">
-              {rankingViews.map((view) => (
-                <a href={`/communities/${community.slug}?ranking=${view}#rankings`} class:list={['rh-tab', rankingView === view ? 'rh-tab-active' : 'rh-tab-idle']}>
-                  {view === 'sr' ? 'SR' : view === 'honour' ? 'Honour' : view === 'clean' ? 'Clean' : 'Movers'}
-                </a>
-              ))}
-            </nav>
+            <a href={`/communities/${community.slug}/rankings`} class="rh-community-action w-full border border-white/20 bg-white/[0.06] text-slate-100 hover:border-white/40 hover:bg-white/[0.1] sm:w-auto">View full rankings</a>
           </div>
 
           <div class="mt-5 space-y-2">
-            {rankingRows.length ? rankingRows.map((row) => {
+            {rankingRows.length ? rankingRows.slice(0, 5).map((row) => {
               const grade = getHonourGrade(row.honourScore);
               return (
-                <div class="rh-ranking-row sm:grid-cols-[auto_1fr_auto_auto_auto]">
+                <a href={`/communities/${community.slug}/rankings`} class="rh-ranking-row sm:grid-cols-[auto_1fr_auto_auto]">
                   <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/35 text-sm font-semibold text-white">#{row.rank}</span>
                   <div class="flex min-w-0 items-center gap-3">
                     <img src={row.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${row.user.username}`} alt="" loading="lazy" decoding="async" class="h-10 w-10 rounded-full border border-white/10 object-cover" />
                     <div class="min-w-0">
                       <p class="truncate font-semibold text-white">{row.user.username}</p>
-                      <p class="text-xs text-slate-500">{row.starts} starts / {row.wins} wins / {row.cleanRaceRatio}% clean</p>
+                      <p class="text-xs text-slate-500">{row.starts} starts / {row.cleanRaceRatio}% clean</p>
                     </div>
                   </div>
                   <div class="text-right"><p class="font-display text-2xl text-white">{row.skillRating}</p><p class="text-[10px] uppercase tracking-[0.16em] text-slate-500">SR</p></div>
                   <span class={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${grade.tone}`}>{grade.label}</span>
-                  <span class={`hidden text-sm font-semibold sm:block ${row.recentSkillDelta >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>{formatDelta(row.recentSkillDelta)}</span>
-                </div>
+                </a>
               );
-            }) : <p class="rh-empty-card">No community rating rows yet. Submit results to start building this board.</p>}
+            }) : <p class="rh-empty-card">Submit a result to start building community SR.</p>}
           </div>
         </article>
 
-        <aside id="drivers" class="space-y-6">
+        <aside class="space-y-6">
           <article class="panel rounded-[1.25rem] p-5">
             <p class="rh-section-kicker">Top driver</p>
             {topDriver ? (
@@ -211,7 +203,7 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
                   <p class="text-sm text-slate-400">{topDriver.skillRating} SR / {getHonourGrade(topDriver.honourScore).label}</p>
                 </div>
               </div>
-            ) : <p class="mt-4 text-sm text-slate-400">No ranked drivers yet.</p>}
+            ) : <p class="mt-4 text-sm text-slate-400">Rankings start after the first submitted result.</p>}
           </article>
           <article id="members" class="panel rounded-[1.25rem] p-5">
             <p class="rh-section-kicker">Community staff</p>
@@ -274,7 +266,7 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
             {(community.tags ?? []).slice(0, 6).map((tag) => <span class="rh-badge rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-300">{tag}</span>)}
           </div>
           <div class="mt-5 grid gap-2 sm:grid-cols-2">
-            {discordUrl && <DiscordJoinButton href={discordUrl} fullWidthOnMobile={false} class="rh-community-action !min-h-[46px] !w-full !rounded-xl !px-4 !text-sm !font-bold !normal-case !tracking-normal" label={`Join ${community.displayName} Discord`} />}
+            {discordUrl && <DiscordJoinButton href={discordUrl} fullWidthOnMobile={false} class="rh-community-action !min-h-11 !w-full !rounded-xl !px-4 !text-sm !font-bold !normal-case !tracking-normal" label="Join Discord" />}
             {redditUrl && <a href={redditUrl} target="_blank" rel="noopener noreferrer" class="rh-community-action border border-orange-300/35 bg-orange-500/15 text-orange-100">Reddit</a>}
             {websiteUrl && <a href={websiteUrl} target="_blank" rel="noopener noreferrer" class="rh-community-action border border-white/20 bg-white/[0.06] text-slate-100 hover:border-white/40 hover:bg-white/[0.1]">Website</a>}
           </div>
@@ -300,7 +292,7 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
       <div class="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-black/85 px-4 py-3 backdrop-blur-xl mobile-safe-bottom md:hidden">
         <div class="mx-auto flex max-w-md flex-col gap-2">
           <button type="button" data-community-join={community.slug} class="rh-community-action bg-white text-black">Join Community</button>
-          <a href="#rankings" class="rh-community-action border border-white/20 bg-white/[0.06] text-slate-100">View rankings</a>
+          <a href={`/communities/${community.slug}/rankings`} class="rh-community-action border border-white/20 bg-white/[0.06] text-slate-100">View rankings</a>
         </div>
       </div>
     </section>
@@ -317,10 +309,14 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
 
   <script>
     const buttons = document.querySelectorAll<HTMLButtonElement>('[data-community-join]');
-    const setButton = (button: HTMLButtonElement, label: string, disabled = false) => {
+    const setButton = (button: HTMLButtonElement, label: string, state: 'default' | 'loading' | 'joined' | 'blocked' | 'manage' = 'default') => {
       button.textContent = label;
-      button.disabled = disabled;
-      button.classList.toggle('opacity-60', disabled);
+      button.disabled = state === 'loading' || state === 'blocked';
+      button.dataset.state = state;
+      button.classList.toggle('rh-community-action-active', state === 'joined');
+      button.classList.toggle('bg-white', state !== 'joined');
+      button.classList.toggle('text-black', state !== 'joined');
+      button.classList.toggle('opacity-60', state === 'loading' || state === 'blocked');
     };
 
     buttons.forEach((button) => {
@@ -334,19 +330,19 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
         })
         .then((state) => {
           if (!state) return;
-          if (state.isOwner) setButton(button, 'Manage Community');
-          else if (state.member?.status === 'ACTIVE') setButton(button, 'Joined', true);
-          else if (state.member?.status === 'BANNED') setButton(button, 'Unable to join', true);
+          if (state.isOwner) setButton(button, 'Manage Community', 'manage');
+          else if (state.member?.status === 'ACTIVE') setButton(button, 'Joined', 'joined');
+          else if (state.member?.status === 'BANNED') setButton(button, 'Unable to join', 'blocked');
         })
         .catch(() => undefined);
 
       button.addEventListener('click', async () => {
-        if (button.textContent === 'Manage Community') {
+        if (button.dataset.state === 'manage') {
           window.location.href = '/dashboard/community';
           return;
         }
-        if (button.disabled) return;
-        setButton(button, 'Joining...', true);
+        if (button.dataset.state === 'joined' || button.dataset.state === 'blocked') return;
+        setButton(button, 'Joining...', 'loading');
         try {
           const response = await fetch(`/api/communities/${slug}/join`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' } });
           if (response.status === 401) {
@@ -355,9 +351,9 @@ if (shouldLogPerf()) console.info(`[perf] community.routeTotal: ${(performance.n
           }
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(payload.error ?? 'Unable to join community');
-          buttons.forEach((peer) => setButton(peer, 'Joined', true));
+          buttons.forEach((peer) => setButton(peer, 'Joined', 'joined'));
         } catch (error) {
-          setButton(button, error instanceof Error ? error.message : 'Unable to join', false);
+          setButton(button, error instanceof Error ? error.message : 'Unable to join', 'default');
         }
       });
     });

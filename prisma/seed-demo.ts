@@ -6,7 +6,7 @@ const DEMO_EMAIL_DOMAIN = '@racehub.demo';
 const DEFAULT_DEMO_PASSWORD = 'RaceHubDemo123!';
 const clearMode = process.argv.includes('--clear');
 
-const tracks = ['Monaco', 'Silverstone', 'Spa', 'Monza', 'Suzuka', 'Imola', 'Red Bull Ring', 'Nürburgring GP', 'Bathurst', 'Brands Hatch', 'Interlagos', 'Zandvoort'];
+const tracks = ['Monaco', 'Silverstone', 'Spa', 'Monza', 'Suzuka', 'Imola', 'Red Bull Ring', 'Nurburgring GP', 'Bathurst', 'Brands Hatch', 'Interlagos', 'Zandvoort'];
 const formats = [
   'One-shot qualifying, 35% race',
   '15 min qualifying, 45 min sprint',
@@ -18,124 +18,37 @@ const formats = [
 const points = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 const usernames = [
-  'magicmonkey',
-  'peanut05',
-  'tinywizard',
-  'orangebucket',
-  'sleepytoast',
-  'beans17',
-  'spoonrocket',
-  'mossywindow',
-  'froghelmet',
-  'cloudy245',
-  'wafflebat',
-  'paperclip17',
-  'moonpickle',
-  'greenteabag',
-  'softbrick',
-  'rubberduck88',
-  'crispycloud',
-  'magic_otter',
-  'melonchair',
-  'biscuit09',
-  'dustyplanet',
-  'noodle_88',
-  'purplekettle',
-  'otterlogic',
-  'pickleboots',
-  'toastghost',
-  'bluebadger',
-  'quietmango',
-  'snailrocket',
-  'mysticmug',
-  'ferretjacket',
-  'sleepybutton',
-  'rustybanana',
-  'cabbageking',
-  'wonkydesk',
-  'tinyferret',
-  'muffinpilot',
-  'cosmicspoon',
-  'wafflewizard',
-  'plasticmoon',
-  'gardenfrog',
-  'bucketmouse',
-  'pudding07',
-  'jellyhelmet',
-  'dustymango',
-  'toasterelf',
-  'pixelbadger',
-  'softnoodle',
-  'marbletoast',
-  'orangeotter',
-  'crunchysock',
-  'moonwaffle',
-  'lofi_pigeon',
-  'teapotghost',
-  'magicbeans',
-  'sleepyferret',
-  'tiny_pickle',
-  'cloudymonkey',
-  'randomspoon',
-  'mossriver',
-  'stonepixel',
-  'blueatlas',
-  'quietnova',
-  'oldboots',
-  'redchair',
-  'greenmug',
-  'window88',
-  'paperplane17',
-  'rubbertoast',
-  'jellybean245',
-  'oddmelon',
-  'cosmicmuffin',
-  'fuzzybucket',
-  'pigeonhat',
-  'wobblymug',
-  'frogsocks',
-  'plasticpigeon',
-  'mangomoon',
-  'toastybadger',
-  'sleepykiwi',
-  'tinysquid',
-  'moonhelmet',
-  'crunchytoast',
-  'bucketwizard',
-  'lofi_banana',
-  'gremlinmug',
-  'puddingghost',
-  'waffleduck',
-  'teabagwizard',
-  'orangeferret',
-  'magicnoodle',
-  'cloudysock',
-  'pickleplanet',
-  'muffinchair',
-  'rubberfrog',
-  'snailbucket',
-  'pixeltoast',
-  'softotter',
-  'tinybadger',
-  'mossymonkey',
+  'magicmonkey', 'peanut05', 'mark245', 'sleepytoast', 'papichurro97', 'randomspoon', 'mintybrake', 'tommyapex', 'slowbanana', 'neonbadger',
+  'joshua_r', 'sectorfox', 'velvetkerb', 'm4xshift', 'sunnyhelmet', 'driftmango', 'cerealdriver', 'northline44', 'quietpigeon', 'fastotter',
+  'brakelamp', 'toastyracer', 'delta_jay', 'kerbline', 'apexmiles', 'turnone_tom', 'pixelkerb', 'latebraker', 'racingmika', 'vortexlap',
+  'sprintnate', 'cleanapex', 'mintsector', 'trackmason', 'shiftlucas', 'racecraft_lee', 'coldtyre', 'greenflag90', 'pitlanepaul', 'brakebias_ben',
+  'gridjamie', 'linehunter', 'quickmango', 'sectorivy', 'neonclutch', 'quietapex', 'finalsector', 'copperkerb', 'stormbrake', 'timingloop',
+  'rubberline', 'fuelmix', 'nightshift44', 'softtyres', 'apexroomie', 'monzamikey', 'silverlap', 'redsector', 'chicanejoe', 'cleanexit',
+  'northapex', 'midnightmax', 'deltaflow', 'sunnyshift', 'gridtoni', 'kerbwalker', 'overcut_owen', 'undercut_eli', 'tracklimit', 'freshslicks',
+  'sectorseven', 'brakepoint', 'racepace17', 'lateapex', 'blueflagged', 'velvetline', 'ghostsector', 'apexcass', 'toastyracer2', 'mintythrottle',
+  'markus_88', 'nightkerb', 'finalchicane', 'shiftmango', 'cerealapex', 'tyrewarmers', 'clutchpoint', 'lap_delta', 'gridrunner', 'cleanline05',
+  'sectorpulse', 'northline78', 'sunnykerb', 'brakemarker', 'deltahelmet', 'quietshift', 'tracktoast', 'm4xsector', 'apexnora', 'pitexit12',
 ];
 
 const communitySeeds = [
-  ['apex-syndicate', 'Apex Syndicate', 'F1 24 stewarded championships for fast clean drivers.', 'F1 24', 'PC', 'EU', '#e10600', ['F1', 'No assists', 'Stewarded'], true, true],
-  ['sunday-sprint-club', 'Sunday Sprint Club', 'Relaxed weekend sprint races with clear rules.', 'F1 24 casual sprints', 'PLAYSTATION', 'EU', '#ff9f1c', ['Beginner friendly', 'Sprint', 'Weekend'], true, false],
-  ['nightshift-racing', 'Nightshift Racing', 'Late night cross-platform racing for after-hours drivers.', 'F1 24 late night', 'PC', 'NA', '#6c5ce7', ['Late night', 'Crossplay', 'Social'], true, true],
-  ['velocity-gt', 'Velocity GT', 'GT3 grids with fixed setups and post-race reports.', 'GT3 fixed setup', 'PC', 'GLOBAL', '#00b894', ['GT3', 'Fixed setup', 'Endurance'], true, false],
-  ['clean-racing-collective', 'Clean Racing Collective', 'Community-first lobbies focused on incident-free racing.', 'Clean racing across sims', 'PC', 'GLOBAL', '#0984e3', ['Clean racing', 'Coaching', 'Inclusive'], true, true],
-  ['sector-three-racing', 'Sector Three Racing', 'Competitive North American prime-time championships.', 'F1 24 NA league', 'PLAYSTATION', 'NA', '#00a3e0', ['Prime time', 'Broadcasted', 'Competitive'], false, true],
-  ['kerbside-league', 'Kerbside League', 'Friendly ladder races with quick steward decisions.', 'F1 24 ladder', 'XBOX', 'EU', '#2d3436', ['Ladder', 'Assists allowed', 'Friendly'], false, false],
-  ['gridline-motorsport', 'Gridline Motorsport', 'Structured multi-tier league racing on weeknights.', 'F1 24 multi-tier', 'PC', 'EU', '#d63031', ['Multi-tier', 'Weeknight', 'Rules'], true, true],
-  ['brake-bias-club', 'Brake Bias Club', 'Setup chat, short races, and tidy wheel-to-wheel battles.', 'F1 24 setup club', 'PC', 'APAC', '#fd79a8', ['Setups', 'Short races', 'Community'], false, false],
-  ['northstar-racing', 'Northstar Racing', 'Beginner-friendly evening grids for consistent drivers.', 'Beginner F1 leagues', 'PLAYSTATION', 'NA', '#74b9ff', ['Beginner friendly', 'Evenings', 'Crossplay'], true, false],
-  ['redline-social', 'Redline Social', 'Social races with light stewarding and rotating tracks.', 'F1 24 social events', 'XBOX', 'GLOBAL', '#c0392b', ['Social', 'Rotating tracks', 'Casual'], false, false],
-  ['final-lap-society', 'Final Lap Society', 'Close sprint formats and clean last-lap battles.', 'Sprint and feature races', 'PC', 'EU', '#f1c40f', ['Sprint', 'Clean', 'Highlights'], true, false],
-  ['delta-pace-league', 'Delta Pace League', 'Driver-development league with weekly pace groups.', 'F1 24 development', 'PC', 'SA', '#1abc9c', ['Development', 'Pace groups', 'Coaching'], false, false],
-  ['the-racing-room', 'The Racing Room', 'Cross-sim community nights for F1, GT3, and touring cars.', 'F1 and Assetto Corsa', 'PC', 'GLOBAL', '#8e44ad', ['Assetto Corsa', 'GT3', 'Cross-sim'], true, true],
-  ['monza-after-dark', 'Monza After Dark', 'Late-night European lobbies with strict clean-racing etiquette.', 'F1 24 night lobbies', 'PC', 'EU', '#111827', ['Late night', 'Monza', 'Clean racing'], false, false],
+  ['apex-room', 'Apex Room', 'Weekly GT3 and Formula events with stewarded results and a friendly grid for committed drivers.', 'F1 24 and GT3', 'PC', 'EU', '#e10600', ['F1', 'GT3', 'Stewarded'], true, true],
+  ['sunday-sprint-club', 'Sunday Sprint Club', 'European evening sprints with simple rules, SR-based grids, and fast post-race reviews.', 'F1 24 casual sprints', 'PLAYSTATION', 'EU', '#ff9f1c', ['Sprint', 'Weekend', 'Clean racing'], true, false],
+  ['gridline-motorsport', 'Gridline Motorsport', 'Structured multi-tier racing for drivers who want clear results, tidy racecraft, and visible progression.', 'F1 24 multi-tier', 'PC', 'EU', '#d63031', ['Multi-tier', 'Weeknight', 'Rules'], true, true],
+  ['late-brake-league', 'Late Brake League', 'Cross-platform race nights built around close battles, incident reviews, and transparent driver reputation.', 'F1 24 crossplay', 'XBOX', 'GLOBAL', '#7c3aed', ['Crossplay', 'Ranked', 'Social'], false, true],
+  ['sector-seven-racing', 'Sector Seven Racing', 'Prime-time North American events with stewarded lobbies, clear penalties, and clean overtaking standards.', 'F1 24 NA league', 'PLAYSTATION', 'NA', '#00a3e0', ['Prime time', 'Broadcasted', 'Competitive'], false, true],
+  ['apex-syndicate', 'Apex Syndicate', 'Fast no-assist grids for experienced drivers who value clean exits, fair defence, and proper result records.', 'F1 24 no assists', 'PC', 'EU', '#ef4444', ['No assists', 'Stewarded', 'Fast grids'], true, true],
+  ['monza-after-dark', 'Monza After Dark', 'Late-night European lobbies with strict clean-racing etiquette and short-format ranked events.', 'F1 24 night lobbies', 'PC', 'EU', '#111827', ['Late night', 'Monza', 'Clean racing'], false, false],
+  ['the-racing-room', 'The Racing Room', 'Casual-to-competitive community nights across F1, GT3, and endurance formats with a calm stewarding process.', 'F1, GT3, endurance', 'PC', 'GLOBAL', '#8e44ad', ['Cross-sim', 'Endurance', 'Community'], true, true],
+  ['clean-lap-club', 'Clean Lap Club', 'Beginner-friendly racing group focused on finishing races, respectful comms, and building Honour over time.', 'Clean racing across sims', 'PC', 'GLOBAL', '#0984e3', ['Beginner friendly', 'Coaching', 'Inclusive'], true, true],
+  ['northern-apex', 'Northern Apex', 'Evening grids for consistent drivers, with stewarded results and friendly practice sessions before race night.', 'Beginner F1 leagues', 'PLAYSTATION', 'NA', '#74b9ff', ['Evenings', 'Practice', 'Crossplay'], true, false],
+  ['chicane-collective', 'Chicane Collective', 'Community-led events with rotating tracks, racecraft coaching, and a focus on fair wheel-to-wheel racing.', 'F1 24 social events', 'XBOX', 'GLOBAL', '#c0392b', ['Social', 'Rotating tracks', 'Casual'], false, false],
+  ['delta-racing-hub', 'Delta Racing Hub', 'Driver-development hub with weekly pace groups, transparent SR movement, and practical post-race notes.', 'F1 24 development', 'PC', 'SA', '#1abc9c', ['Development', 'Pace groups', 'Coaching'], false, false],
+  ['midnight-motorsport', 'Midnight Motorsport', 'After-hours racing with compact ranked events, clean lobbies, and a relaxed but serious stewarding tone.', 'F1 24 late night', 'PC', 'NA', '#6c5ce7', ['Late night', 'Crossplay', 'Ranked'], true, true],
+  ['trackside-league', 'Trackside League', 'Regular race nights with driver rankings, incident reviews, and a strong emphasis on respectful competition.', 'F1 24 race nights', 'PLAYSTATION', 'EU', '#f1c40f', ['Race nights', 'Clean', 'Highlights'], true, false],
+  ['club-130r', 'Club 130R', 'Suzuka-inspired sprint and feature races for drivers who enjoy technical tracks and measured racecraft.', 'F1 24 technical tracks', 'PC', 'APAC', '#fd79a8', ['Technical', 'Sprint', 'Feature races'], false, false],
+  ['slipstream-social', 'Slipstream Social', 'Friendly mixed-skill grids with quick signups, clear etiquette, and RaceHub-backed reputation tracking.', 'F1 24 mixed skill', 'XBOX', 'GLOBAL', '#22c55e', ['Mixed skill', 'Social', 'Quick signups'], false, false],
+  ['brake-bias-racing', 'Brake Bias Racing', 'Setup chat, short ranked races, and tidy wheel-to-wheel battles for drivers chasing better consistency.', 'F1 24 setup club', 'PC', 'APAC', '#06b6d4', ['Setups', 'Short races', 'Community'], false, false],
+  ['final-sector-club', 'Final Sector Club', 'Close sprint formats, clean last-lap battles, and result history that keeps every season easy to follow.', 'Sprint and feature races', 'PC', 'EU', '#f97316', ['Sprint', 'Clean', 'Results'], true, false],
 ] as const;
 
 type DemoUser = { id: string; username: string; email: string; role: Role; skillRating: number; honourScore: number; region: Region };
@@ -154,7 +67,7 @@ function databaseHostOnly() {
 
 function requireSeedConfirmation() {
   if (process.env.DEMO_SEED_ENABLED !== 'true') {
-    console.log('Set DEMO_SEED_ENABLED=true to run demo seed.');
+    console.log('Set DEMO_SEED_ENABLED=true to run the fictional community seed.');
     process.exit(0);
   }
   if (process.env.NODE_ENV === 'production' && process.env.DEMO_SEED_PRODUCTION_CONFIRM !== 'true') {
@@ -164,7 +77,7 @@ function requireSeedConfirmation() {
 }
 
 function printStartup() {
-  console.log('RaceHub demo seed startup');
+  console.log('RaceHub fictional community seed startup');
   console.log(`Database host: ${databaseHostOnly()}`);
   console.log(`NODE_ENV: ${process.env.NODE_ENV ?? '(not set)'}`);
   console.log(`Seed target: ${process.env.DEMO_SEED_TARGET ?? 'local'}`);
@@ -194,7 +107,7 @@ function isDemoEmail(email: string) {
 async function knownDemoIds() {
   const users = await prisma.user.findMany({ where: { email: { endsWith: DEMO_EMAIL_DOMAIN } }, select: { id: true } });
   const profiles = await prisma.organiserProfile.findMany({ where: { slug: { in: communitySeeds.map(([slug]) => slug) } }, select: { id: true } });
-  const leagues = await prisma.league.findMany({ where: { slug: { in: communitySeeds.map(([slug]) => `${slug}-demo-league`) } }, select: { id: true } });
+  const leagues = await prisma.league.findMany({ where: { slug: { in: communitySeeds.flatMap(([slug]) => [`${slug}-series`, `${slug}-demo-league`]) } }, select: { id: true } });
   const raceSlots = await prisma.raceSlot.findMany({
     where: { OR: [{ leagueId: { in: leagues.map((league) => league.id) } }, { organiserProfileId: { in: profiles.map((profile) => profile.id) } }] },
     select: { id: true },
@@ -232,7 +145,7 @@ async function clearDemoData() {
   await prisma.organiserProfile.deleteMany({ where: { id: { in: ids.profileIds } } });
   await prisma.session.deleteMany({ where: { userId: { in: ids.userIds } } });
   await prisma.user.deleteMany({ where: { email: { endsWith: DEMO_EMAIL_DOMAIN } } });
-  console.log(`Demo clear complete. Removed demo users with ${DEMO_EMAIL_DOMAIN} emails and known demo community slugs only.`);
+  console.log(`Seed clear complete. Removed safe seed users with ${DEMO_EMAIL_DOMAIN} emails and known community slugs only.`);
 }
 
 async function createUsers(passwordHash: string): Promise<DemoUser[]> {
@@ -252,8 +165,8 @@ async function createUsers(passwordHash: string): Promise<DemoUser[]> {
         passwordHash,
         role,
         region,
-        avatarUrl: `https://api.dicebear.com/9.x/identicon/svg?seed=${username}`,
-        bio: 'Fictional RaceHub demo account used for public demo data.',
+        avatarUrl: null,
+        bio: 'Clean-racing regular focused on consistent finishes, respectful comms, and tidy wheel-to-wheel battles.',
       },
       create: {
         username,
@@ -261,8 +174,8 @@ async function createUsers(passwordHash: string): Promise<DemoUser[]> {
         passwordHash,
         role,
         region,
-        avatarUrl: `https://api.dicebear.com/9.x/identicon/svg?seed=${username}`,
-        bio: 'Fictional RaceHub demo account used for public demo data.',
+        avatarUrl: null,
+        bio: 'Clean-racing regular focused on consistent finishes, respectful comms, and tidy wheel-to-wheel battles.',
         skillRating: 1120 + ((index * 37) % 520),
         honourScore: 88 + ((index * 7) % 42),
       },
@@ -283,11 +196,11 @@ async function createCommunities(users: DemoUser[]): Promise<DemoCommunity[]> {
         userId: owner.id,
         displayName,
         shortDescription,
-        description: `${shortDescription} This fictional demo community exists so RaceHub visitors can explore populated community, league, race, and leaderboard pages.`,
+        description: `${shortDescription}`,
         brandingColor: color,
-        logoUrl: `https://api.dicebear.com/9.x/shapes/svg?seed=${slug}`,
-        bannerUrl: `https://images.unsplash.com/photo-${index % 2 === 0 ? '1517649763962-0c623066013b' : '1461896836934-ffe607ba8211'}?auto=format&fit=crop&w=1600&q=80`,
-        websiteUrl: `https://${slug}.racehub.demo`,
+        logoUrl: null,
+        bannerUrl: null,
+        websiteUrl: null,
         discordUrl: `https://discord.gg/${slug.replaceAll('-', '')}`,
         redditUrl: null,
         gameFocus,
@@ -298,19 +211,19 @@ async function createCommunities(users: DemoUser[]): Promise<DemoCommunity[]> {
         featured,
         verified,
         displayedMemberCount: 140 + index * 57,
-        memberCountSource: 'demo-seed',
-        credibilityNotes: 'Fictional demo organiser profile created by RaceHub demo seed.',
+        memberCountSource: 'manual',
+        credibilityNotes: 'Race cleanly, respect blue flags, avoid intentional contact, and report incidents with evidence. Stewards may apply SR or Honour adjustments after reviewing results, incidents, and repeated behaviour.',
       },
       create: {
         userId: owner.id,
         slug,
         displayName,
         shortDescription,
-        description: `${shortDescription} This fictional demo community exists so RaceHub visitors can explore populated community, league, race, and leaderboard pages.`,
+        description: `${shortDescription}`,
         brandingColor: color,
-        logoUrl: `https://api.dicebear.com/9.x/shapes/svg?seed=${slug}`,
-        bannerUrl: `https://images.unsplash.com/photo-${index % 2 === 0 ? '1517649763962-0c623066013b' : '1461896836934-ffe607ba8211'}?auto=format&fit=crop&w=1600&q=80`,
-        websiteUrl: `https://${slug}.racehub.demo`,
+        logoUrl: null,
+        bannerUrl: null,
+        websiteUrl: null,
         discordUrl: `https://discord.gg/${slug.replaceAll('-', '')}`,
         redditUrl: null,
         gameFocus,
@@ -321,8 +234,8 @@ async function createCommunities(users: DemoUser[]): Promise<DemoCommunity[]> {
         featured,
         verified,
         displayedMemberCount: 140 + index * 57,
-        memberCountSource: 'demo-seed',
-        credibilityNotes: 'Fictional demo organiser profile created by RaceHub demo seed.',
+        memberCountSource: 'manual',
+        credibilityNotes: 'Race cleanly, respect blue flags, avoid intentional contact, and report incidents with evidence. Stewards may apply SR or Honour adjustments after reviewing results, incidents, and repeated behaviour.',
       },
     });
     communities.push(community as DemoCommunity);
@@ -358,10 +271,10 @@ async function createLeagues(communities: DemoCommunity[]): Promise<DemoLeague[]
   const leagues: DemoLeague[] = [];
   for (const [index, community] of communities.entries()) {
     const league = await prisma.league.upsert({
-      where: { slug: `${community.slug}-demo-league` },
+      where: { slug: `${community.slug}-series` },
       update: {
-        name: `${community.displayName} Demo League`,
-        description: `Fictional ${community.displayName} league populated by the RaceHub demo seed.`,
+        name: `${community.displayName} Series`,
+        description: `${community.displayName} race programme with stewarded results and community SR tracking.`,
         ownerId: community.userId,
         organiserProfileId: community.id,
         region: community.region,
@@ -370,9 +283,9 @@ async function createLeagues(communities: DemoCommunity[]): Promise<DemoLeague[]
         brandingSecondary: '#111827',
       },
       create: {
-        name: `${community.displayName} Demo League`,
-        slug: `${community.slug}-demo-league`,
-        description: `Fictional ${community.displayName} league populated by the RaceHub demo seed.`,
+        name: `${community.displayName} Series`,
+        slug: `${community.slug}-series`,
+        description: `${community.displayName} race programme with stewarded results and community SR tracking.`,
         ownerId: community.userId,
         organiserProfileId: community.id,
         region: community.region,
@@ -401,6 +314,70 @@ async function clearDemoRaceActivityOnly() {
   await prisma.raceSlot.deleteMany({ where: { id: { in: ids.raceSlotIds } } });
 }
 
+async function seedCommunityRatings(communities: DemoCommunity[]) {
+  for (const [communityIndex, community] of communities.entries()) {
+    const members = await prisma.organiserProfileMember.findMany({
+      where: { organiserProfileId: community.id, status: 'ACTIVE' },
+      select: { userId: true, role: true },
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    for (const [memberIndex, member] of members.entries()) {
+      const skillRating = 1120 + ((communityIndex * 73 + memberIndex * 41) % 430);
+      const honourScore = Math.min(150, 86 + ((communityIndex * 9 + memberIndex * 11) % 58));
+      const starts = 3 + ((communityIndex + memberIndex) % 14);
+      const wins = memberIndex === 0 ? 2 + (communityIndex % 3) : memberIndex % 7 === 0 ? 1 : 0;
+      const podiums = Math.min(starts, wins + (memberIndex % 4));
+      const cleanRaces = Math.max(1, starts - ((communityIndex + memberIndex) % 4));
+      const incidents = Math.max(0, starts - cleanRaces - 1);
+
+      await prisma.communityDriverRating.upsert({
+        where: { organiserProfileId_userId: { organiserProfileId: community.id, userId: member.userId } },
+        update: {
+          skillRating,
+          honourScore,
+          starts,
+          wins,
+          podiums,
+          cleanRaces,
+          incidents,
+          lastRaceAt: daysFromNow(-((communityIndex + memberIndex) % 18) - 1),
+        },
+        create: {
+          organiserProfileId: community.id,
+          userId: member.userId,
+          skillRating,
+          honourScore,
+          starts,
+          wins,
+          podiums,
+          cleanRaces,
+          incidents,
+          lastRaceAt: daysFromNow(-((communityIndex + memberIndex) % 18) - 1),
+        },
+      });
+
+      await prisma.communityRatingEvent.create({
+        data: {
+          organiserProfileId: community.id,
+          userId: member.userId,
+          appliedById: community.userId,
+          skillDelta: 0,
+          honourDelta: 0,
+          reason: 'Initial community rating baseline for early-season standings.',
+          metadata: {
+            source: 'racehub_seed',
+            skillRating,
+            honourScore,
+            starts,
+            cleanRaces,
+          },
+        },
+      });
+    }
+  }
+}
+
 async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
   const createdSlots: { id: string; status: RaceSlotStatus; maxPlayers: number; visibility: EventVisibility; completed: boolean; organiserId: string; leagueId: string; organiserProfileId: string }[] = [];
   const plan = [
@@ -427,16 +404,16 @@ async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
         platform: (index % 3 === 0 ? 'PC' : index % 3 === 1 ? 'PLAYSTATION' : 'XBOX') as PreferredPlatform,
         crossplay: index % 2 === 0,
         track: tracks[index % tracks.length],
-        eventNotes: 'Fictional RaceHub demo event with realistic attendance, stewarding, and leaderboard impact.',
+        eventNotes: 'Community race night with stewarded results, clean-racing expectations, and visible SR movement.',
         visibility: item.visibility,
         formatDetails: formats[index % formats.length],
-        lobbySettings: { demoSeed: true, assists: index % 3 === 0 ? 'allowed' : 'limited', damage: index % 4 === 0 ? 'simulation' : 'standard' },
+        lobbySettings: { source: 'racehub_seed', assists: index % 3 === 0 ? 'allowed' : 'limited', damage: index % 4 === 0 ? 'simulation' : 'standard' },
         maxPlayers,
         status: item.status,
         registrationCutoffAt: new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000),
         rulesSummary: 'Respect racing room, leave space on corner exit, and accept organiser stewarding decisions.',
-        eventTierLabel: 'Demo Series',
-        cancellationReason: item.status === 'CANCELLED' ? 'Fictional demo cancellation due to calendar conflict.' : null,
+        eventTierLabel: 'Club Series',
+        cancellationReason: item.status === 'CANCELLED' ? 'Calendar conflict after organiser review.' : null,
       },
     });
     createdSlots.push({
@@ -462,8 +439,8 @@ async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
         data: {
           raceSlotId: slot.id,
           submittedById: slot.organiserId,
-          notes: 'Confirmed fictional demo result with clean driving bonuses and small rating movement.',
-          evidenceUrl: `https://example.com/racehub-demo/results/${slot.id}.png`,
+          notes: 'Confirmed result with clean-driving bonuses and measured rating movement.',
+          evidenceUrl: `https://example.com/racehub/results/${slot.id}.png`,
           confirmationState: 'confirmed',
           submittedAt: new Date(new Date().getTime() - (index + 1) * 24 * 60 * 60 * 1000),
           confirmedAt: new Date(new Date().getTime() - index * 24 * 60 * 60 * 1000),
@@ -488,8 +465,8 @@ async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
             raceResultId: result.id,
             type: entry.honourDelta > 1 ? 'CLEAN_RACE' : 'ADMIN_ADJUSTMENT',
             delta: entry.honourDelta,
-            reason: 'Fictional demo clean-race and leaderboard activity event.',
-            metadata: { demoSeed: true, finishingPosition: entry.finishingPosition },
+            reason: 'Clean-race and leaderboard activity event.',
+            metadata: { source: 'racehub_seed', finishingPosition: entry.finishingPosition },
             appliedById: slot.organiserId,
           },
         });
@@ -526,9 +503,9 @@ async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
             appliedById: slot.organiserId,
             skillDelta: entry.ratingDelta,
             honourDelta: entry.honourDelta,
-            reason: 'Fictional demo race result applied to community ranking.',
+            reason: 'Race result applied to community ranking.',
             metadata: {
-              demoSeed: true,
+              sourceMarker: 'racehub_seed',
               source: 'race_result',
               finishingPosition: entry.finishingPosition,
               before: { skillRating: previous.skillRating, honourScore: previous.honourScore },
@@ -544,7 +521,7 @@ async function createRaceSlots(users: DemoUser[], leagues: DemoLeague[]) {
 
 async function createDisputes(users: DemoUser[], admin: DemoUser) {
   const completed = await prisma.raceSlot.findMany({
-    where: { status: 'COMPLETED', league: { slug: { in: communitySeeds.map(([slug]) => `${slug}-demo-league`) } } },
+    where: { status: 'COMPLETED', league: { slug: { in: communitySeeds.flatMap(([slug]) => [`${slug}-series`, `${slug}-demo-league`]) } } },
     include: { result: true },
     take: 5,
   });
@@ -555,18 +532,18 @@ async function createDisputes(users: DemoUser[], admin: DemoUser) {
         raceSlotId: slot.id,
         raceResultId: slot.result?.id,
         openedById: opener.id,
-        reason: ['Fictional unsafe rejoin review', 'Fictional track limits clarification', 'Fictional lap-one contact report', 'Fictional blue flag confusion', 'Fictional qualifying block review'][index],
-        details: 'Demo-only dispute record for showcasing organiser workflow. No real person or real incident is represented.',
+        reason: ['Unsafe rejoin review', 'Track limits clarification', 'Lap-one contact report', 'Blue flag confusion', 'Qualifying block review'][index],
+        details: 'Incident report opened for steward review with supporting context and a clear requested outcome.',
         status: index % 2 === 0 ? 'RESOLVED' : 'UNDER_REVIEW',
-        adminNotes: 'Demo steward note created by production-safe seed.',
-        resolutionNotes: index % 2 === 0 ? 'Demo review completed with no further action required.' : null,
+        adminNotes: 'Steward note added after reviewing the event timeline.',
+        resolutionNotes: index % 2 === 0 ? 'Review completed with no further action required.' : null,
         resolvedAt: index % 2 === 0 ? new Date() : null,
         resolvedById: index % 2 === 0 ? admin.id : null,
       },
     });
-    await prisma.disputeStatusLog.create({ data: { disputeId: dispute.id, fromStatus: null, toStatus: 'OPEN', note: 'Demo dispute opened.', changedById: opener.id } });
+    await prisma.disputeStatusLog.create({ data: { disputeId: dispute.id, fromStatus: null, toStatus: 'OPEN', note: 'Dispute opened.', changedById: opener.id } });
     if (index % 2 === 0) {
-      await prisma.disputeStatusLog.create({ data: { disputeId: dispute.id, fromStatus: 'OPEN', toStatus: 'RESOLVED', note: 'Demo dispute resolved.', changedById: admin.id } });
+      await prisma.disputeStatusLog.create({ data: { disputeId: dispute.id, fromStatus: 'OPEN', toStatus: 'RESOLVED', note: 'Dispute resolved.', changedById: admin.id } });
     }
     await prisma.moderationAction.create({
       data: {
@@ -575,8 +552,8 @@ async function createDisputes(users: DemoUser[], admin: DemoUser) {
         adminId: admin.id,
         disputeId: dispute.id,
         raceSlotId: slot.id,
-        notes: 'Fictional demo moderation activity for RaceHub admin screens.',
-        metadata: { demoSeed: true },
+        notes: 'Moderation activity recorded from stewarding workflow.',
+        metadata: { source: 'racehub_seed' },
       },
     });
   }
@@ -595,7 +572,7 @@ async function main() {
 
   const password = process.env.DEMO_USER_PASSWORD ?? DEFAULT_DEMO_PASSWORD;
   if (!process.env.DEMO_USER_PASSWORD) {
-    console.warn('DEMO_USER_PASSWORD is not set; using the demo-only default password. Do not use this for real accounts.');
+    console.warn('DEMO_USER_PASSWORD is not set; using the seed-only default password. Do not use this for real accounts.');
   }
   const passwordHash = await hashPassword(password);
   const users = await createUsers(passwordHash);
@@ -603,16 +580,17 @@ async function main() {
   await createMemberships(users, communities);
   const leagues = await createLeagues(communities);
   await clearDemoRaceActivityOnly();
+  await seedCommunityRatings(communities);
   const slots = await createRaceSlots(users, leagues);
   await createDisputes(users, users[0]);
 
-  const completedResults = await prisma.raceResult.count({ where: { raceSlot: { league: { slug: { in: communitySeeds.map(([slug]) => `${slug}-demo-league`) } } } } });
-  console.log('Demo seed complete ✅');
-  console.log(`Demo users: ${users.length}`);
-  console.log(`Demo communities: ${communities.length}`);
-  console.log(`Demo race slots: ${slots.length}`);
-  console.log(`Demo completed results: ${completedResults}`);
-  console.log(`Demo records are identifiable by ${DEMO_EMAIL_DOMAIN} emails, known demo community slugs, demo league slugs, and demo race metadata.`);
+  const completedResults = await prisma.raceResult.count({ where: { raceSlot: { league: { slug: { in: communitySeeds.flatMap(([slug]) => [`${slug}-series`, `${slug}-demo-league`]) } } } } });
+  console.log('Fictional community seed complete');
+  console.log(`Seeded users: ${users.length}`);
+  console.log(`Seeded communities: ${communities.length}`);
+  console.log(`Seeded race slots: ${slots.length}`);
+  console.log(`Seeded completed results: ${completedResults}`);
+  console.log(`Seeded records are identifiable by ${DEMO_EMAIL_DOMAIN} emails and known community slugs.`);
 }
 
 main()

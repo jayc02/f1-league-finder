@@ -223,17 +223,66 @@ body::before {
 }
 
 .rh-community-action {
-  @apply inline-flex min-h-[46px] w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-center text-sm font-bold leading-none transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/45 disabled:pointer-events-none disabled:opacity-60;
+  @apply inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 text-center text-sm font-bold leading-none transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/45 disabled:pointer-events-none;
   overflow-wrap: normal;
   word-break: keep-all;
 }
 
 .rh-community-stat {
-  @apply min-h-[74px] rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.075] to-white/[0.025] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_34px_rgba(0,0,0,0.22)];
+  @apply min-h-[76px] rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.095] to-white/[0.028] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_16px_34px_rgba(0,0,0,0.28)];
 }
 
 .rh-community-stat-number {
   @apply mt-1 block truncate font-display text-2xl leading-none text-white;
+}
+
+.rh-community-card {
+  @apply panel relative flex min-h-full flex-col overflow-hidden rounded-[1.15rem] border-white/10 transition hover:-translate-y-1 hover:border-white/35;
+}
+
+.rh-community-card-link {
+  @apply flex flex-1 flex-col outline-none transition;
+}
+
+.rh-community-card-link:focus-visible {
+  @apply ring-2 ring-white/60 ring-offset-2 ring-offset-black;
+}
+
+.rh-community-card-media {
+  @apply relative aspect-[16/7] overflow-hidden bg-cover bg-center;
+}
+
+.rh-community-card-media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.06) 0%, rgba(0,0,0,.34) 58%, rgba(0,0,0,.82) 100%),
+    linear-gradient(90deg, rgba(0,0,0,.38), transparent 64%);
+}
+
+.rh-community-card-body {
+  @apply flex flex-1 flex-col gap-3 p-4 sm:p-5;
+}
+
+.rh-community-identity {
+  @apply grid min-w-0 grid-cols-[56px_minmax(0,1fr)] gap-3;
+}
+
+.rh-community-logo {
+  @apply h-14 w-14 rounded-2xl border border-white/20 bg-black/65 object-cover shadow-[0_16px_34px_rgba(0,0,0,.5)];
+}
+
+.rh-community-action-active {
+  @apply border border-emerald-300/30 bg-emerald-500/[0.12] text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)];
+}
+
+.rh-verified-check {
+  @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1d9bf0] text-white shadow-[0_0_0_2px_rgba(29,155,240,0.16),0_8px_20px_rgba(29,155,240,0.35)];
+}
+
+.rh-verified-badge {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-sky-300/25 bg-sky-500/[0.08] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-100;
 }
 
 .rh-community-atmosphere {

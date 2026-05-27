@@ -263,7 +263,7 @@ export default function ProfileOverview() {
             overview.communityRankings.length ? overview.communityRankings.map((row) => {
               const grade = getHonourGrade(row.honourScore);
               return (
-                <a key={row.community.slug} href={`/communities/${row.community.slug}#rankings`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
+                <a key={row.community.slug} href={`/communities/${row.community.slug}/rankings`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/35">
                   <div className="flex items-center gap-3">
                     {row.community.logoUrl ? <img src={row.community.logoUrl} alt="" className="h-10 w-10 rounded-xl border border-white/10 object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-xs font-semibold">{row.community.displayName.slice(0, 2).toUpperCase()}</div>}
                     <div className="min-w-0">

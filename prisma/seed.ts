@@ -27,6 +27,7 @@ async function main() {
       honourScore: 130,
       skillRating: 1500,
       region: 'GLOBAL',
+      avatarUrl: null,
     },
   });
 
@@ -39,6 +40,7 @@ async function main() {
       region: 'EU',
       honourScore: 120,
       skillRating: 1420,
+      avatarUrl: null,
     },
   });
 
@@ -51,6 +53,7 @@ async function main() {
       region: 'NA',
       honourScore: 118,
       skillRating: 1390,
+      avatarUrl: null,
     },
   });
 
@@ -78,6 +81,7 @@ async function main() {
           region: region as never,
           skillRating: skillRating as number,
           honourScore: honourScore as number,
+          avatarUrl: null,
         },
       }),
     ),
@@ -91,8 +95,8 @@ async function main() {
       shortDescription: 'Structured EU evenings with stewarded race control.',
       description: 'Structured EU evenings with stewarded racing, progressive tiers, and race-weekend content drops.',
       brandingColor: '#E10600',
-      logoUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=400&q=80',
-      bannerUrl: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1600&q=80',
+      logoUrl: null,
+      bannerUrl: null,
       discordUrl: 'https://discord.gg/pitwallpulse',
       redditUrl: 'https://reddit.com/r/pitwallpulse',
       gameFocus: 'F1 24 Championship + Sprint Program',
@@ -114,8 +118,8 @@ async function main() {
       shortDescription: 'NA prime-time competitive grids and recruitment funnels.',
       description: 'NA prime-time championship race slots with onboarding races, esports-style stewarding, and shared team channels.',
       brandingColor: '#00A3E0',
-      logoUrl: 'https://images.unsplash.com/photo-1541447271487-09612b3f49f7?auto=format&fit=crop&w=400&q=80',
-      bannerUrl: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=1600&q=80',
+      logoUrl: null,
+      bannerUrl: null,
       discordUrl: 'https://discord.gg/sector3ops',
       redditUrl: 'https://reddit.com/r/sector3ops',
       gameFocus: 'North America Night Championship',
@@ -128,6 +132,49 @@ async function main() {
       verified: true,
     },
   });
+
+  const communityMemberships = [
+    { profile: orgProfileA, owner: organiserA, members: players.slice(0, 10) },
+    { profile: orgProfileB, owner: organiserB, members: players.slice(2, 12) },
+  ];
+
+  for (const { profile, owner, members } of communityMemberships) {
+    await prisma.organiserProfileMember.create({
+      data: { organiserProfileId: profile.id, userId: owner.id, role: 'OWNER', status: 'ACTIVE' },
+    });
+    for (const [index, member] of members.entries()) {
+      await prisma.organiserProfileMember.create({
+        data: { organiserProfileId: profile.id, userId: member.id, role: index === 0 ? 'ADMIN' : 'MEMBER', status: 'ACTIVE' },
+      });
+      const skillRating = 1180 + ((index * 47) % 360);
+      const honourScore = 92 + ((index * 9) % 42);
+      await prisma.communityDriverRating.create({
+        data: {
+          organiserProfileId: profile.id,
+          userId: member.id,
+          skillRating,
+          honourScore,
+          starts: 4 + index,
+          wins: index === 0 ? 2 : index === 3 ? 1 : 0,
+          podiums: index < 3 ? 2 : index < 6 ? 1 : 0,
+          cleanRaces: Math.max(2, 4 + index - (index % 3)),
+          incidents: index % 4 === 0 ? 1 : 0,
+          lastRaceAt: new Date(Date.now() - (index + 1) * 24 * 60 * 60 * 1000),
+        },
+      });
+      await prisma.communityRatingEvent.create({
+        data: {
+          organiserProfileId: profile.id,
+          userId: member.id,
+          appliedById: owner.id,
+          skillDelta: 0,
+          honourDelta: 0,
+          reason: 'Initial community rating baseline for early-season standings.',
+          metadata: { source: 'racehub_seed', skillRating, honourScore },
+        },
+      });
+    }
+  }
 
   const leagueA = await prisma.league.create({
     data: {
@@ -290,7 +337,7 @@ async function main() {
     },
   });
 
-  console.log('Seed complete ✅');
+  console.log('Seed complete');
   console.log('Admin: admin@racehub.local / ChangeMe123!');
   console.log('Organiser: organiser1@racehub.local / ChangeMe123!');
   console.log('Player: player1@racehub.local / ChangeMe123!');

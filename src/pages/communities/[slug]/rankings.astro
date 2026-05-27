@@ -1,0 +1,136 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { publicPageShort, setAstroCache } from '@/lib/server/cache-control';
+import { prisma } from '@/lib/db/prisma';
+import { getHonourGrade } from '@/lib/honour';
+import { getCommunityRankings, type CommunityRankingView } from '@/server/services/community-rating.service';
+import { getCommunityMemberCountDisplay } from '@/server/services/community.service';
+import { withPerf } from '@/lib/utils/perf';
+
+export const prerender = false;
+
+setAstroCache(Astro, publicPageShort);
+
+const slug = Astro.params.slug;
+if (!slug) return Astro.redirect('/communities');
+
+const rankingViews = ['sr', 'honour', 'clean', 'movers'] as const;
+const requestedRankingView = Astro.url.searchParams.get('view') as CommunityRankingView | null;
+const rankingView = requestedRankingView && rankingViews.includes(requestedRankingView) ? requestedRankingView : 'sr';
+
+const [community, communityRankings] = await withPerf('community.rankingsPage', () => Promise.all([
+  prisma.organiserProfile.findFirst({
+    where: { slug, isPublic: true },
+    include: {
+      user: { select: { username: true, avatarUrl: true } },
+      _count: { select: { members: { where: { status: 'ACTIVE' } }, raceSlots: true } },
+    },
+  }),
+  getCommunityRankings(slug, rankingView, 75),
+]));
+
+if (!community || !communityRankings) {
+  Astro.response.status = 404;
+}
+
+const memberDisplay = community ? getCommunityMemberCountDisplay(community) : { count: 0 };
+const rows = communityRankings?.rows ?? [];
+const topDriver = rows[0] ?? null;
+const averageHonour = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.honourScore, 0) / rows.length) : null;
+const cleanAverage = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.cleanRaceRatio, 0) / rows.length) : null;
+const accent = community?.brandingColor || '#38bdf8';
+const formatDelta = (value: number) => value > 0 ? `+${value}` : String(value);
+---
+
+<BaseLayout title={community ? `${community.displayName} Rankings | RaceHub` : 'Community rankings | RaceHub'}>
+  {community ? (
+    <section class="section-shell relative isolate pb-24">
+      <div class="rh-community-atmosphere -z-10 opacity-40" aria-hidden="true"></div>
+
+      <article class="panel overflow-hidden rounded-[1.35rem] border-white/15">
+        <div class="relative bg-cover bg-center" style={`background-image:linear-gradient(180deg,rgba(2,6,23,.24),rgba(2,6,23,.95)),url('${community.bannerUrl ?? '/pictures/communititesback.webp'}')`}>
+          <div class="absolute inset-0" style={`background: linear-gradient(90deg, rgba(0,0,0,.78), transparent 64%), radial-gradient(circle at 16% 20%, ${accent}33, transparent 30%)`}></div>
+          <div class="relative mx-auto flex min-h-[18rem] w-[min(1120px,94%)] flex-col justify-end gap-5 pb-6 pt-20 md:flex-row md:items-end md:justify-between">
+            <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
+              <img src={community.logoUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${community.displayName}`} class="h-20 w-20 rounded-2xl border border-white/25 bg-black/45 object-cover shadow-2xl" alt={`${community.displayName} logo`} />
+              <div class="min-w-0">
+                <div class="flex flex-wrap gap-2">
+                  {community.verified && <span class="rh-verified-badge"><span class="rh-verified-check" aria-hidden="true"><svg viewBox="0 0 20 20" fill="none" class="h-3.5 w-3.5"><path d="m5 10.4 3.1 3.1L15.2 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Verified</span>}
+                  {community.featured && <span class="rh-badge rounded-full border border-amber-300/35 bg-amber-500/20 px-3 py-1 text-[10px] uppercase tracking-[0.16em] text-amber-100">Featured</span>}
+                </div>
+                <p class="mt-3 rh-section-kicker">Community rankings</p>
+                <h1 class="mt-2 max-w-4xl font-display text-4xl leading-none text-white md:text-6xl">{community.displayName}</h1>
+                <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-200 md:text-base">Community-only SR, Honour, clean racing reputation, and recent movement.</p>
+              </div>
+            </div>
+            <a href={`/communities/${community.slug}`} class="rh-community-action w-full border border-white/20 bg-white/[0.06] text-slate-100 hover:border-white/40 hover:bg-white/[0.1] sm:w-auto">Back to HQ</a>
+          </div>
+        </div>
+        <nav class="rh-tab-row border-t border-white/10 bg-black/35 px-4 py-3" aria-label="Community sections">
+          <a href={`/communities/${community.slug}`} class="rh-tab rh-tab-idle">Overview</a>
+          <a href={`/communities/${community.slug}/rankings`} class="rh-tab rh-tab-active">Rankings</a>
+          <a href={`/communities/${community.slug}#results`} class="rh-tab rh-tab-idle">Results</a>
+          <a href={`/communities/${community.slug}#events`} class="rh-tab rh-tab-idle">Events</a>
+          <a href={`/communities/${community.slug}#drivers`} class="rh-tab rh-tab-idle">Drivers</a>
+          <a href={`/communities/${community.slug}#about`} class="rh-tab rh-tab-idle">Rules</a>
+        </nav>
+      </article>
+
+      <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <article class="rh-community-stat"><p class="rh-section-kicker">Members</p><p class="mt-2 font-display text-4xl text-white">{memberDisplay.count.toLocaleString()}</p><p class="text-xs text-slate-500">Active community roster</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Drivers</p><p class="mt-2 font-display text-4xl text-white">{rows.length}</p><p class="text-xs text-slate-500">Ranked in this view</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Top SR</p><p class="mt-2 font-display text-4xl text-white">{topDriver?.skillRating ?? '-'}</p><p class="text-xs text-slate-500">{topDriver ? topDriver.user.username : 'Rankings start with results'}</p></article>
+        <article class="rh-community-stat"><p class="rh-section-kicker">Avg Honour</p><p class="mt-2 font-display text-4xl text-white">{averageHonour ? getHonourGrade(averageHonour).grade : '-'}</p><p class="text-xs text-slate-500">{averageHonour ? `${averageHonour} score` : 'No score recorded'}</p></article>
+        <article class="rh-community-stat sm:col-span-2 xl:col-span-1"><p class="rh-section-kicker">Clean Race %</p><p class="mt-2 font-display text-4xl text-white">{cleanAverage == null ? '-' : `${cleanAverage}%`}</p><p class="text-xs text-slate-500">From ranked drivers</p></article>
+      </section>
+
+      <section class="mt-6 panel rounded-[1.25rem] p-5 md:p-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="rh-section-kicker text-emerald-100/70">Standalone community board</p>
+            <h2 class="font-display text-3xl">Rankings</h2>
+            <p class="mt-2 max-w-2xl text-sm text-slate-400">Separate from global rankings. These rows only reflect activity inside {community.displayName}.</p>
+          </div>
+          <nav class="rh-tab-row" aria-label="Community ranking views">
+            {rankingViews.map((view) => (
+              <a href={`/communities/${community.slug}/rankings?view=${view}`} class:list={['rh-tab', rankingView === view ? 'rh-tab-active' : 'rh-tab-idle']}>
+                {view === 'sr' ? 'SR' : view === 'honour' ? 'Honour' : view === 'clean' ? 'Clean' : 'Movers'}
+              </a>
+            ))}
+          </nav>
+        </div>
+
+        <div class="mt-5 space-y-2">
+          {rows.length ? rows.map((row) => {
+            const grade = getHonourGrade(row.honourScore);
+            return (
+              <div class="rh-ranking-row sm:grid-cols-[auto_1fr_auto_auto_auto_auto]">
+                <span class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/35 text-sm font-semibold text-white">#{row.rank}</span>
+                <div class="flex min-w-0 items-center gap-3">
+                  <img src={row.user.avatarUrl ?? `https://api.dicebear.com/9.x/initials/svg?seed=${row.user.username}`} alt="" loading="lazy" decoding="async" class="h-10 w-10 rounded-full border border-white/10 object-cover" />
+                  <div class="min-w-0">
+                    <p class="truncate font-semibold text-white">{row.user.username}</p>
+                    <p class="text-xs text-slate-500">{row.starts} starts / {row.wins} wins / {row.podiums} podiums</p>
+                  </div>
+                </div>
+                <div class="text-right"><p class="font-display text-2xl text-white">{row.skillRating}</p><p class="text-[10px] uppercase tracking-[0.16em] text-slate-500">SR</p></div>
+                <span class={`hidden rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex ${grade.tone}`}>{grade.label}</span>
+                <span class="hidden text-sm font-semibold text-slate-200 sm:block">{row.cleanRaceRatio}% clean</span>
+                <span class={`hidden text-sm font-semibold sm:block ${row.recentSkillDelta >= 0 ? 'text-emerald-200' : 'text-rose-200'}`}>{formatDelta(row.recentSkillDelta)}</span>
+              </div>
+            );
+          }) : <p class="rh-empty-card">Submit a result to start building community SR.</p>}
+        </div>
+      </section>
+    </section>
+  ) : (
+    <section class="section-shell pb-24">
+      <div class="panel rounded-[1.25rem] p-8">
+        <p class="rh-section-kicker">404</p>
+        <h1 class="section-title mt-2">Community rankings not found</h1>
+        <p class="mt-3 text-slate-300">This community is not public or does not exist.</p>
+        <a href="/communities" class="rh-btn rh-btn-primary mt-5">Back to communities</a>
+      </div>
+    </section>
+  )}
+</BaseLayout>

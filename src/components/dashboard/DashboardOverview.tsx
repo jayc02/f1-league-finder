@@ -199,7 +199,7 @@ export default function DashboardOverview() {
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {overview ? overview.communityRankings.length ? overview.communityRankings.map((row) => (
-            <a key={row.community.slug} href={`/communities/${row.community.slug}#rankings`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-500/[0.05] p-4 transition hover:border-emerald-200/40">
+            <a key={row.community.slug} href={`/communities/${row.community.slug}/rankings`} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-emerald-300/15 bg-emerald-500/[0.05] p-4 transition hover:border-emerald-200/40">
               {row.community.logoUrl ? <img src={row.community.logoUrl} alt="" className="h-11 w-11 rounded-xl border border-white/10 object-cover" /> : <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-sm font-semibold">{row.community.displayName.slice(0, 2).toUpperCase()}</div>}
               <div className="min-w-0">
                 <p className="truncate font-semibold text-white">{row.community.displayName}</p>

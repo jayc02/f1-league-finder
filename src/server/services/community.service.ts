@@ -108,7 +108,7 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
       },
       communityDriverRatings: {
         orderBy: [{ skillRating: 'desc' }, { honourScore: 'desc' }],
-        take: 1,
+        take: 8,
         select: {
           skillRating: true,
           honourScore: true,
@@ -131,10 +131,14 @@ export const getPublicCommunitySummaries = async (optionsOrLimit: PublicCommunit
   const mapped = communities.map((community) => {
     const memberDisplay = getCommunityMemberCountDisplay(community);
     const topDriver = community.communityDriverRatings[0] ?? null;
+    const ratingSample = community.communityDriverRatings;
+    const averageHonourScore = ratingSample.length ? Math.round(ratingSample.reduce((sum, row) => sum + row.honourScore, 0) / ratingSample.length) : null;
 
     return {
       ...community,
       topDriver,
+      averageHonourScore,
+      rankedDriverCount: ratingSample.length,
       reputationScore: topDriver?.skillRating ?? null,
       raceHubMemberCount: community._count.members,
       externalMemberCount:
